@@ -46,13 +46,10 @@ fn main() -> Result<()> {
     let window = MinimalSoftwareWindow::new(RepaintBufferType::ReusedBuffer);
     window.set_size(slint::PhysicalSize::new(pinout::DISPLAY_W, pinout::DISPLAY_H));
 
-    let platform = slint_platform::EspSlintPlatform {
-        window: window.clone(),
-        display: core::cell::RefCell::new(unsafe {
-            core::mem::transmute::<display::Display<'_>, display::Display<'static>>(display)
-        }),
+    let display_static = unsafe {
+        core::mem::transmute::<display::Display<'_>, display::Display<'static>>(display)
     };
-    slint_platform::init_platform(platform);
+    slint_platform::init_platform(window.clone(), display_static);
 
     // ---- Tasks periféricas ----
     touch::spawn_touch_task(|ev| log::debug!("touch: {:?}", ev))?;

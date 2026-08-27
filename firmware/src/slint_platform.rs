@@ -21,7 +21,6 @@ thread_local! {
 
 pub struct EspSlintPlatform {
     pub window: Rc<MinimalSoftwareWindow>,
-    pub display: RefCell<Display<'static>>,
 }
 
 impl Platform for EspSlintPlatform {
@@ -38,13 +37,15 @@ impl Platform for EspSlintPlatform {
     }
 }
 
-/// Regista a plataforma Slint e guarda `window`/`display` para uso no
-/// `run_event_loop`.
-pub fn init_platform(platform: EspSlintPlatform) {
-    WINDOW.with(|w| *w.borrow_mut() = Some(platform.window.clone()));
-    DISPLAY.with(|d| *d.borrow_mut() = Some(platform.display.take()));
+/// Regista a plataforma Slint e guarda `window`/`display` (em thread-locals
+/// deste módulo) para uso no `run_event_loop`. O `display` não faz parte da
+/// struct `EspSlintPlatform` porque o trait `Platform` não precisa dele — só
+/// o loop de eventos, aqui ao lado, é que faz o flush dos pixels.
+pub fn init_platform(window: Rc<MinimalSoftwareWindow>, display: Display<'static>) {
+    DISPLAY.with(|d| *d.borrow_mut() = Some(display));
+    WINDOW.with(|w| *w.borrow_mut() = Some(window.clone()));
 
-    slint::platform::set_platform(Box::new(platform))
+    slint::platform::set_platform(Box::new(EspSlintPlatform { window }))
         .expect("Slint platform já registrada");
 }
 
