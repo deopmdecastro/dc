@@ -67,3 +67,12 @@ serde_json    = { version = "1", default-features = false, features = ["alloc"] 
 [build-dependencies]
 embuild        = "0.33"
 slint-build    = "1.8"
+
+# ---- Configuração do esp-idf-sys/embuild ----
+# Sem esta tabela, o esp-idf-sys ignora por completo o `sdkconfig.defaults`
+# do projeto e gera o `sdkconfig` só com os valores por omissão do Kconfig
+# do ESP-IDF (ex.: CONFIG_ESP_MAIN_TASK_STACK_SIZE=3584, insuficiente para
+# correr o Slint + Wi-Fi dentro da task `main`, causando stack overflow).
+[package.metadata.esp-idf-sys]
+esp_idf_sdkconfig          = "sdkconfig"
+esp_idf_sdkconfig_defaults = ["sdkconfig.defaults"]

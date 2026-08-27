@@ -27,10 +27,14 @@ CONFIG_BT_ENABLED=y
 CONFIG_BT_BLE_ENABLED=y
 
 # ---- Task stacks ----
-# main: aumentado de 16 KB para 32 KB. Com o renderer de software do Slint
-# a correr dentro da própria task `main` (esp-idf-svc binstart), 16 KB
-# revelou-se insuficiente e causou "stack overflow in task main" em testes
-# em hardware real (ver também slint_platform.rs — buffers de linha movidos
-# para thread-locals para reduzir a pressão nesse mesmo ponto da stack).
+# main: aumentado do valor por omissão do ESP-IDF (3584 bytes — insuficiente
+# de longe) para 32 KB. A task `main` (esp-idf-svc binstart) corre toda a
+# inicialização (Wi-Fi, NVS) e o loop de eventos/renderer de software do
+# Slint na mesma stack, o que excede em muito o orçamento pensado para um
+# app_main() "fino" que só spawna outras tasks. Nota: este valor só tem
+# efeito com [package.metadata.esp-idf-sys] definido no Cargo.toml a
+# apontar para este ficheiro — caso contrário o esp-idf-sys ignora-o
+# silenciosamente e usa os defaults do Kconfig (foi o que aconteceu antes
+# desta correção, causando "stack overflow in task main").
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=32768
 CONFIG_ESP_TIMER_TASK_STACK_SIZE=8192
