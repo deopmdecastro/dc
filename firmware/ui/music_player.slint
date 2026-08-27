@@ -5,7 +5,7 @@ export component MusicPlayer inherits Rectangle {
     in property <string> track-title:  "Blinding Lights";
     in property <string> artist:       "The Weeknd";
     in property <string> album:        "After Hours";
-    in property <image>  cover:        @image-url("../assets/cover_placeholder.png");
+    in property <image>  cover;
     in property <float>  progress:     0.4;
     in property <string> pos-label:    "1:24";
     in property <string> dur-label:    "3:20";
@@ -41,7 +41,7 @@ export component MusicPlayer inherits Rectangle {
             Rectangle {
                 width: 96px; height: 96px; border-radius: Theme.radius-m;
                 background: Theme.surface; clip: true;
-                Image { source: root.cover; width: 100%; height: 100%; image-fit: cover; }
+                Image { source: root.cover; width: 100%; height: 100%; image-fit: ImageFit.cover; }
             }
             // Info
             VerticalLayout {

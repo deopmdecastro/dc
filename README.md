@@ -44,7 +44,12 @@ docker compose up -d
 ### Firmware
 ```bash
 cd firmware
-pio run -t upload -t monitor
+cargo build --release --locked
+cargo espflash flash --release --locked --chip esp32s3 --flash-mode dio --flash-size 16mb --partition-table partitions.csv --bootloader ..\..\t\xtensa-esp32s3-espidf\release\bootloader.bin --port COM6 --monitor --monitor-baud 115200 --skip-update-check
 ```
+
+O firmware usa Rust/ESP-IDF com a toolchain `esp` e `cargo-espflash`. A
+configuração do PlatformIO permanece no projeto para o ambiente ESP-IDF, mas o
+build/upload reprodutível do binário Rust é feito pelo Cargo com `Cargo.lock`.
 
 Consulte [`docs/PINOUT.md`](docs/PINOUT.md) para o mapeamento de GPIO.

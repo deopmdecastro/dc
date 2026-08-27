@@ -3,7 +3,6 @@ import { Theme } from "theme.slint";
 // ControlCenter — painel deslizante (swipe Y ↓).
 // Estado 'visible' é controlado por gestos capturados em main.
 export component ControlCenter inherits Rectangle {
-    in property <bool> visible: false;
     in-out property <float> volume:     0.75;
     in-out property <float> brightness: 0.60;
     in-out property <bool>  wifi-on:      true;

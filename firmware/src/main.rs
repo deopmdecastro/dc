@@ -36,10 +36,10 @@ fn main() -> Result<()> {
     let nvs         = EspDefaultNvsPartition::take()?;
 
     // ---- Display + backlight ----
-    let modem = peripherals.modem;
     let display = display::Display::init(unsafe {
         core::ptr::read(&peripherals as *const _)
     })?;
+    let modem = peripherals.modem;
     log::info!("Display OK — {}×{}", display.width, display.height);
 
     // ---- Slint window (software renderer) ----
@@ -52,6 +52,7 @@ fn main() -> Result<()> {
             core::mem::transmute::<display::Display<'_>, display::Display<'static>>(display)
         }),
     };
+    slint_platform::init_platform(platform);
 
     // ---- Tasks periféricas ----
     touch::spawn_touch_task(|ev| log::debug!("touch: {:?}", ev))?;
@@ -69,7 +70,8 @@ fn main() -> Result<()> {
     )?;
 
     // ---- Cria a AppWindow (definida em ui/main.slint) ----
-    let app = AppWindow::new()?;
+    let app = AppWindow::new()
+        .map_err(|e| anyhow::anyhow!("falha ao criar AppWindow Slint: {e:?}"))?;
     // Boot animation → home
     let weak = app.as_weak();
     slint::Timer::single_shot(std::time::Duration::from_millis(1800), move || {
@@ -87,7 +89,8 @@ fn main() -> Result<()> {
     app.on_wake_word_triggered(|| log::info!("UI: wake-word acionada"));
     app.on_launch_app(|idx|      log::info!("UI: launch_app({})", idx));
 
-    app.show()?;
+    app.show()
+        .map_err(|e| anyhow::anyhow!("falha ao exibir AppWindow Slint: {e:?}"))?;
     // ---- Event loop bloqueante ----
-    slint_platform::run_event_loop(platform);
+    slint_platform::run_event_loop();
 }

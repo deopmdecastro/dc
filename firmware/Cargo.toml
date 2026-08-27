@@ -5,6 +5,18 @@ edition     = "2021"
 authors     = ["DC OS Team"]
 description = "DC Assistant firmware — ESP32-S3 (ES3C28P) + Slint"
 license     = "MIT"
+include     = [
+    ".cargo/config.toml",
+    "build.rs",
+    "Cargo.toml",
+    "partitions.csv",
+    "platformio.ini",
+    "rust-toolchain.toml",
+    "sdkconfig.defaults",
+    "scripts/**",
+    "src/**",
+    "ui/**",
+]
 
 [[bin]]
 name = "dc-os-firmware"
@@ -27,9 +39,9 @@ native  = []
 
 [dependencies]
 # ---- ESP-IDF bindings ----
-esp-idf-svc   = { version = "0.49",  features = ["binstart", "alloc"] }
-esp-idf-hal   = { version = "0.44" }
-esp-idf-sys   = { version = "0.35",  features = ["binstart"] }
+esp-idf-svc   = { version = "0.52",  features = ["binstart", "alloc"] }
+esp-idf-hal   = { version = "0.46" }
+esp-idf-sys   = { version = "0.37",  features = ["binstart"] }
 
 # ---- Slint (no_std, embedded backend) ----
 slint         = { version = "1.8", default-features = false, features = [
@@ -53,5 +65,5 @@ serde         = { version = "1", default-features = false, features = ["derive"]
 serde_json    = { version = "1", default-features = false, features = ["alloc"] }
 
 [build-dependencies]
-embuild        = "0.32"
+embuild        = "0.33"
 slint-build    = "1.8"

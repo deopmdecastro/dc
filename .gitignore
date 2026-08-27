@@ -2,7 +2,12 @@
 firmware/target/
 firmware/.embuild/
 firmware/.pio/
+firmware/.platformio/
+.platformio-core/
+t/
 firmware/sdkconfig
+firmware/sdkconfig.*
+!firmware/sdkconfig.defaults
 firmware/dependencies.lock
 
 # Rust backend

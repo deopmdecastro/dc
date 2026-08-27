@@ -4,16 +4,16 @@
 use crate::pinout::{pins, DISPLAY_H, DISPLAY_W};
 use anyhow::Result;
 use esp_idf_hal::{
-    gpio::{AnyIOPin, PinDriver},
+    gpio::{AnyIOPin, Output, PinDriver},
     ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver, Resolution},
     peripherals::Peripherals,
-    prelude::*,
     spi::{config::Config as SpiConfig, SpiDeviceDriver, SpiDriver, SpiDriverConfig},
+    units::*,
 };
 
 pub struct Display<'d> {
     _spi: SpiDeviceDriver<'d, SpiDriver<'d>>,
-    _dc:  PinDriver<'d, AnyIOPin, esp_idf_hal::gpio::Output>,
+    _dc:  PinDriver<'d, Output>,
     pub backlight: LedcDriver<'d>,
     pub width:  u32,
     pub height: u32,
@@ -24,10 +24,10 @@ impl<'d> Display<'d> {
     /// ILI9341V para orientação **horizontal** (Memory Access Control = 0x28).
     pub fn init(p: Peripherals) -> Result<Self> {
         // --- SPI2 ---
-        let sclk = unsafe { AnyIOPin::new(pins::DISP_SCLK as i32) };
-        let mosi = unsafe { AnyIOPin::new(pins::DISP_MOSI as i32) };
-        let cs   = unsafe { AnyIOPin::new(pins::DISP_CS   as i32) };
-        let dc   = unsafe { AnyIOPin::new(pins::DISP_DC   as i32) };
+        let sclk = unsafe { AnyIOPin::steal(pins::DISP_SCLK as _) };
+        let mosi = unsafe { AnyIOPin::steal(pins::DISP_MOSI as _) };
+        let cs   = unsafe { AnyIOPin::steal(pins::DISP_CS   as _) };
+        let dc   = unsafe { AnyIOPin::steal(pins::DISP_DC   as _) };
 
         let spi_drv = SpiDriver::new(
             p.spi2, sclk, mosi, Option::<AnyIOPin>::None, &SpiDriverConfig::new(),
@@ -47,7 +47,7 @@ impl<'d> Display<'d> {
                 .resolution(Resolution::Bits10),
         )?;
         let mut backlight = LedcDriver::new(p.ledc.channel0, timer,
-            unsafe { AnyIOPin::new(pins::DISP_BL as i32) })?;
+            unsafe { AnyIOPin::steal(pins::DISP_BL as _) })?;
         backlight.set_duty(backlight.get_max_duty() * 60 / 100)?; // 60% brilho inicial
 
         let mut disp = Self {

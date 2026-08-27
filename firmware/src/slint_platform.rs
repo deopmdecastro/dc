@@ -25,10 +25,12 @@ impl Platform for EspSlintPlatform {
 }
 
 /// Roda o loop de eventos Slint (bloqueante).
-pub fn run_event_loop(platform: EspSlintPlatform) -> ! {
+pub fn init_platform(platform: EspSlintPlatform) {
     slint::platform::set_platform(Box::new(platform))
         .expect("Slint platform já registrada");
+}
 
+pub fn run_event_loop() -> ! {
     // A janela raiz (`AppWindow`) é criada e mostrada pelo main.rs.
     loop {
         slint::platform::update_timers_and_animations();
