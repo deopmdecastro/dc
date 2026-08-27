@@ -55,6 +55,18 @@ struct SpiLineBuffer<'a> {
     display: &'a mut Display<'static>,
 }
 
+// Buffers de linha do renderer — ficam fora da stack porque `process_line`
+// é chamado de dentro da recursão do software renderer do Slint, no ponto
+// em que a stack da task `main` está mais ocupada. Dois arrays de 640 bytes
+// alocados localmente nessa profundidade foram identificados como
+// contribuinte de um stack overflow observado em testes em hardware.
+thread_local! {
+    static LINE_PIXELS: RefCell<[Rgb565Pixel; DISPLAY_W as usize]> =
+        RefCell::new([Rgb565Pixel(0); DISPLAY_W as usize]);
+    static LINE_BYTES: RefCell<[u8; DISPLAY_W as usize * 2]> =
+        RefCell::new([0u8; DISPLAY_W as usize * 2]);
+}
+
 impl<'a> LineBufferProvider for SpiLineBuffer<'a> {
     type TargetPixel = Rgb565Pixel;
 
@@ -64,26 +76,29 @@ impl<'a> LineBufferProvider for SpiLineBuffer<'a> {
         range: core::ops::Range<usize>,
         render_fn: impl FnOnce(&mut [Self::TargetPixel]),
     ) {
-        // Buffer de linha no stack: largura máxima do painel × 2 bytes/pixel.
-        let mut px_buf = [Rgb565Pixel(0); DISPLAY_W as usize];
-        let slice = &mut px_buf[..range.len()];
-        render_fn(slice);
+        LINE_PIXELS.with(|px_cell| {
+            let mut px_buf = px_cell.borrow_mut();
+            let slice = &mut px_buf[..range.len()];
+            render_fn(slice);
 
-        // Converte para bytes big-endian, como o ILI9341V espera.
-        let mut bytes = [0u8; (DISPLAY_W as usize) * 2];
-        for (i, px) in slice.iter().enumerate() {
-            let be = px.0.to_be_bytes();
-            bytes[i * 2] = be[0];
-            bytes[i * 2 + 1] = be[1];
-        }
+            // Converte para bytes big-endian, como o ILI9341V espera.
+            LINE_BYTES.with(|bytes_cell| {
+                let mut bytes = bytes_cell.borrow_mut();
+                for (i, px) in slice.iter().enumerate() {
+                    let be = px.0.to_be_bytes();
+                    bytes[i * 2] = be[0];
+                    bytes[i * 2 + 1] = be[1];
+                }
 
-        if let Err(e) = self.display.write_line_rgb565(
-            line as u16,
-            range.start as u16,
-            &bytes[..slice.len() * 2],
-        ) {
-            log::warn!("Display: falha ao enviar linha {line}: {e:?}");
-        }
+                if let Err(e) = self.display.write_line_rgb565(
+                    line as u16,
+                    range.start as u16,
+                    &bytes[..slice.len() * 2],
+                ) {
+                    log::warn!("Display: falha ao enviar linha {line}: {e:?}");
+                }
+            });
+        });
     }
 }
 
