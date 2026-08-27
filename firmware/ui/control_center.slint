@@ -1,0 +1,115 @@
+import { Theme } from "theme.slint";
+
+// ControlCenter — painel deslizante (swipe Y ↓).
+// Estado 'visible' é controlado por gestos capturados em main.
+export component ControlCenter inherits Rectangle {
+    in property <bool> visible: false;
+    in-out property <float> volume:     0.75;
+    in-out property <float> brightness: 0.60;
+    in-out property <bool>  wifi-on:      true;
+    in-out property <bool>  bluetooth-on: true;
+    in-out property <bool>  dnd-on:       false;
+    in-out property <bool>  autorotate:   true;
+
+    callback brightness-changed(float);
+    callback volume-changed(float);
+
+    width: 100%;
+    height: 100%;
+    background: Theme.bg-1;
+    opacity: root.visible ? 1.0 : 0.0;
+    animate opacity { duration: 220ms; easing: ease-in-out; }
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 10px;
+
+        // Grid de toggles (4 colunas)
+        HorizontalLayout {
+            spacing: 8px;
+            toggle-tile := Rectangle {
+                width: 68px; height: 60px;
+                border-radius: Theme.radius-m;
+                background: root.wifi-on ? Theme.accent : Theme.surface;
+                TouchArea { clicked => { root.wifi-on = !root.wifi-on; } }
+                Text {
+                    text: "Wi-Fi";
+                    color: Theme.text-primary;
+                    font-size: Theme.font-xs;
+                    x: 8px; y: parent.height - self.preferred-height - 6px;
+                }
+            }
+            Rectangle {
+                width: 68px; height: 60px;
+                border-radius: Theme.radius-m;
+                background: root.bluetooth-on ? Theme.accent-2 : Theme.surface;
+                TouchArea { clicked => { root.bluetooth-on = !root.bluetooth-on; } }
+                Text { text: "Bluetooth"; color: Theme.text-primary; font-size: Theme.font-xs; }
+            }
+            Rectangle {
+                width: 68px; height: 60px;
+                border-radius: Theme.radius-m;
+                background: root.dnd-on ? Theme.accent-pink : Theme.surface;
+                TouchArea { clicked => { root.dnd-on = !root.dnd-on; } }
+                Text { text: "Não perturbe"; color: Theme.text-primary; font-size: Theme.font-xs; }
+            }
+            Rectangle {
+                width: 68px; height: 60px;
+                border-radius: Theme.radius-m;
+                background: root.autorotate ? Theme.success : Theme.surface;
+                TouchArea { clicked => { root.autorotate = !root.autorotate; } }
+                Text { text: "Rotação"; color: Theme.text-primary; font-size: Theme.font-xs; }
+            }
+        }
+
+        // Slider volume
+        Rectangle {
+            height: 32px;
+            border-radius: Theme.radius-m;
+            background: Theme.surface;
+            HorizontalLayout {
+                padding-left: 10px; padding-right: 10px; spacing: 8px;
+                Text { text: "Volume"; color: Theme.text-secondary; font-size: Theme.font-sm; vertical-alignment: center; }
+                Rectangle {
+                    background: Theme.bg-2;
+                    border-radius: 4px;
+                    height: 6px;
+                    y: (parent.height - self.height) / 2;
+                    horizontal-stretch: 1;
+                    Rectangle {
+                        background: Theme.accent;
+                        border-radius: 4px;
+                        width: parent.width * root.volume;
+                        height: 100%;
+                    }
+                }
+                Text { text: Math.round(root.volume * 100) + "%"; color: Theme.text-primary; font-size: Theme.font-sm; }
+            }
+        }
+
+        // Slider brilho
+        Rectangle {
+            height: 32px;
+            border-radius: Theme.radius-m;
+            background: Theme.surface;
+            HorizontalLayout {
+                padding-left: 10px; padding-right: 10px; spacing: 8px;
+                Text { text: "Brilho"; color: Theme.text-secondary; font-size: Theme.font-sm; vertical-alignment: center; }
+                Rectangle {
+                    background: Theme.bg-2;
+                    border-radius: 4px;
+                    height: 6px;
+                    y: (parent.height - self.height) / 2;
+                    horizontal-stretch: 1;
+                    Rectangle {
+                        background: Theme.accent-2;
+                        border-radius: 4px;
+                        width: parent.width * root.brightness;
+                        height: 100%;
+                    }
+                }
+                Text { text: Math.round(root.brightness * 100) + "%"; color: Theme.text-primary; font-size: Theme.font-sm; }
+            }
+        }
+    }
+}

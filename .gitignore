@@ -1,0 +1,21 @@
+# Rust / esp-idf
+firmware/target/
+firmware/.embuild/
+firmware/.pio/
+firmware/sdkconfig
+firmware/dependencies.lock
+
+# Rust backend
+backend/dc-os-core/target/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+backend/**/data/

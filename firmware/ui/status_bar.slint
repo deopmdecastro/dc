@@ -1,0 +1,40 @@
+import { Theme } from "theme.slint";
+
+// StatusBar — barra superior fixa (24 px). Mostra hora + Wi-Fi + BT.
+export component StatusBar inherits Rectangle {
+    in property <string> current-time: "09:42";
+    in property <bool>   wifi-on:      true;
+    in property <bool>   bluetooth-on: true;
+
+    height: 24px;
+    background: Theme.bg-0;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        alignment: space-between;
+
+        Text {
+            text: root.current-time;
+            color: Theme.text-primary;
+            font-size: Theme.font-sm;
+            vertical-alignment: center;
+        }
+
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                text: root.wifi-on ? "\u{f1eb}" : "\u{f6ac}"; // wifi / wifi-slash
+                color: root.wifi-on ? Theme.accent-2 : Theme.text-muted;
+                font-size: Theme.font-sm;
+                vertical-alignment: center;
+            }
+            Text {
+                text: "\u{f294}"; // bluetooth
+                color: root.bluetooth-on ? Theme.accent-2 : Theme.text-muted;
+                font-size: Theme.font-sm;
+                vertical-alignment: center;
+            }
+        }
+    }
+}

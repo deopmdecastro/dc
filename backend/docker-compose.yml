@@ -1,0 +1,58 @@
+# DC OS — Backend local (hub de voz + música)
+#
+# Serviços:
+#   dc-os-core      Rust · axum · WebSocket bridge para o firmware
+#   stt-whisper     Whisper.cpp REST (transcrição PT-BR offline)
+#   mopidy          Player + Librespot (Spotify Connect)
+
+services:
+  dc-os-core:
+    build:
+      context: ./dc-os-core
+    container_name: dc-os-core
+    restart: unless-stopped
+    ports:
+      - "8080:8080"          # HTTP + WebSocket /ws
+    environment:
+      RUST_LOG: info
+      STT_URL:      http://stt-whisper:9000/asr
+      MOPIDY_URL:   http://mopidy:6680
+      DC_CORE_HOST: 0.0.0.0
+      DC_CORE_PORT: "8080"
+    depends_on:
+      - stt-whisper
+      - mopidy
+    networks: [dc]
+
+  stt-whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: stt-whisper
+    restart: unless-stopped
+    environment:
+      ASR_MODEL:  small
+      ASR_ENGINE: openai_whisper
+    ports:
+      - "9000:9000"
+    volumes:
+      - whisper-cache:/root/.cache/whisper
+    networks: [dc]
+
+  mopidy:
+    image: wernight/mopidy:latest
+    container_name: mopidy
+    restart: unless-stopped
+    ports:
+      - "6680:6680"          # HTTP JSON-RPC / Web
+      - "6600:6600"          # MPD
+    volumes:
+      - ./config/mopidy.conf:/config/mopidy.conf:ro
+      - mopidy-data:/var/lib/mopidy
+    networks: [dc]
+
+networks:
+  dc:
+    driver: bridge
+
+volumes:
+  whisper-cache: {}
+  mopidy-data:   {}

@@ -1,0 +1,82 @@
+import { Theme } from "theme.slint";
+
+export struct WifiNetwork { ssid: string, secured: bool, connected: bool }
+
+// Settings — gerência de senha e Wi-Fi/Bluetooth.
+export component SettingsPanel inherits Rectangle {
+    in-out property <bool> wifi-on: true;
+    in property <[WifiNetwork]> networks: [
+        { ssid: "Casa_Deo",   secured: true,  connected: true  },
+        { ssid: "DC_Network", secured: true,  connected: false },
+        { ssid: "Visitantes", secured: false, connected: false },
+    ];
+    callback back();
+    callback change-passcode();
+    callback network-selected(string);
+
+    width: 100%; height: 100%;
+    background: Theme.bg-1;
+
+    VerticalLayout {
+        padding: 8px; spacing: 6px;
+        HorizontalLayout {
+            spacing: 8px;
+            Rectangle {
+                width: 24px; height: 24px; border-radius: 6px; background: Theme.surface;
+                TouchArea { clicked => { root.back(); } }
+                Text { text: "\u{2190}"; horizontal-alignment: center; vertical-alignment: center;
+                       color: Theme.text-primary; }
+            }
+            Text { text: "Definições"; color: Theme.text-primary;
+                   font-size: Theme.font-md; vertical-alignment: center; }
+        }
+
+        // Toggle Wi-Fi
+        Rectangle {
+            height: 32px; border-radius: Theme.radius-m; background: Theme.surface;
+            HorizontalLayout {
+                padding-left: 10px; padding-right: 10px; alignment: space-between;
+                Text { text: "Wi-Fi"; color: Theme.text-primary; font-size: Theme.font-sm;
+                       vertical-alignment: center; }
+                Rectangle {
+                    width: 38px; height: 18px; border-radius: 9px;
+                    background: root.wifi-on ? Theme.accent : Theme.surface-hi;
+                    y: (parent.height - self.height) / 2;
+                    TouchArea { clicked => { root.wifi-on = !root.wifi-on; } }
+                    Rectangle {
+                        width: 14px; height: 14px; border-radius: 7px;
+                        background: Theme.text-primary;
+                        x: root.wifi-on ? parent.width - self.width - 2px : 2px;
+                        y: (parent.height - self.height) / 2;
+                        animate x { duration: 180ms; easing: ease-in-out; }
+                    }
+                }
+            }
+        }
+
+        Text { text: "Redes disponíveis"; color: Theme.text-secondary;
+               font-size: Theme.font-xs; }
+
+        for n in root.networks : Rectangle {
+            height: 26px; border-radius: Theme.radius-s; background: Theme.surface;
+            TouchArea { clicked => { root.network-selected(n.ssid); } }
+            HorizontalLayout {
+                padding-left: 8px; padding-right: 8px; alignment: space-between;
+                Text { text: (n.connected ? "\u{2713} " : "") + n.ssid;
+                       color: n.connected ? Theme.accent-2 : Theme.text-primary;
+                       font-size: Theme.font-xs; vertical-alignment: center; }
+                Text { text: n.secured ? "\u{1F512}" : "";
+                       color: Theme.text-muted; font-size: Theme.font-xs;
+                       vertical-alignment: center; }
+            }
+        }
+
+        Rectangle {
+            height: 28px; border-radius: Theme.radius-m; background: Theme.accent;
+            TouchArea { clicked => { root.change-passcode(); } }
+            Text { text: "Alterar Senha"; color: Theme.text-primary;
+                   font-size: Theme.font-sm; horizontal-alignment: center;
+                   vertical-alignment: center; }
+        }
+    }
+}

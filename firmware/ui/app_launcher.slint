@@ -1,0 +1,63 @@
+import { Theme } from "theme.slint";
+
+export struct AppEntry { name: string, icon: string, color: color }
+
+// AppLauncher — grade 4x2 (swipe X). Barra lateral esquerda com atalhos.
+export component AppLauncher inherits Rectangle {
+    in property <[AppEntry]> apps: [
+        { name: "DC Assistant", icon: "\u{1F4AC}", color: Theme.accent },
+        { name: "Música",       icon: "\u{1F3B5}", color: Theme.accent-pink },
+        { name: "Clima",        icon: "\u{2600}",  color: Theme.warning },
+        { name: "Agenda",       icon: "\u{1F4C5}", color: Theme.danger },
+        { name: "Notas",        icon: "\u{1F4DD}", color: Theme.warning },
+        { name: "Loja",         icon: "\u{1F6D2}", color: Theme.accent-2 },
+        { name: "Definições",   icon: "\u{2699}",  color: Theme.text-secondary },
+        { name: "Mais",         icon: "\u{22EF}",  color: Theme.text-muted },
+    ];
+    callback app-clicked(int);
+
+    width: 100%; height: 100%;
+    background: Theme.bg-1;
+
+    HorizontalLayout {
+        // Sidebar
+        Rectangle {
+            width: 44px;
+            background: Theme.bg-2;
+            VerticalLayout {
+                alignment: start; spacing: 10px; padding-top: 8px;
+                for e in [ "\u{1F3E0}", "\u{1F3B5}", "\u{1F6D2}", "\u{2699}" ] :
+                    Rectangle {
+                        width: 32px; height: 32px; border-radius: 8px;
+                        background: Theme.surface;
+                        Text { text: e; horizontal-alignment: center; vertical-alignment: center;
+                               color: Theme.text-primary; }
+                    }
+            }
+        }
+
+        // Grid
+        Rectangle {
+            horizontal-stretch: 1;
+            VerticalLayout {
+                padding: 8px; spacing: 6px;
+                Text { text: "Aplicações"; color: Theme.text-primary; font-size: Theme.font-md; }
+                for row in [[0,1,2,3],[4,5,6,7]] : HorizontalLayout {
+                    spacing: 6px;
+                    for i in row : Rectangle {
+                        width: 54px; height: 54px; border-radius: Theme.radius-m;
+                        background: Theme.surface;
+                        TouchArea { clicked => { root.app-clicked(i); } }
+                        VerticalLayout {
+                            alignment: center; spacing: 2px;
+                            Text { text: root.apps[i].icon; color: root.apps[i].color;
+                                   font-size: Theme.font-lg; horizontal-alignment: center; }
+                            Text { text: root.apps[i].name; color: Theme.text-secondary;
+                                   font-size: 8px; horizontal-alignment: center; }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
