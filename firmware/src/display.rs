@@ -4,6 +4,7 @@
 use crate::pinout::{pins, DISPLAY_H, DISPLAY_W};
 use anyhow::Result;
 use esp_idf_hal::{
+    delay::FreeRtos,
     gpio::{AnyIOPin, Output, PinDriver},
     ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver, Resolution},
     peripherals::Peripherals,
@@ -11,9 +12,19 @@ use esp_idf_hal::{
     units::*,
 };
 
+// Comandos ILI9341V usados no bring-up e no envio de pixels.
+const CMD_SWRESET: u8 = 0x01;
+const CMD_SLPOUT:  u8 = 0x11;
+const CMD_DISPON:  u8 = 0x29;
+const CMD_CASET:   u8 = 0x2A;
+const CMD_PASET:   u8 = 0x2B;
+const CMD_RAMWR:   u8 = 0x2C;
+const CMD_MADCTL:  u8 = 0x36;
+const CMD_COLMOD:  u8 = 0x3A;
+
 pub struct Display<'d> {
-    _spi: SpiDeviceDriver<'d, SpiDriver<'d>>,
-    _dc:  PinDriver<'d, Output>,
+    spi:  SpiDeviceDriver<'d, SpiDriver<'d>>,
+    dc:   PinDriver<'d, Output>,
     pub backlight: LedcDriver<'d>,
     pub width:  u32,
     pub height: u32,
@@ -51,8 +62,8 @@ impl<'d> Display<'d> {
         backlight.set_duty(backlight.get_max_duty() * 60 / 100)?; // 60% brilho inicial
 
         let mut disp = Self {
-            _spi: spi,
-            _dc:  dc,
+            spi,
+            dc,
             backlight,
             width:  DISPLAY_W,
             height: DISPLAY_H,
@@ -61,17 +72,66 @@ impl<'d> Display<'d> {
         Ok(disp)
     }
 
-    /// Sequência de comandos do ILI9341V para 320×240 horizontal.
-    /// (Stubs — a implementação completa usa os helpers privados
-    /// `cmd`/`data` sobre o SpiDeviceDriver.)
+    /// Envia um byte de comando (linha DC em nível baixo).
+    fn cmd(&mut self, cmd: u8) -> Result<()> {
+        self.dc.set_low()?;
+        self.spi.write(&[cmd])?;
+        Ok(())
+    }
+
+    /// Envia bytes de dados associados ao último comando (DC em nível alto).
+    fn data(&mut self, data: &[u8]) -> Result<()> {
+        self.dc.set_high()?;
+        self.spi.write(data)?;
+        Ok(())
+    }
+
+    /// Sequência de comandos do ILI9341V para 320×240 horizontal (MADCTL 0x28,
+    /// BGR, sem mirror) e 16 bpp (RGB565). Sem esta sequência o painel fica
+    /// com o backlight ligado mas sem imagem — ecrã aparenta "luz branca".
     fn bring_up_ili9341v(&mut self) -> Result<()> {
         log::info!("Display: ILI9341V bring-up ({}×{})", self.width, self.height);
-        // TODO: SWRESET (0x01) → delay 120 ms
-        //       SLPOUT  (0x11) → delay 120 ms
-        //       MADCTL  (0x36) ← 0x28  (rotação horizontal, BGR)
-        //       COLMOD  (0x3A) ← 0x55  (16 bpp)
-        //       DISPON  (0x29)
+
+        self.cmd(CMD_SWRESET)?;
+        FreeRtos::delay_ms(120);
+
+        self.cmd(CMD_SLPOUT)?;
+        FreeRtos::delay_ms(120);
+
+        self.cmd(CMD_MADCTL)?;
+        self.data(&[0x28])?; // rotação horizontal, BGR
+
+        self.cmd(CMD_COLMOD)?;
+        self.data(&[0x55])?; // 16 bpp (RGB565)
+        FreeRtos::delay_ms(10);
+
+        self.cmd(CMD_DISPON)?;
+        FreeRtos::delay_ms(20);
+
+        log::info!("Display: ILI9341V pronto");
         Ok(())
+    }
+
+    /// Define a janela de escrita (endereço de coluna/linha) e prepara o
+    /// controlador para receber dados de pixel via RAMWR.
+    fn set_window(&mut self, x0: u16, y0: u16, x1: u16, y1: u16) -> Result<()> {
+        self.cmd(CMD_CASET)?;
+        self.data(&[(x0 >> 8) as u8, x0 as u8, (x1 >> 8) as u8, x1 as u8])?;
+
+        self.cmd(CMD_PASET)?;
+        self.data(&[(y0 >> 8) as u8, y0 as u8, (y1 >> 8) as u8, y1 as u8])?;
+
+        self.cmd(CMD_RAMWR)?;
+        Ok(())
+    }
+
+    /// Escreve uma linha de pixels RGB565 (big-endian, como o ILI9341V
+    /// espera) na região [x0, x1) da linha `y`. Usado pelo backend do Slint
+    /// (`slint_platform.rs`) para fazer flush do framebuffer.
+    pub fn write_line_rgb565(&mut self, y: u16, x0: u16, pixels_be: &[u8]) -> Result<()> {
+        let x1 = x0 + (pixels_be.len() / 2) as u16;
+        self.set_window(x0, y, x1.saturating_sub(1), y)?;
+        self.data(pixels_be)
     }
 
     /// Ajusta brilho 0.0..1.0 via PWM no GPIO45.
