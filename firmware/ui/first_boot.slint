@@ -99,7 +99,17 @@ export component PasscodeSetup inherits Rectangle {
         background: Theme.panel-elevated;
         border-width: 1px;
         border-color: Theme.stroke;
-        opacity: root.filled > 0 ? 1.0 : 0.55;
+        // `states` em vez de `cond ? 1.0 : 0.55`: esse ternario de dois
+        // literais float e exatamente o padrao que o LLVM transformava num
+        // load a partir de um constant pool [2 x float] — o que o backend
+        // Xtensa nao conseguia selecionar (Cannot select: PCREL_WRAPPER).
+        // Ver nota em firmware/Cargo.toml.
+        opacity: 0.55;
+        states [
+            filled when root.filled > 0: {
+                opacity: 1.0;
+            }
+        ]
         TouchArea {
             clicked => {
                 if (root.filled > 0) {
@@ -123,10 +133,16 @@ export component PasscodeSetup inherits Rectangle {
     Rectangle {
         x: 230px; y: 194px; width: 60px; height: 36px;
         border-radius: Theme.radius-s;
-        background: root.filled == root.pin-length ? Theme.accent : Theme.accent-deep;
-        opacity: root.filled == root.pin-length ? 1.0 : 0.65;
+        background: Theme.accent-deep;
+        opacity: 0.65;
         border-width: 1px;
         border-color: Theme.accent-hi;
+        states [
+            ready when root.filled == root.pin-length: {
+                background: Theme.accent;
+                opacity: 1.0;
+            }
+        ]
         TouchArea {
             clicked => {
                 if (root.filled == root.pin-length) {

@@ -23,16 +23,21 @@ name = "dc-os-firmware"
 path = "src/main.rs"
 
 [profile.release]
-opt-level     = "s"
-# NOTE: "lto = true" (fat LTO) combinado com codegen-units = 1 dispara um bug
-# conhecido do backend LLVM-Xtensa: "Cannot select: XtensaISD::PCREL_WRAPPER
-# TargetConstantPool<[2 x float] ...>". Acontece ao selecionar instrucoes
-# para aceder a um constant pool de floats (ex.: curva bezier gerada pelo
-# Slint para `easing: ease-in-out`) dentro de funcoes `init` repetidas por
-# instancia de um `for` (ver PasscodeSetup em ui/first_boot.slint). O
-# backend Xtensa ainda e imaturo para certos padroes de codegen sob fat LTO.
-# "thin" LTO evita esse caminho de codegen e continua a dar boa parte do
-# ganho de otimizacao entre crates.
+# NOTE: "opt-level = \"s\"/\"z\"" (otimizacao por tamanho) fazia o LLVM
+# transformar `select`s de dois literais float (ex.: um ternario de opacidade
+# `cond ? 1.0 : 0.55`) num "load sem branch" a partir de um constant pool
+# `[2 x float]`, indexado pela condicao — uma otimizacao classica para
+# reduzir codigo evitando desvios. O backend Xtensa nao consegue selecionar
+# a instrucao de endereçamento (PCREL_WRAPPER) para esse acesso especifico
+# dentro da closure `init` gerada pelo Slint para PasscodeSetup (ver
+# `opacity: root.filled > 0 ? 1.0 : 0.55;` em ui/first_boot.slint):
+#   rustc-LLVM ERROR: Cannot select: XtensaISD::PCREL_WRAPPER
+#   TargetConstantPool<[2 x float] [float 0.55, float 1.0]>
+# lto=thin/false NAO resolve isto — a causa raiz e o nivel de otimizacao,
+# nao o LTO. "opt-level = 2" evita esse caminho especifico de codegen
+# (a transformacao select->array e tipica de -Os/-Oz). Ainda cabe
+# confortavelmente na flash de 16MB deste dispositivo.
+opt-level     = 2
 lto           = "thin"
 codegen-units = 1
 strip         = true
