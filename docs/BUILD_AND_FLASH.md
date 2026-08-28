@@ -62,17 +62,45 @@ pio device list
 ## 2B. Build + flash apenas com cargo/espflash
 
 Alternativa sem PlatformIO — útil para iteração rápida durante o
-debug do display:
+debug do display.
+
+> ⚠️ **Atenção à versão do `espflash`.** A partir da v3, o binário
+> `espflash` sozinho **não** aceita `--release` — esse flag só existe
+> no subcomando `cargo espflash` (do pacote `cargo-espflash`), que
+> invoca o `cargo build` por ti. O `espflash flash` "puro" espera
+> sempre o **caminho do ELF já compilado** como argumento posicional.
+> Repara também que o `.cargo/config.toml` deste projeto redireciona
+> o `target-dir` para `../../t` (para encurtar caminhos no Windows),
+> por isso o ELF **não** fica em `firmware/target/...`.
+
+**Opção 1 — `cargo-espflash` (recomendada, um único comando):**
+
+```bash
+cargo install cargo-espflash --locked
+cd firmware
+source $HOME/export-esp.sh        # Linux/macOS; no Windows: . $HOME/export-esp.ps1
+
+# Compila e grava (chama o cargo build internamente) e abre o monitor
+cargo espflash flash --release --monitor
+# Se não detetar a porta sozinho: --port /dev/ttyUSB0 (Linux) ou --port COM5 (Windows)
+```
+
+**Opção 2 — `espflash` "puro" (sem instalar mais nada):**
 
 ```bash
 cd firmware
-source $HOME/export-esp.sh        # variáveis do toolchain Xtensa
-
+source $HOME/export-esp.sh
 cargo build --release --locked
 
-# Grava e já abre o monitor série a seguir (Ctrl+C para sair)
-espflash flash --release --monitor /dev/ttyUSB0
+# Linux/macOS:
+espflash flash --monitor ../../t/xtensa-esp32s3-espidf/release/dc-os-firmware
+
+# Windows (PowerShell):
+espflash flash --monitor ..\..\t\xtensa-esp32s3-espidf\release\dc-os-firmware
 ```
+
+Se não detetar a porta automaticamente, acrescenta `--port <porta>`
+(`/dev/ttyUSB0` no Linux, `COM5` por exemplo no Windows).
 
 Se não souberes a porta:
 
@@ -145,8 +173,11 @@ esta ordem para evitar reaproveitar um build/sdkconfig desatualizado:
    confirma que termina sem erros
 4. Coloca o ES3C28P em modo bootloader se o `esptool` não conseguir ligar
    sozinho: mantém **BOOT** premido, toca em **RESET**, solta **BOOT**
-5. `espflash flash --release --monitor /dev/ttyUSB0` (ou
-   `pio run -t upload` seguido de `pio device monitor`)
+5. Grava com o `cargo espflash flash --release --monitor` (recomendado)
+   ou `espflash flash --monitor <caminho-do-ELF>` — ver secção 2B para o
+   caminho exato do ELF e por que `espflash flash --release` sozinho
+   dá erro nas versões recentes — ou `pio run -t upload` seguido de
+   `pio device monitor`
 6. No monitor série, confirma pela ordem:
    ```
    DC OS boot — DC Assistant firmware v0.1.0
