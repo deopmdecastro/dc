@@ -11,16 +11,20 @@
 #![allow(clippy::needless_return)]
 
 mod audio;
+mod config;
 mod display;
 mod network;
 mod pinout;
 mod slint_platform;
+mod system;
 mod touch;
 
 use anyhow::Result;
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
+use std::{cell::RefCell, rc::Rc, sync::mpsc};
+use system::{NetworkCommand, SystemEvent};
 
 // Módulo gerado a partir de ui/main.slint.
 slint::include_modules!();
@@ -34,6 +38,8 @@ fn main() -> Result<()> {
     let peripherals = Peripherals::take()?;
     let sysloop     = EspSystemEventLoop::take()?;
     let nvs         = EspDefaultNvsPartition::take()?;
+    let config_store = Rc::new(RefCell::new(config::ConfigStore::new(nvs.clone())?));
+    let app_config = config_store.borrow().load();
 
     // ---- Display + backlight ----
     // Só se passam os periféricos concretos de que o Display precisa
@@ -59,6 +65,8 @@ fn main() -> Result<()> {
 
     // ---- Tasks periféricas ----
     let touch_rx = touch::spawn_touch_task(peripherals.i2c0)?;
+    let (network_cmd_tx, network_cmd_rx) = mpsc::channel();
+    let (system_event_tx, system_event_rx) = mpsc::channel();
     audio::spawn_audio_task(
         |_lvl| { /* atualizar audio-level da UI via .invoke_from_event_loop */ },
         |_pcm| { /* enviar buffer PCM ao WebSocket */ },
@@ -66,21 +74,33 @@ fn main() -> Result<()> {
     network::spawn_network_task(
         modem, sysloop, nvs,
         network::NetConfig {
-            ssid:      option_env!("DC_WIFI_SSID").unwrap_or("DC_Network"),
-            password:  option_env!("DC_WIFI_PASS").unwrap_or(""),
-            server_ws: option_env!("DC_CORE_WS").unwrap_or("ws://192.168.1.50:8080/ws"),
+            enabled: app_config.wifi_enabled,
+            ssid: app_config.wifi_ssid.clone(),
+            password: app_config.wifi_password.clone(),
+            api_health_url: app_config.api_health_url.clone(),
         },
+        network_cmd_rx,
+        system_event_tx.clone(),
     )?;
 
     // ---- Cria a AppWindow (definida em ui/main.slint) ----
     let app = AppWindow::new()
         .map_err(|e| anyhow::anyhow!("falha ao criar AppWindow Slint: {e:?}"))?;
+    app.set_wifi_on(app_config.wifi_enabled);
+    app.set_bluetooth_on(app_config.bluetooth_enabled);
+    app.set_current_time("--:--".into());
+    slint_platform::set_app_window(&app);
     // Boot animation → home. 2200ms deixa o fade-in + hold do logo completos
     // antes de descer para a tela de definicao de senha.
     let weak = app.as_weak();
+    let has_passcode = app_config.passcode.is_some();
     slint::Timer::single_shot(std::time::Duration::from_millis(2200), move || {
         if let Some(w) = weak.upgrade() {
-            w.set_current_screen(Screen::FirstBootPasscode);
+            w.set_current_screen(if has_passcode {
+                Screen::Home
+            } else {
+                Screen::FirstBootPasscode
+            });
         }
     });
 
@@ -92,6 +112,64 @@ fn main() -> Result<()> {
     app.on_set_volume(|v| log::info!("UI: volume {:.0}%", v * 100.0));
     app.on_wake_word_triggered(|| log::info!("UI: wake-word acionada"));
     app.on_launch_app(|idx|      log::info!("UI: launch_app({})", idx));
+    {
+        let store = config_store.clone();
+        app.on_passcode_created(move |pass| {
+            if let Err(e) = store.borrow().save_passcode(pass.as_str()) {
+                log::warn!("NVS: falha ao guardar PIN inicial: {e:?}");
+            } else {
+                log::info!("NVS: PIN inicial guardado");
+            }
+        });
+    }
+    {
+        let store = config_store.clone();
+        app.on_passcode_updated(move |pass| {
+            if let Err(e) = store.borrow().save_passcode(pass.as_str()) {
+                log::warn!("NVS: falha ao atualizar PIN: {e:?}");
+            } else {
+                log::info!("NVS: PIN atualizado");
+            }
+        });
+    }
+    {
+        let store = config_store.clone();
+        let tx = network_cmd_tx.clone();
+        app.on_wifi_enabled_changed(move |enabled| {
+            if let Err(e) = store.borrow().save_wifi_enabled(enabled) {
+                log::warn!("NVS: falha ao guardar estado Wi-Fi: {e:?}");
+            }
+            let _ = tx.send(NetworkCommand::SetWifiEnabled(enabled));
+        });
+    }
+    {
+        let store = config_store.clone();
+        let tx = network_cmd_tx.clone();
+        let wifi_password = app_config.wifi_password.clone();
+        app.on_wifi_network_selected(move |ssid| {
+            if let Err(e) = store.borrow().save_wifi_credentials(ssid.as_str(), &wifi_password) {
+                log::warn!("NVS: falha ao guardar rede Wi-Fi: {e:?}");
+            }
+            let _ = tx.send(NetworkCommand::SetWifiCredentials {
+                ssid: ssid.to_string(),
+                password: wifi_password.clone(),
+            });
+        });
+    }
+    {
+        let store = config_store.clone();
+        let event_tx = system_event_tx.clone();
+        app.on_bluetooth_enabled_changed(move |enabled| {
+            if let Err(e) = store.borrow().save_bluetooth_enabled(enabled) {
+                log::warn!("NVS: falha ao guardar estado Bluetooth: {e:?}");
+            }
+            let _ = event_tx.send(SystemEvent::BluetoothChanged(enabled));
+            log::info!(
+                "Bluetooth: estado {} guardado; inicializacao BLE fica pendente de driver dedicado",
+                if enabled { "ligado" } else { "desligado" }
+            );
+        });
+    }
     app.on_set_rotation(|on| {
         log::info!("UI: rotacao automatica {}", if on { "ligada" } else { "desligada" });
         slint_platform::apply_display_rotation(on);
@@ -101,5 +179,5 @@ fn main() -> Result<()> {
         .map_err(|e| anyhow::anyhow!("falha ao exibir AppWindow Slint: {e:?}"))?;
     window.request_redraw();
     // ---- Event loop bloqueante ----
-    slint_platform::run_event_loop(touch_rx);
+    slint_platform::run_event_loop(touch_rx, system_event_rx);
 }

@@ -1,9 +1,7 @@
 import { Theme } from "theme.slint";
 
-// PIN de 5 digitos com teclado numerico + botao apagar + botao confirmar.
-// Usa 5 slots individuais (d0..d4) porque o Slint 1.8 nao expoe substring()
-// em `string`. O `filled` mantem a posicao ativa e o `passcode-str` (o valor
-// que o Rust recebe no callback) e composto por concatenacao dos slots.
+// PIN de 5 digitos com teclado numerico. Mantem a logica simples para o
+// firmware e evita constantes float decorativas no codigo Slint gerado.
 export component PasscodeSetup inherits Rectangle {
     in-out property <string> d0: "";
     in-out property <string> d1: "";
@@ -40,7 +38,6 @@ export component PasscodeSetup inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // Indicadores do PIN (5 pontos, centrados)
     HorizontalLayout {
         x: 118px; y: 70px; width: 84px; height: 12px;
         spacing: 10px;
@@ -50,16 +47,9 @@ export component PasscodeSetup inherits Rectangle {
             background: i < root.filled ? Theme.accent : #00000000;
             border-width: 1px;
             border-color: i < root.filled ? Theme.accent-hi : Theme.text-muted;
-            // `linear` em vez de `ease-in-out`: o easing bezier gera uma
-            // constante [2 x float] no `init` desta instancia do `for`,
-            // que era exatamente o padrao que crashava o backend LLVM-
-            // Xtensa (Cannot select: XtensaISD::PCREL_WRAPPER). Ver nota
-            // em firmware/Cargo.toml.
-            animate background { duration: 120ms; easing: linear; }
         }
     }
 
-    // Teclado 1-5 / 6-0
     for row[index] in [[ "1","2","3","4","5" ], [ "6","7","8","9","0" ]] : HorizontalLayout {
         x: 30px; y: 96px + index * 42px; width: 260px; height: 36px;
         spacing: 8px;
@@ -92,24 +82,12 @@ export component PasscodeSetup inherits Rectangle {
         }
     }
 
-    // Botao apagar (backspace) — canto inferior esquerdo do teclado
     Rectangle {
         x: 30px; y: 194px; width: 60px; height: 36px;
         border-radius: Theme.radius-s;
-        background: Theme.panel-elevated;
+        background: root.filled > 0 ? Theme.panel-elevated : Theme.panel-soft;
         border-width: 1px;
-        border-color: Theme.stroke;
-        // `states` em vez de `cond ? 1.0 : 0.55`: esse ternario de dois
-        // literais float e exatamente o padrao que o LLVM transformava num
-        // load a partir de um constant pool [2 x float] — o que o backend
-        // Xtensa nao conseguia selecionar (Cannot select: PCREL_WRAPPER).
-        // Ver nota em firmware/Cargo.toml.
-        opacity: 0.55;
-        states [
-            filled when root.filled > 0: {
-                opacity: 1.0;
-            }
-        ]
+        border-color: root.filled > 0 ? Theme.stroke : Theme.text-dim;
         TouchArea {
             clicked => {
                 if (root.filled > 0) {
@@ -129,20 +107,12 @@ export component PasscodeSetup inherits Rectangle {
         }
     }
 
-    // Botao confirmar (check) — canto inferior direito
     Rectangle {
         x: 230px; y: 194px; width: 60px; height: 36px;
         border-radius: Theme.radius-s;
-        background: Theme.accent-deep;
-        opacity: 0.65;
+        background: root.filled == root.pin-length ? Theme.accent : Theme.accent-deep;
         border-width: 1px;
-        border-color: Theme.accent-hi;
-        states [
-            ready when root.filled == root.pin-length: {
-                background: Theme.accent;
-                opacity: 1.0;
-            }
-        ]
+        border-color: root.filled == root.pin-length ? Theme.accent-hi : Theme.stroke;
         TouchArea {
             clicked => {
                 if (root.filled == root.pin-length) {
@@ -160,7 +130,7 @@ export component PasscodeSetup inherits Rectangle {
 
 export component RegionLanguage inherits Rectangle {
     in-out property <string> region: "Brasil";
-    in-out property <string> language: "Português (Brasil)";
+    in-out property <string> language: "Portugues (Brasil)";
     callback continue-clicked();
 
     width: 320px;
@@ -169,7 +139,7 @@ export component RegionLanguage inherits Rectangle {
 
     Text {
         x: 0px; y: 14px; width: 320px; height: 20px;
-        text: "Selecione sua Região";
+        text: "Selecione sua Regiao";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
         font-weight: 700;
@@ -184,7 +154,6 @@ export component RegionLanguage inherits Rectangle {
         border-width: 1px;
         border-color: Theme.stroke;
 
-        // Mini "bandeira" Brasil (verde/amarelo/azul, sem depender de fontes)
         Rectangle {
             x: 12px; y: 8px; width: 22px; height: 20px;
             border-radius: 4px;
@@ -193,7 +162,6 @@ export component RegionLanguage inherits Rectangle {
                 x: 3px; y: 4px; width: 16px; height: 12px;
                 border-radius: 2px;
                 background: #FFDF00;
-                opacity: 0.95;
             }
             Rectangle {
                 x: 8px; y: 7px; width: 6px; height: 6px;
@@ -212,7 +180,6 @@ export component RegionLanguage inherits Rectangle {
             x: 236px; y: 11px; width: 14px; height: 14px;
             source: @image-url("assets/icons/chevron-right.svg");
             image-fit: contain;
-            opacity: 0.8;
         }
     }
 
@@ -243,7 +210,6 @@ export component RegionLanguage inherits Rectangle {
             x: 236px; y: 11px; width: 14px; height: 14px;
             source: @image-url("assets/icons/chevron-right.svg");
             image-fit: contain;
-            opacity: 0.8;
         }
     }
 

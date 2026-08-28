@@ -4,14 +4,18 @@ export struct WifiNetwork { ssid: string, secured: bool, connected: bool }
 
 export component SettingsPanel inherits Rectangle {
     in-out property <bool> wifi-on: true;
+    in-out property <bool> bluetooth-on: false;
     in property <[WifiNetwork]> networks: [
         { ssid: "Casa_Deo", secured: true, connected: true },
         { ssid: "DC_Network", secured: true, connected: false },
         { ssid: "Visitantes", secured: false, connected: false },
     ];
+
     callback back();
     callback change-passcode();
     callback network-selected(string);
+    callback wifi-changed(bool);
+    callback bluetooth-changed(bool);
 
     width: 320px;
     height: 216px;
@@ -29,11 +33,11 @@ export component SettingsPanel inherits Rectangle {
             @image-url("assets/icons/shopping-bag.svg"),
             @image-url("assets/icons/settings.svg")
         ] : Rectangle {
-            x: 8px; y: 28px + index * 42px; width: 30px; height: 30px;
-            border-radius: Theme.radius-s;
+            x: 4px; y: 23px + index * 42px; width: 38px; height: 38px;
+            border-radius: Theme.radius-m;
             background: index == 3 ? Theme.accent : #00000000;
             Image {
-                x: 7px; y: 7px; width: 16px; height: 16px;
+                x: 11px; y: 11px; width: 16px; height: 16px;
                 source: item;
                 image-fit: contain;
             }
@@ -41,14 +45,18 @@ export component SettingsPanel inherits Rectangle {
     }
 
     Rectangle {
-        x: 54px; y: 10px; width: 18px; height: 18px;
+        x: 46px; y: 0px; width: 42px; height: 36px;
         background: #00000000;
         TouchArea { clicked => { root.back(); } }
-        Image { x: 1px; y: 1px; width: 16px; height: 16px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; }
+        Image {
+            x: 14px; y: 10px; width: 16px; height: 16px;
+            source: @image-url("assets/icons/chevron-left.svg");
+            image-fit: contain;
+        }
     }
     Text {
         x: 0px; y: 10px; width: 100%; height: 18px;
-        text: "Definições";
+        text: "Definicoes";
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
@@ -57,74 +65,114 @@ export component SettingsPanel inherits Rectangle {
     }
 
     Text {
-        x: 56px; y: 42px; width: 80px; height: 18px;
-        text: "Wi‑Fi";
+        x: 56px; y: 38px; width: 110px; height: 18px;
+        text: "Wi-Fi";
         color: Theme.text-primary;
-        font-size: Theme.font-lg;
+        font-size: Theme.font-md;
         font-weight: 700;
     }
     Rectangle {
-        x: 264px; y: 42px; width: 42px; height: 22px;
-        border-radius: 11px;
+        x: 254px; y: 32px; width: 54px; height: 34px;
+        border-radius: 17px;
         background: root.wifi-on ? Theme.accent : Theme.panel-elevated;
-        TouchArea { clicked => { root.wifi-on = !root.wifi-on; } }
+        TouchArea {
+            clicked => {
+                root.wifi-on = !root.wifi-on;
+                root.wifi-changed(root.wifi-on);
+            }
+        }
         Rectangle {
-            x: root.wifi-on ? 22px : 2px; y: 2px; width: 18px; height: 18px;
-            border-radius: 9px;
+            x: root.wifi-on ? 28px : 4px; y: 5px; width: 24px; height: 24px;
+            border-radius: 12px;
             background: Theme.text-primary;
-            animate x { duration: 150ms; easing: ease-in-out; }
         }
     }
 
-    Rectangle { x: 56px; y: 76px; width: 250px; height: 1px; background: Theme.stroke; }
     Text {
-        x: 56px; y: 82px; width: 120px; height: 12px;
-        text: "Redes disponíveis";
+        x: 56px; y: 75px; width: 110px; height: 18px;
+        text: "Bluetooth";
+        color: Theme.text-primary;
+        font-size: Theme.font-md;
+        font-weight: 700;
+    }
+    Rectangle {
+        x: 254px; y: 69px; width: 54px; height: 34px;
+        border-radius: 17px;
+        background: root.bluetooth-on ? Theme.accent-blue : Theme.panel-elevated;
+        TouchArea {
+            clicked => {
+                root.bluetooth-on = !root.bluetooth-on;
+                root.bluetooth-changed(root.bluetooth-on);
+            }
+        }
+        Rectangle {
+            x: root.bluetooth-on ? 28px : 4px; y: 5px; width: 24px; height: 24px;
+            border-radius: 12px;
+            background: Theme.text-primary;
+        }
+    }
+
+    Rectangle { x: 56px; y: 112px; width: 250px; height: 1px; background: Theme.stroke; }
+    Text {
+        x: 56px; y: 118px; width: 130px; height: 12px;
+        text: "Redes disponiveis";
         color: Theme.text-secondary;
         font-size: Theme.font-xs;
     }
 
     for n[index] in root.networks : Rectangle {
-        x: 56px; y: 100px + index * 30px; width: 250px; height: 26px;
+        x: 56px; y: 132px + index * 28px; width: 250px; height: 26px;
         border-radius: Theme.radius-s;
         background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke-soft;
-        TouchArea { clicked => { root.network-selected(n.ssid); } }
-        Image { x: 8px; y: 5px; width: 15px; height: 15px; source: @image-url("assets/icons/wifi.svg"); image-fit: contain; }
+        TouchArea {
+            clicked => {
+                root.wifi-on = true;
+                root.network-selected(n.ssid);
+            }
+        }
+        Image {
+            x: 8px; y: 6px; width: 14px; height: 14px;
+            source: @image-url("assets/icons/wifi.svg");
+            image-fit: contain;
+        }
         Text {
-            x: 30px; y: 4px; width: 142px; height: 11px;
+            x: 30px; y: 3px; width: 142px; height: 11px;
             text: n.ssid;
             color: Theme.text-primary;
             font-size: Theme.font-sm;
             font-weight: 600;
         }
         Text {
-            x: 30px; y: 14px; width: 80px; height: 10px;
+            x: 30px; y: 14px; width: 90px; height: 10px;
             text: n.connected ? "Conectado" : "";
             color: Theme.accent-cyan;
             font-size: 8px;
             font-weight: 700;
         }
         if n.secured: Image {
-            x: 224px; y: 5px; width: 14px; height: 14px;
+            x: 224px; y: 6px; width: 14px; height: 14px;
             source: @image-url("assets/icons/lock.svg");
             image-fit: contain;
-            opacity: 0.75;
         }
     }
 
     Rectangle {
-        x: 56px; y: 192px; width: 250px; height: 22px;
+        x: 56px; y: 190px; width: 250px; height: 26px;
         border-radius: Theme.radius-s;
         background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke-soft;
         TouchArea { clicked => { root.change-passcode(); } }
-        Image { x: 8px; y: 4px; width: 14px; height: 14px; source: @image-url("assets/icons/plus.svg"); image-fit: contain; opacity: 0.75; }
+        Image {
+            x: 8px; y: 6px; width: 14px; height: 14px;
+            source: @image-url("assets/icons/settings.svg");
+            image-fit: contain;
+        }
         Text {
             x: 30px; y: 0px; width: 150px; height: 100%;
-            text: "Outra rede...";
+            text: "Alterar PIN";
             color: Theme.text-primary;
             font-size: Theme.font-sm;
             vertical-alignment: center;
@@ -133,11 +181,18 @@ export component SettingsPanel inherits Rectangle {
 }
 
 export component ChangePasscode inherits Rectangle {
-    in-out property <string> current: "";
-    in-out property <string> next: "";
-    in-out property <string> confirm: "";
+    in-out property <string> d0: "";
+    in-out property <string> d1: "";
+    in-out property <string> d2: "";
+    in-out property <string> d3: "";
+    in-out property <string> d4: "";
+    in-out property <int> filled: 0;
+
+    property <int> pin-length: 5;
+    property <string> passcode-str: root.d0 + root.d1 + root.d2 + root.d3 + root.d4;
+
     callback back();
-    callback save(string, string);
+    callback save(string);
 
     width: 320px;
     height: 216px;
@@ -148,71 +203,132 @@ export component ChangePasscode inherits Rectangle {
         background: Theme.panel;
         border-width: 1px;
         border-color: Theme.stroke;
+
         for item[index] in [
             @image-url("assets/icons/home.svg"),
             @image-url("assets/icons/music.svg"),
             @image-url("assets/icons/shopping-bag.svg"),
             @image-url("assets/icons/settings.svg")
         ] : Rectangle {
-            x: 8px; y: 28px + index * 42px; width: 30px; height: 30px;
-            border-radius: Theme.radius-s;
+            x: 4px; y: 23px + index * 42px; width: 38px; height: 38px;
+            border-radius: Theme.radius-m;
             background: index == 3 ? Theme.accent : #00000000;
-            Image { x: 7px; y: 7px; width: 16px; height: 16px; source: item; image-fit: contain; }
+            Image { x: 11px; y: 11px; width: 16px; height: 16px; source: item; image-fit: contain; }
         }
     }
 
     Rectangle {
-        x: 54px; y: 10px; width: 18px; height: 18px;
+        x: 46px; y: 0px; width: 42px; height: 36px;
         background: #00000000;
         TouchArea { clicked => { root.back(); } }
-        Image { x: 1px; y: 1px; width: 16px; height: 16px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; }
+        Image {
+            x: 14px; y: 10px; width: 16px; height: 16px;
+            source: @image-url("assets/icons/chevron-left.svg");
+            image-fit: contain;
+        }
     }
     Text {
         x: 0px; y: 10px; width: 100%; height: 18px;
-        text: "Alterar Senha";
+        text: "Alterar PIN";
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
-
-    for field[index] in ["Senha atual", "Nova senha", "Confirmar nova senha"] : Text {
-        x: 58px; y: 42px + index * 52px; width: 160px; height: 12px;
-        text: field;
-        color: Theme.text-primary;
+    Text {
+        x: 58px; y: 36px; width: 234px; height: 16px;
+        text: "Novo PIN de 5 digitos";
+        color: Theme.text-secondary;
         font-size: Theme.font-xs;
-        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
     }
 
-    for mask[index] in ["••••••••", "••••••••", "••••••••"] : Rectangle {
-        x: 58px; y: 54px + index * 52px; width: 234px; height: 30px;
-        border-radius: Theme.radius-s;
-        background: Theme.panel-soft;
-        border-width: 1px;
-        border-color: Theme.stroke;
-        Text {
-            x: 12px; y: 0px; width: 150px; height: 100%;
-            text: mask;
-            color: Theme.text-primary;
-            font-size: Theme.font-sm;
-            vertical-alignment: center;
+    HorizontalLayout {
+        x: 124px; y: 58px; width: 72px; height: 10px;
+        spacing: 7px;
+        for i in root.pin-length: Rectangle {
+            width: 10px; height: 10px;
+            border-radius: 5px;
+            background: i < root.filled ? Theme.accent : #00000000;
+            border-width: 1px;
+            border-color: i < root.filled ? Theme.accent-hi : Theme.text-muted;
         }
-        if index == 0: Image {
-            x: 208px; y: 8px; width: 14px; height: 14px;
-            source: @image-url("assets/icons/eye.svg");
-            image-fit: contain;
-            opacity: 0.75;
+    }
+
+    for row[index] in [[ "1","2","3","4","5" ], [ "6","7","8","9","0" ]] : HorizontalLayout {
+        x: 58px; y: 80px + index * 42px; width: 234px; height: 34px;
+        spacing: 6px;
+        for k in row : Rectangle {
+            width: 42px; height: 34px;
+            border-radius: Theme.radius-s;
+            background: Theme.panel-soft;
+            border-width: 1px;
+            border-color: Theme.stroke;
+            TouchArea {
+                clicked => {
+                    if (root.filled < root.pin-length) {
+                        if      (root.filled == 0) { root.d0 = k; }
+                        else if (root.filled == 1) { root.d1 = k; }
+                        else if (root.filled == 2) { root.d2 = k; }
+                        else if (root.filled == 3) { root.d3 = k; }
+                        else if (root.filled == 4) { root.d4 = k; }
+                        root.filled = root.filled + 1;
+                    }
+                }
+            }
+            Text {
+                text: k;
+                color: Theme.text-primary;
+                font-size: Theme.font-md;
+                font-weight: 600;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
         }
     }
 
     Rectangle {
-        x: 58px; y: 182px; width: 234px; height: 26px;
+        x: 58px; y: 166px; width: 58px; height: 34px;
         border-radius: Theme.radius-s;
-        background: Theme.accent;
-        TouchArea { clicked => { root.save(root.current, root.next); } }
+        background: root.filled > 0 ? Theme.panel-elevated : Theme.panel-soft;
+        border-width: 1px;
+        border-color: root.filled > 0 ? Theme.stroke : Theme.text-dim;
+        TouchArea {
+            clicked => {
+                if (root.filled > 0) {
+                    root.filled = root.filled - 1;
+                    if      (root.filled == 0) { root.d0 = ""; }
+                    else if (root.filled == 1) { root.d1 = ""; }
+                    else if (root.filled == 2) { root.d2 = ""; }
+                    else if (root.filled == 3) { root.d3 = ""; }
+                    else if (root.filled == 4) { root.d4 = ""; }
+                }
+            }
+        }
+        Image {
+            x: 19px; y: 9px; width: 20px; height: 16px;
+            source: @image-url("assets/icons/delete-left.svg");
+            image-fit: contain;
+        }
+    }
+
+    Rectangle {
+        x: 126px; y: 166px; width: 166px; height: 34px;
+        border-radius: Theme.radius-s;
+        background: root.filled == root.pin-length ? Theme.accent : Theme.accent-deep;
+        border-width: 1px;
+        border-color: root.filled == root.pin-length ? Theme.accent-hi : Theme.stroke;
+        TouchArea {
+            clicked => {
+                if (root.filled == root.pin-length) {
+                    root.save(root.passcode-str);
+                }
+            }
+        }
         Text {
-            text: "Salvar Alterações";
+            text: "Guardar PIN";
             color: Theme.text-primary;
             font-size: Theme.font-sm;
             font-weight: 700;

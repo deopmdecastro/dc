@@ -20,12 +20,12 @@ export component MusicPlayer inherits Rectangle {
     background: Theme.bg-0;
 
     Rectangle {
-        x: 8px; y: 6px; width: 22px; height: 22px;
-        border-radius: 11px;
+        x: 0px; y: 0px; width: 44px; height: 34px;
+        border-radius: 12px;
         background: #00000000;
         TouchArea { clicked => { root.back(); } }
         Image {
-            x: 3px; y: 3px; width: 16px; height: 16px;
+            x: 14px; y: 9px; width: 16px; height: 16px;
             source: @image-url("assets/icons/chevron-left.svg");
             image-fit: contain;
         }
@@ -50,9 +50,9 @@ export component MusicPlayer inherits Rectangle {
         border-radius: Theme.radius-m;
         background: Theme.accent-deep;
         clip: true;
-        Rectangle { x: -10px; y: 50px; width: 120px; height: 34px; background: Theme.accent-cyan; opacity: 0.42; }
-        Rectangle { x: 18px; y: 8px; width: 44px; height: 44px; border-radius: 22px; background: Theme.accent-pink; opacity: 0.50; }
-        Rectangle { x: 52px; y: 20px; width: 36px; height: 56px; border-radius: 18px; background: Theme.accent-blue; opacity: 0.55; }
+        Rectangle { x: -10px; y: 50px; width: 120px; height: 34px; background: Theme.accent-cyan; }
+        Rectangle { x: 18px; y: 8px; width: 44px; height: 44px; border-radius: 22px; background: Theme.accent-pink; }
+        Rectangle { x: 52px; y: 20px; width: 36px; height: 56px; border-radius: 18px; background: Theme.accent-blue; }
         Image {
             x: 31px; y: 31px; width: 36px; height: 36px;
             source: @image-url("assets/icons/music.svg");
@@ -113,28 +113,28 @@ export component MusicPlayer inherits Rectangle {
     }
 
     HorizontalLayout {
-        x: 24px; y: 181px; width: 272px; height: 30px;
+        x: 18px; y: 176px; width: 284px; height: 40px;
         alignment: space-between;
         Image { width: 14px; height: 14px; source: @image-url("assets/icons/shuffle.svg"); image-fit: contain; }
         Rectangle {
-            width: 26px; height: 26px; border-radius: 13px; background: #00000000;
+            width: 42px; height: 40px; border-radius: 20px; background: #00000000;
             TouchArea { clicked => { root.prev(); } }
-            Image { x: 5px; y: 5px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-back.svg"); image-fit: contain; }
+            Image { x: 13px; y: 12px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-back.svg"); image-fit: contain; }
         }
         Rectangle {
-            width: 42px; height: 42px; y: -6px;
-            border-radius: 21px;
+            width: 54px; height: 40px;
+            border-radius: 20px;
             background: Theme.accent;
             TouchArea { clicked => { root.toggle-play(); root.playing = !root.playing; } }
             Rectangle {
                 visible: root.playing;
-                x: 13px; y: 12px; width: 5px; height: 16px;
+                x: 18px; y: 12px; width: 5px; height: 16px;
                 border-radius: 2px;
                 background: Theme.text-primary;
             }
             Rectangle {
                 visible: root.playing;
-                x: 24px; y: 12px; width: 5px; height: 16px;
+                x: 31px; y: 12px; width: 5px; height: 16px;
                 border-radius: 2px;
                 background: Theme.text-primary;
             }
@@ -150,9 +150,9 @@ export component MusicPlayer inherits Rectangle {
             }
         }
         Rectangle {
-            width: 26px; height: 26px; border-radius: 13px; background: #00000000;
+            width: 42px; height: 40px; border-radius: 20px; background: #00000000;
             TouchArea { clicked => { root.next(); } }
-            Image { x: 5px; y: 5px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-forward.svg"); image-fit: contain; }
+            Image { x: 13px; y: 12px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-forward.svg"); image-fit: contain; }
         }
         Image { width: 14px; height: 14px; source: @image-url("assets/icons/repeat.svg"); image-fit: contain; }
     }

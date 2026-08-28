@@ -10,6 +10,8 @@ export component ControlCenter inherits Rectangle {
 
     callback brightness-changed(float);
     callback volume-changed(float);
+    callback wifi-changed(bool);
+    callback bluetooth-changed(bool);
     // Emitido quando o utilizador toca no tile "Rotacao automatica". O Rust
     // recebe o novo estado e ajusta MADCTL no ILI9341V + informa o Slint
     // sobre o novo tamanho logico da janela.
@@ -23,7 +25,6 @@ export component ControlCenter inherits Rectangle {
         x: 137px; y: 8px; width: 46px; height: 4px;
         border-radius: 2px;
         background: Theme.text-secondary;
-        opacity: 0.7;
     }
 
     for tile[index] in [
@@ -32,15 +33,21 @@ export component ControlCenter inherits Rectangle {
         { label: "Não perturbe", icon: @image-url("assets/icons/moon.svg"), active: root.dnd-on,       color: Theme.accent },
         { label: "Rotação\nautomática", icon: @image-url("assets/icons/rotate-cw.svg"), active: root.autorotate, color: Theme.accent-cyan },
     ] : Rectangle {
-        x: 18px + index * 72px; y: 28px; width: 54px; height: 54px;
-        border-radius: 27px;
+        x: 10px + index * 76px; y: 24px; width: 62px; height: 58px;
+        border-radius: 29px;
         background: tile.active ? tile.color : Theme.panel-soft;
         border-width: 1px;
         border-color: tile.active ? tile.color : Theme.stroke;
         TouchArea {
             clicked => {
-                if (index == 0) { root.wifi-on = !root.wifi-on; }
-                if (index == 1) { root.bluetooth-on = !root.bluetooth-on; }
+                if (index == 0) {
+                    root.wifi-on = !root.wifi-on;
+                    root.wifi-changed(root.wifi-on);
+                }
+                if (index == 1) {
+                    root.bluetooth-on = !root.bluetooth-on;
+                    root.bluetooth-changed(root.bluetooth-on);
+                }
                 if (index == 2) { root.dnd-on = !root.dnd-on; }
                 if (index == 3) {
                     root.autorotate = !root.autorotate;
@@ -49,10 +56,9 @@ export component ControlCenter inherits Rectangle {
             }
         }
         Image {
-            x: 17px; y: 17px; width: 20px; height: 20px;
+            x: 21px; y: 19px; width: 20px; height: 20px;
             source: tile.icon;
             image-fit: contain;
-            opacity: tile.active ? 1.0 : 0.75;
         }
     }
 
@@ -67,13 +73,13 @@ export component ControlCenter inherits Rectangle {
     }
 
     Rectangle {
-        x: 14px; y: 122px; width: 292px; height: 30px;
+        x: 14px; y: 118px; width: 292px; height: 36px;
         border-radius: Theme.radius-m;
         background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke;
         Image {
-            x: 12px; y: 8px; width: 14px; height: 14px;
+            x: 12px; y: 11px; width: 14px; height: 14px;
             source: @image-url("assets/icons/volume-2.svg");
             image-fit: contain;
         }
@@ -94,7 +100,7 @@ export component ControlCenter inherits Rectangle {
             vertical-alignment: center;
         }
         Rectangle {
-            x: 88px; y: 13px; width: 148px; height: 4px;
+            x: 88px; y: 16px; width: 148px; height: 4px;
             border-radius: 2px;
             background: Theme.bg-2;
             Rectangle {
@@ -112,13 +118,13 @@ export component ControlCenter inherits Rectangle {
     }
 
     Rectangle {
-        x: 14px; y: 162px; width: 292px; height: 30px;
+        x: 14px; y: 160px; width: 292px; height: 36px;
         border-radius: Theme.radius-m;
         background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke;
         Image {
-            x: 12px; y: 8px; width: 14px; height: 14px;
+            x: 12px; y: 11px; width: 14px; height: 14px;
             source: @image-url("assets/icons/sun.svg");
             image-fit: contain;
         }
@@ -139,7 +145,7 @@ export component ControlCenter inherits Rectangle {
             vertical-alignment: center;
         }
         Rectangle {
-            x: 88px; y: 13px; width: 148px; height: 4px;
+            x: 88px; y: 16px; width: 148px; height: 4px;
             border-radius: 2px;
             background: Theme.bg-2;
             Rectangle {

@@ -44,6 +44,11 @@ export component AppWindow inherits Window {
     callback set-volume(float);
     callback wake-word-triggered();
     callback launch-app(int);
+    callback passcode-created(string);
+    callback passcode-updated(string);
+    callback wifi-enabled-changed(bool);
+    callback wifi-network-selected(string);
+    callback bluetooth-enabled-changed(bool);
     // Emitido pelo Control Center quando o utilizador liga/desliga a
     // rotacao automatica. O Rust ajusta MADCTL no ILI9341V.
     callback set-rotation(bool);
@@ -62,7 +67,10 @@ export component AppWindow inherits Window {
         if root.current-screen == Screen.FirstBootPasscode:
             PasscodeSetup {
                 width: 100%; height: 100%;
-                confirm(_pass) => { root.current-screen = Screen.FirstBootRegion; }
+                confirm(pass) => {
+                    root.passcode-created(pass);
+                    root.current-screen = Screen.FirstBootRegion;
+                }
             }
 
         if root.current-screen == Screen.FirstBootRegion:
@@ -107,7 +115,16 @@ export component AppWindow inherits Window {
         if root.current-screen == Screen.Settings:
             SettingsPanel {
                 width: 100%; height: 100%;
+                wifi-on <=> root.wifi-on;
+                bluetooth-on <=> root.bluetooth-on;
                 change-passcode => { root.current-screen = Screen.SettingsPassword; }
+                wifi-changed(on) => { root.wifi-enabled-changed(on); }
+                bluetooth-changed(on) => { root.bluetooth-enabled-changed(on); }
+                network-selected(ssid) => {
+                    root.wifi-on = true;
+                    root.wifi-network-selected(ssid);
+                    root.wifi-enabled-changed(true);
+                }
                 back => { root.current-screen = Screen.Launcher; }
             }
 
@@ -115,7 +132,10 @@ export component AppWindow inherits Window {
             ChangePasscode {
                 width: 100%; height: 100%;
                 back => { root.current-screen = Screen.Settings; }
-                save(cur, next) => { root.current-screen = Screen.Settings; }
+                save(pass) => {
+                    root.passcode-updated(pass);
+                    root.current-screen = Screen.Settings;
+                }
             }
 
         if root.current-screen == Screen.Store:
@@ -157,6 +177,8 @@ export component AppWindow inherits Window {
                 autorotate <=> root.autorotate;
                 brightness-changed(v) => { root.set-brightness(v); }
                 volume-changed(v) => { root.set-volume(v); }
+                wifi-changed(on) => { root.wifi-enabled-changed(on); }
+                bluetooth-changed(on) => { root.bluetooth-enabled-changed(on); }
                 rotation-changed(on) => { root.set-rotation(on); }
             }
         }

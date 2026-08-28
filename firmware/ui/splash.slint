@@ -1,61 +1,40 @@
 import { Theme } from "theme.slint";
 
-// Splash minimalista estilo iPhone:
-// - fundo escuro sólido com um leve gradiente radial (via camadas de aura)
-// - apenas o logo branco DC ao centro
-// - fade in suave, breve hold, fade out (transição moderna, sem barra de progresso)
-// - sem texto
+// Splash escuro e estavel para o firmware. Evita animacoes, gradientes e
+// opacidades fracionarias porque o backend LLVM-Xtensa pode falhar ao
+// compilar constantes float geradas pelo Slint.
 export component SplashScreen inherits Rectangle {
     width: 320px;
     height: 240px;
     background: Theme.bg-0;
 
-    // 0 = invisivel, 1 = totalmente visivel
-    property <float> fade: 0;
-    // Fica ligeiramente maior no fim (efeito "breathing" subtil, tipo iOS)
-    property <float> scale: 0.96;
-
-    animate fade  { duration: 900ms; easing: ease-in-out; }
-    animate scale { duration: 1400ms; easing: ease-out; }
-
-    init => {
-        self.fade = 1.0;
-        self.scale = 1.0;
-    }
-
-    // Gradiente radial subtil: aura violeta atras do logo (dark background,
-    // mantem o feel do mockup mas sem elementos de "loading").
-    // Usa @radial-gradient a desvanecer para transparente em vez de
-    // retangulos solidos empilhados — isso e o que causava o efeito de
-    // "aneis"/degrade rigido (bordas duras entre camadas de opacidade fixa).
     Rectangle {
-        x: 20px; y: 10px; width: 280px; height: 220px;
-        border-radius: 110px;
-        background: @radial-gradient(circle, Theme.accent-violet 0%, transparent 65%);
-        opacity: 0.55 * root.fade;
+        x: 44px; y: 42px; width: 232px; height: 156px;
+        border-radius: 78px;
+        background: Theme.bg-1;
+        border-width: 1px;
+        border-color: Theme.accent-deep;
     }
     Rectangle {
-        x: 65px; y: 45px; width: 190px; height: 150px;
-        border-radius: 75px;
-        background: @radial-gradient(circle, Theme.accent 0%, transparent 70%);
-        opacity: 0.6 * root.fade;
+        x: 84px; y: 86px; width: 152px; height: 52px;
+        border-radius: 26px;
+        background: #00000000;
+        border-width: 2px;
+        border-color: Theme.accent;
     }
     Rectangle {
-        x: 105px; y: 75px; width: 110px; height: 90px;
-        border-radius: 45px;
-        background: @radial-gradient(circle, Theme.accent-hi 0%, transparent 75%);
-        opacity: 0.5 * root.fade;
+        x: 114px; y: 98px; width: 92px; height: 28px;
+        border-radius: 14px;
+        background: #00000000;
+        border-width: 2px;
+        border-color: Theme.accent-cyan;
     }
-
-    // Logo branco oficial, centrado. Escala leve para um "hero" iOS-like.
     Image {
-        // Centra manualmente aplicando padding em torno de 320x240
-        x: 60px + (1 - root.scale) * 20px;
-        y: 60px + (1 - root.scale) * 15px;
-        width:  200px * root.scale;
-        height: 120px * root.scale;
+        x: 60px;
+        y: 60px;
+        width: 200px;
+        height: 120px;
         source: @image-url("assets/branding/dc-assistant-logo-white.png");
         image-fit: contain;
-        opacity: root.fade;
     }
 }

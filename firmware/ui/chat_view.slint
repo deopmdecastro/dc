@@ -11,14 +11,14 @@ export component ChatView inherits Rectangle {
     background: Theme.bg-0;
 
     Rectangle {
-        x: 14px; y: 14px; width: 30px; height: 30px;
-        border-radius: 15px;
+        x: 8px; y: 8px; width: 44px; height: 44px;
+        border-radius: 22px;
         background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke;
         TouchArea { clicked => { root.menu-tapped(); } }
         Image {
-            x: 8px; y: 8px; width: 14px; height: 14px;
+            x: 15px; y: 15px; width: 14px; height: 14px;
             source: @image-url("assets/icons/menu.svg");
             image-fit: contain;
         }
@@ -27,13 +27,12 @@ export component ChatView inherits Rectangle {
     Rectangle {
         x: 58px; y: 66px; width: 204px; height: 44px;
         border-radius: 22px;
-        background: Theme.accent-deep;
-        opacity: 0.18;
+        background: Theme.bg-2;
     }
 
     Text {
         x: 0px; y: 48px; width: 100%; height: 20px;
-        text: "Olá, eu sou o";
+        text: "Ola, eu sou o";
         color: Theme.text-primary;
         font-size: Theme.font-md;
         horizontal-alignment: center;
@@ -50,7 +49,7 @@ export component ChatView inherits Rectangle {
     }
     Text {
         x: 0px; y: 102px; width: 100%; height: 16px;
-        text: "Como posso ajudar você hoje?";
+        text: "Como posso ajudar voce hoje?";
         color: Theme.text-secondary;
         font-size: Theme.font-sm;
         horizontal-alignment: center;
@@ -64,33 +63,29 @@ export component ChatView inherits Rectangle {
         for i in 32 : Rectangle {
             property <int> dist: i < 16 ? 15 - i : i - 16;
             width: 4px;
-            height: 7px + (root.listening ? 16px : 8px) - dist * 0.7px + root.audio-level * (dist < 5 ? 10px : 5px);
+            height: root.listening
+                ? (dist < 3 ? 24px : dist < 7 ? 20px : dist < 11 ? 16px : 12px)
+                : (dist < 5 ? 14px : dist < 10 ? 11px : 8px);
             border-radius: 2px;
             y: (parent.height - self.height) / 2;
             background: i < 16 ? Theme.accent-pink : Theme.accent-cyan;
-            opacity: root.listening ? 1.0 : 0.75;
-            // linear em vez de ease-in-out: mesmo padrao (animate dentro de
-            // um `for`) que causava o crash do backend LLVM-Xtensa no
-            // PasscodeSetup — ver nota em firmware/Cargo.toml.
-            animate height { duration: 120ms; easing: linear; }
         }
     }
 
     Rectangle {
-        x: 139px; y: 180px; width: 42px; height: 42px;
+        x: 132px; y: 173px; width: 56px; height: 42px;
         border-radius: 21px;
         background: Theme.panel-soft;
         border-width: 2px;
         border-color: root.listening ? Theme.accent-pink : Theme.accent;
         TouchArea { clicked => { root.mic-tapped(); } }
         Rectangle {
-            x: 5px; y: 5px; width: 32px; height: 32px;
+            x: 12px; y: 5px; width: 32px; height: 32px;
             border-radius: 16px;
-            background: root.listening ? Theme.accent : #00000000;
-            opacity: root.listening ? 0.28 : 0.0;
+            background: root.listening ? Theme.accent-deep : #00000000;
         }
         Image {
-            x: 11px; y: 10px; width: 20px; height: 20px;
+            x: 18px; y: 10px; width: 20px; height: 20px;
             source: @image-url("assets/icons/mic.svg");
             image-fit: contain;
         }

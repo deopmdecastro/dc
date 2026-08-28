@@ -3,8 +3,9 @@
 
 use crate::display::{Display, DisplayRotation};
 use crate::pinout::DISPLAY_W;
+use crate::system::SystemEvent;
 use crate::touch::TouchEvent;
-use slint::LogicalPosition;
+use slint::{ComponentHandle, LogicalPosition};
 use slint::platform::{
     software_renderer::{LineBufferProvider, MinimalSoftwareWindow, Rgb565Pixel},
     Platform, PointerEventButton, WindowEvent,
@@ -20,6 +21,7 @@ use std::sync::mpsc::Receiver;
 thread_local! {
     static WINDOW:  RefCell<Option<Rc<MinimalSoftwareWindow>>> = RefCell::new(None);
     static DISPLAY: RefCell<Option<Display<'static>>>          = RefCell::new(None);
+    static APP:     RefCell<Option<slint::Weak<crate::AppWindow>>> = RefCell::new(None);
 }
 
 pub struct EspSlintPlatform {
@@ -50,6 +52,10 @@ pub fn init_platform(window: Rc<MinimalSoftwareWindow>, display: Display<'static
 
     slint::platform::set_platform(Box::new(EspSlintPlatform { window }))
         .expect("Slint platform já registrada");
+}
+
+pub fn set_app_window(app: &crate::AppWindow) {
+    APP.with(|stored| *stored.borrow_mut() = Some(app.as_weak()));
 }
 
 /// Chamado a partir do callback `set-rotation` do Slint. Executa dentro da
@@ -130,12 +136,13 @@ impl<'a> LineBufferProvider for SpiLineBuffer<'a> {
 }
 
 /// Roda o loop de eventos Slint (bloqueante).
-pub fn run_event_loop(touch_rx: Receiver<TouchEvent>) -> ! {
+pub fn run_event_loop(touch_rx: Receiver<TouchEvent>, system_rx: Receiver<SystemEvent>) -> ! {
     // A janela raiz (`AppWindow`) é criada e mostrada pelo main.rs.
     let mut frame_count: u32 = 0;
     let mut idle_ticks: u32 = 0;
 
     loop {
+        dispatch_pending_system_events(&system_rx);
         dispatch_pending_touch_events(&touch_rx);
         slint::platform::update_timers_and_animations();
 
@@ -183,7 +190,14 @@ fn dispatch_pending_touch_events(touch_rx: &Receiver<TouchEvent>) {
                         position: point_to_position(point),
                         button: PointerEventButton::Left,
                     },
-                    TouchEvent::SwipeX { .. } | TouchEvent::SwipeY { .. } => return,
+                    TouchEvent::SwipeX { start, delta } => {
+                        log::info!("Touch: swipe-x ignorado start=({}, {}) delta={}", start.x, start.y, delta);
+                        return;
+                    }
+                    TouchEvent::SwipeY { start, delta } => {
+                        handle_vertical_swipe(start, delta);
+                        return;
+                    }
                 };
 
                 // Slint 1.8: `dispatch_event` (nao existe `try_dispatch_event`,
@@ -197,4 +211,63 @@ fn dispatch_pending_touch_events(touch_rx: &Receiver<TouchEvent>) {
 
 fn point_to_position(point: crate::touch::Point) -> LogicalPosition {
     LogicalPosition::new(point.x as f32, point.y as f32)
+}
+
+fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {
+    while let Ok(event) = system_rx.try_recv() {
+        APP.with(|stored| {
+            let Some(weak) = stored.borrow().as_ref().cloned() else {
+                return;
+            };
+            let Some(app) = weak.upgrade() else {
+                return;
+            };
+
+            match event {
+                SystemEvent::WifiChanged(on) => {
+                    app.set_wifi_on(on);
+                    log::info!("UI: wifi_on={on}");
+                }
+                SystemEvent::BluetoothChanged(on) => {
+                    app.set_bluetooth_on(on);
+                    log::info!("UI: bluetooth_on={on}");
+                }
+                SystemEvent::ApiHealthChanged(ok) => {
+                    log::info!("UI: api_health={ok}");
+                }
+                SystemEvent::TimeChanged(value) => {
+                    app.set_current_time(value.into());
+                }
+            }
+        });
+        WINDOW.with(|w| {
+            if let Some(window) = w.borrow().as_ref() {
+                window.request_redraw();
+            }
+        });
+    }
+}
+
+fn handle_vertical_swipe(start: crate::touch::Point, delta: i16) {
+    APP.with(|stored| {
+        let Some(weak) = stored.borrow().as_ref().cloned() else {
+            return;
+        };
+        let Some(app) = weak.upgrade() else {
+            return;
+        };
+
+        if delta > 0 && start.y <= 42 {
+            log::info!("UI: abrir Control Center por swipe");
+            app.set_control_center_open(true);
+        } else if delta < 0 && app.get_control_center_open() {
+            log::info!("UI: fechar Control Center por swipe");
+            app.set_control_center_open(false);
+        }
+        WINDOW.with(|w| {
+            if let Some(window) = w.borrow().as_ref() {
+                window.request_redraw();
+            }
+        });
+    });
 }

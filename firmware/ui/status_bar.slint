@@ -17,7 +17,6 @@ export component StatusBar inherits Rectangle {
     Rectangle {
         x: 0px; y: 23px; width: 320px; height: 1px;
         background: Theme.stroke-soft;
-        opacity: 0.8;
     }
 
     // Relogio centrado
@@ -36,12 +35,12 @@ export component StatusBar inherits Rectangle {
         x: 272px; y: 5px; width: 14px; height: 14px;
         source: @image-url("assets/icons/wifi.svg");
         image-fit: contain;
-        opacity: root.wifi-on ? 1.0 : 0.35;
+        visible: root.wifi-on;
     }
     Image {
         x: 294px; y: 5px; width: 14px; height: 14px;
         source: @image-url("assets/icons/bluetooth.svg");
         image-fit: contain;
-        opacity: root.bluetooth-on ? 1.0 : 0.35;
+        visible: root.bluetooth-on;
     }
 }

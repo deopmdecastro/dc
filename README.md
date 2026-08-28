@@ -161,7 +161,10 @@ Por omissão, o firmware tenta:
 
 - SSID: `DC_Network`
 - Password: vazia
-- WebSocket: `ws://192.168.1.50:8080/ws`
+- API health: `http://192.168.1.50:8080/health`
+
+O ESP não consegue usar `localhost` para falar com o backend no PC. Usa o IP
+LAN da máquina onde corre o `dc-os-core`, por exemplo `192.168.1.50`.
 
 Podes alterar em build-time com variáveis de ambiente:
 
@@ -169,11 +172,26 @@ Podes alterar em build-time com variáveis de ambiente:
 cd C:\DC\dc\firmware
 $env:DC_WIFI_SSID = "MinhaRede"
 $env:DC_WIFI_PASS = "MinhaSenha"
-$env:DC_CORE_WS = "ws://192.168.1.50:8080/ws"
+$env:DC_CORE_HTTP = "http://192.168.1.50:8080/health"
 cargo build --release --locked
 ```
 
-Depois grava normalmente com `cargo espflash flash ...`.
+Depois grava normalmente com `cargo espflash flash ...`. O estado Wi-Fi, a
+rede selecionada e o PIN de 5 dígitos ficam gravados no NVS; no arranque
+seguinte o firmware carrega esses valores e salta a configuração inicial se já
+houver PIN.
+
+## Hora, API e Bluetooth
+
+Quando o Wi-Fi liga, o firmware inicia SNTP e atualiza o relógio da status bar.
+Em seguida faz `GET` periódico ao endpoint `DC_CORE_HTTP` para confirmar se a
+API real está acessível.
+
+O Bluetooth já aparece e fica persistido nas Definições/Control Center. O stack
+BLE real continua desligado em `sdkconfig.defaults` porque este projeto fixou
+ESP-IDF 5.2.3 + `esp-idf-svc 0.52.x`, combinação que anteriormente quebrou o
+build ao ativar BLE. Para ativar rádio BLE de verdade, primeiro será preciso
+trocar para um driver BLE compatível e reabrir `CONFIG_BT_ENABLED`.
 
 ## Limpeza / Rebuild Completo
 
