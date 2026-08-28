@@ -1,92 +1,58 @@
 import { Theme } from "theme.slint";
 
+// Splash minimalista estilo iPhone:
+// - fundo escuro sólido com um leve gradiente radial (via camadas de aura)
+// - apenas o logo branco DC ao centro
+// - fade in suave, breve hold, fade out (transição moderna, sem barra de progresso)
+// - sem texto
 export component SplashScreen inherits Rectangle {
     width: 320px;
     height: 240px;
     background: Theme.bg-0;
 
-    property <float> intro: 0;
-    property <float> pulse: 0;
-    animate intro { duration: 900ms; easing: ease-out; }
-    animate pulse { duration: 1800ms; easing: ease-in-out; iteration-count: -1; direction: alternate; }
+    // 0 = invisivel, 1 = totalmente visivel
+    property <float> fade: 0;
+    // Fica ligeiramente maior no fim (efeito "breathing" subtil, tipo iOS)
+    property <float> scale: 0.96;
+
+    animate fade  { duration: 900ms; easing: ease-in-out; }
+    animate scale { duration: 1400ms; easing: ease-out; }
+
     init => {
-        self.intro = 1;
-        self.pulse = 1;
+        self.fade = 1.0;
+        self.scale = 1.0;
     }
 
+    // Gradiente radial subtil: aura violeta atras do logo (dark background,
+    // mantem o feel do mockup mas sem elementos de "loading")
     Rectangle {
-        x: 18px; y: 22px; width: 284px; height: 196px;
-        border-radius: 18px;
-        background: #0A0D1A;
-        opacity: 0.18 + root.intro * 0.08;
+        x: 40px; y: 30px; width: 240px; height: 180px;
+        border-radius: 90px;
+        background: Theme.accent-violet;
+        opacity: 0.10 * root.fade;
     }
-
-    // Aura superior suave
     Rectangle {
-        x: 60px; y: 10px; width: 200px; height: 120px;
+        x: 80px; y: 60px; width: 160px; height: 120px;
         border-radius: 60px;
-        background: Theme.accent-violet;
-        opacity: 0.05 + root.intro * 0.08;
-    }
-    Rectangle {
-        x: 105px; y: 24px; width: 110px; height: 70px;
-        border-radius: 35px;
-        background: Theme.accent-cyan;
-        opacity: 0.04 + root.pulse * 0.04;
-    }
-
-    // Plataforma neon inferior
-    Rectangle {
-        x: 44px; y: 170px; width: 232px; height: 20px;
-        border-radius: 10px;
-        background: Theme.accent-violet;
-        opacity: 0.12 + root.pulse * 0.05;
-    }
-    Rectangle {
-        x: 58px; y: 173px; width: 204px; height: 14px;
-        border-radius: 7px;
         background: Theme.accent;
-        opacity: 0.16 + root.pulse * 0.08;
+        opacity: 0.14 * root.fade;
     }
     Rectangle {
-        x: 74px; y: 177px; width: 172px; height: 6px;
-        border-radius: 3px;
-        background: Theme.accent-pink;
-        opacity: 0.28 + root.pulse * 0.10;
-    }
-    Rectangle {
-        x: 102px; y: 178px; width: 116px; height: 4px;
-        border-radius: 2px;
-        background: Theme.accent-cyan;
-        opacity: 0.90;
+        x: 110px; y: 85px; width: 100px; height: 70px;
+        border-radius: 35px;
+        background: Theme.accent-hi;
+        opacity: 0.12 * root.fade;
     }
 
-    // Logo branco oficial
+    // Logo branco oficial, centrado. Escala leve para um "hero" iOS-like.
     Image {
-        x: 54px; y: 34px; width: 212px; height: 92px;
+        // Centra manualmente aplicando padding em torno de 320x240
+        x: 60px + (1 - root.scale) * 20px;
+        y: 60px + (1 - root.scale) * 15px;
+        width:  200px * root.scale;
+        height: 120px * root.scale;
         source: @image-url("assets/branding/dc-assistant-logo-white.png");
         image-fit: contain;
-        opacity: 0.55 + root.intro * 0.45;
-    }
-
-    Text {
-        x: 0px; y: 118px; width: 100%; height: 30px;
-        text: "DC OS";
-        color: Theme.text-primary;
-        font-size: Theme.font-xl;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        opacity: 0.2 + root.intro * 0.8;
-    }
-
-    Text {
-        x: 0px; y: 145px; width: 100%; height: 16px;
-        text: "Seu assistente pessoal";
-        color: Theme.text-secondary;
-        font-size: Theme.font-sm;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        opacity: 0.2 + root.intro * 0.8;
+        opacity: root.fade;
     }
 }

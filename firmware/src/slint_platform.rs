@@ -1,7 +1,7 @@
 //! Backend Slint → framebuffer software renderer sobre o SPI do ILI9341V.
 //! Encaminha `flush()` linha-a-linha para o display.
 
-use crate::display::Display;
+use crate::display::{Display, DisplayRotation};
 use crate::pinout::DISPLAY_W;
 use crate::touch::TouchEvent;
 use slint::LogicalPosition;
@@ -50,6 +50,30 @@ pub fn init_platform(window: Rc<MinimalSoftwareWindow>, display: Display<'static
 
     slint::platform::set_platform(Box::new(EspSlintPlatform { window }))
         .expect("Slint platform já registrada");
+}
+
+/// Chamado a partir do callback `set-rotation` do Slint. Executa dentro da
+/// thread do event loop, pelo que pode aceder ao `DISPLAY` thread-local em
+/// seguranca. Se `autorotate` estiver `true`, mantem landscape (0deg); caso
+/// contrario roda 180deg. Um dia isto pode ler o acelerometro.
+pub fn apply_display_rotation(autorotate: bool) {
+    let rot = if autorotate {
+        DisplayRotation::Landscape
+    } else {
+        DisplayRotation::Landscape180
+    };
+    DISPLAY.with(|d| {
+        if let Some(display) = d.borrow_mut().as_mut() {
+            if let Err(e) = display.set_rotation(rot) {
+                log::warn!("Display: falha ao aplicar rotacao: {e:?}");
+            }
+        }
+    });
+    WINDOW.with(|w| {
+        if let Some(window) = w.borrow().as_ref() {
+            window.request_redraw();
+        }
+    });
 }
 
 /// Adaptador que traduz cada linha renderizada pelo software renderer do

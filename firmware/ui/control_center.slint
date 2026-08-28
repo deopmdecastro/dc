@@ -10,6 +10,10 @@ export component ControlCenter inherits Rectangle {
 
     callback brightness-changed(float);
     callback volume-changed(float);
+    // Emitido quando o utilizador toca no tile "Rotacao automatica". O Rust
+    // recebe o novo estado e ajusta MADCTL no ILI9341V + informa o Slint
+    // sobre o novo tamanho logico da janela.
+    callback rotation-changed(bool);
 
     width: 320px;
     height: 216px;
@@ -38,7 +42,10 @@ export component ControlCenter inherits Rectangle {
                 if (index == 0) { root.wifi-on = !root.wifi-on; }
                 if (index == 1) { root.bluetooth-on = !root.bluetooth-on; }
                 if (index == 2) { root.dnd-on = !root.dnd-on; }
-                if (index == 3) { root.autorotate = !root.autorotate; }
+                if (index == 3) {
+                    root.autorotate = !root.autorotate;
+                    root.rotation-changed(root.autorotate);
+                }
             }
         }
         Image {

@@ -1,7 +1,20 @@
 import { Theme } from "theme.slint";
 
+// PIN de 5 digitos com teclado numerico + botao apagar + botao confirmar.
+// Usa 5 slots individuais (d0..d4) porque o Slint 1.8 nao expoe substring()
+// em `string`. O `filled` mantem a posicao ativa e o `passcode-str` (o valor
+// que o Rust recebe no callback) e composto por concatenacao dos slots.
 export component PasscodeSetup inherits Rectangle {
-    in-out property <string> passcode: "";
+    in-out property <string> d0: "";
+    in-out property <string> d1: "";
+    in-out property <string> d2: "";
+    in-out property <string> d3: "";
+    in-out property <string> d4: "";
+    in-out property <int> filled: 0;
+
+    property <int> pin-length: 5;
+    property <string> passcode-str: root.d0 + root.d1 + root.d2 + root.d3 + root.d4;
+
     callback confirm(string);
 
     width: 320px;
@@ -9,7 +22,7 @@ export component PasscodeSetup inherits Rectangle {
     background: Theme.bg-0;
 
     Text {
-        x: 0px; y: 16px; width: 100%; height: 20px;
+        x: 0px; y: 10px; width: 320px; height: 20px;
         text: "Definir Senha";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
@@ -19,7 +32,7 @@ export component PasscodeSetup inherits Rectangle {
     }
 
     Text {
-        x: 42px; y: 40px; width: 236px; height: 28px;
+        x: 30px; y: 32px; width: 260px; height: 26px;
         text: "Crie uma senha para proteger\nseu DC Assistant.";
         color: Theme.text-secondary;
         font-size: Theme.font-sm;
@@ -27,31 +40,39 @@ export component PasscodeSetup inherits Rectangle {
         vertical-alignment: center;
     }
 
+    // Indicadores do PIN (5 pontos, centrados)
     HorizontalLayout {
-        x: 102px; y: 78px; width: 116px; height: 12px;
-        spacing: 12px;
-        for i in 4: Rectangle {
+        x: 118px; y: 70px; width: 84px; height: 12px;
+        spacing: 10px;
+        for i in root.pin-length: Rectangle {
             width: 12px; height: 12px;
             border-radius: 6px;
-            background: i < root.passcode.character-count ? Theme.accent : #00000000;
+            background: i < root.filled ? Theme.accent : #00000000;
             border-width: 1px;
-            border-color: i < root.passcode.character-count ? Theme.accent-hi : Theme.text-muted;
+            border-color: i < root.filled ? Theme.accent-hi : Theme.text-muted;
+            animate background { duration: 120ms; easing: ease-in-out; }
         }
     }
 
+    // Teclado 1-5 / 6-0
     for row[index] in [[ "1","2","3","4","5" ], [ "6","7","8","9","0" ]] : HorizontalLayout {
-        x: 40px; y: 108px + index * 42px; width: 240px; height: 34px;
-        spacing: 10px;
+        x: 30px; y: 96px + index * 42px; width: 260px; height: 36px;
+        spacing: 8px;
         for k in row : Rectangle {
-            width: 40px; height: 34px;
+            width: 45px; height: 36px;
             border-radius: Theme.radius-s;
             background: Theme.panel-soft;
             border-width: 1px;
             border-color: Theme.stroke;
             TouchArea {
                 clicked => {
-                    if (root.passcode.character-count < 4) {
-                        root.passcode = root.passcode + k;
+                    if (root.filled < root.pin-length) {
+                        if      (root.filled == 0) { root.d0 = k; }
+                        else if (root.filled == 1) { root.d1 = k; }
+                        else if (root.filled == 2) { root.d2 = k; }
+                        else if (root.filled == 3) { root.d3 = k; }
+                        else if (root.filled == 4) { root.d4 = k; }
+                        root.filled = root.filled + 1;
                     }
                 }
             }
@@ -66,14 +87,51 @@ export component PasscodeSetup inherits Rectangle {
         }
     }
 
+    // Botao apagar (backspace) — canto inferior esquerdo do teclado
     Rectangle {
-        x: 220px; y: 198px; width: 54px; height: 32px;
+        x: 30px; y: 194px; width: 60px; height: 36px;
         border-radius: Theme.radius-s;
-        background: Theme.accent;
-        TouchArea { clicked => { root.confirm(root.passcode); } }
+        background: Theme.panel-elevated;
+        border-width: 1px;
+        border-color: Theme.stroke;
+        opacity: root.filled > 0 ? 1.0 : 0.55;
+        TouchArea {
+            clicked => {
+                if (root.filled > 0) {
+                    root.filled = root.filled - 1;
+                    if      (root.filled == 0) { root.d0 = ""; }
+                    else if (root.filled == 1) { root.d1 = ""; }
+                    else if (root.filled == 2) { root.d2 = ""; }
+                    else if (root.filled == 3) { root.d3 = ""; }
+                    else if (root.filled == 4) { root.d4 = ""; }
+                }
+            }
+        }
         Image {
-            x: 18px; y: 9px; width: 18px; height: 14px;
-            source: @image-url("assets/icons/chevron-right.svg");
+            x: 20px; y: 10px; width: 20px; height: 16px;
+            source: @image-url("assets/icons/delete-left.svg");
+            image-fit: contain;
+        }
+    }
+
+    // Botao confirmar (check) — canto inferior direito
+    Rectangle {
+        x: 230px; y: 194px; width: 60px; height: 36px;
+        border-radius: Theme.radius-s;
+        background: root.filled == root.pin-length ? Theme.accent : Theme.accent-deep;
+        opacity: root.filled == root.pin-length ? 1.0 : 0.65;
+        border-width: 1px;
+        border-color: Theme.accent-hi;
+        TouchArea {
+            clicked => {
+                if (root.filled == root.pin-length) {
+                    root.confirm(root.passcode-str);
+                }
+            }
+        }
+        Image {
+            x: 20px; y: 10px; width: 20px; height: 16px;
+            source: @image-url("assets/icons/check.svg");
             image-fit: contain;
         }
     }
@@ -89,7 +147,7 @@ export component RegionLanguage inherits Rectangle {
     background: Theme.bg-0;
 
     Text {
-        x: 0px; y: 18px; width: 100%; height: 20px;
+        x: 0px; y: 14px; width: 320px; height: 20px;
         text: "Selecione sua Região";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
@@ -99,23 +157,22 @@ export component RegionLanguage inherits Rectangle {
     }
 
     Rectangle {
-        x: 30px; y: 52px; width: 260px; height: 36px;
+        x: 30px; y: 46px; width: 260px; height: 36px;
         border-radius: Theme.radius-s;
         background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke;
 
+        // Mini "bandeira" Brasil (verde/amarelo/azul, sem depender de fontes)
         Rectangle {
             x: 12px; y: 8px; width: 22px; height: 20px;
             border-radius: 4px;
             background: #009B3A;
-            Text {
-                x: 0px; y: -1px; width: 100%; height: 100%;
-                text: "◆";
-                color: #FFDF00;
-                font-size: 12px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            Rectangle {
+                x: 3px; y: 4px; width: 16px; height: 12px;
+                border-radius: 2px;
+                background: #FFDF00;
+                opacity: 0.95;
             }
             Rectangle {
                 x: 8px; y: 7px; width: 6px; height: 6px;
@@ -124,7 +181,7 @@ export component RegionLanguage inherits Rectangle {
             }
         }
         Text {
-            x: 46px; y: 0px; width: 180px; height: 100%;
+            x: 46px; y: 0px; width: 180px; height: 36px;
             text: root.region;
             color: Theme.text-primary;
             font-size: Theme.font-md;
@@ -139,7 +196,7 @@ export component RegionLanguage inherits Rectangle {
     }
 
     Text {
-        x: 0px; y: 100px; width: 100%; height: 20px;
+        x: 0px; y: 96px; width: 320px; height: 20px;
         text: "Selecione seu Idioma";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
@@ -149,13 +206,13 @@ export component RegionLanguage inherits Rectangle {
     }
 
     Rectangle {
-        x: 30px; y: 126px; width: 260px; height: 36px;
+        x: 30px; y: 128px; width: 260px; height: 36px;
         border-radius: Theme.radius-s;
         background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke;
         Text {
-            x: 14px; y: 0px; width: 210px; height: 100%;
+            x: 14px; y: 0px; width: 210px; height: 36px;
             text: root.language;
             color: Theme.text-primary;
             font-size: Theme.font-md;
@@ -170,7 +227,7 @@ export component RegionLanguage inherits Rectangle {
     }
 
     Rectangle {
-        x: 30px; y: 182px; width: 260px; height: 38px;
+        x: 30px; y: 190px; width: 260px; height: 40px;
         border-radius: Theme.radius-s;
         background: Theme.accent;
         TouchArea { clicked => { root.continue-clicked(); } }

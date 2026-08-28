@@ -75,9 +75,10 @@ fn main() -> Result<()> {
     // ---- Cria a AppWindow (definida em ui/main.slint) ----
     let app = AppWindow::new()
         .map_err(|e| anyhow::anyhow!("falha ao criar AppWindow Slint: {e:?}"))?;
-    // Boot animation → home
+    // Boot animation → home. 2200ms deixa o fade-in + hold do logo completos
+    // antes de descer para a tela de definicao de senha.
     let weak = app.as_weak();
-    slint::Timer::single_shot(std::time::Duration::from_millis(1800), move || {
+    slint::Timer::single_shot(std::time::Duration::from_millis(2200), move || {
         if let Some(w) = weak.upgrade() {
             w.set_current_screen(Screen::FirstBootPasscode);
         }
@@ -91,6 +92,10 @@ fn main() -> Result<()> {
     app.on_set_volume(|v| log::info!("UI: volume {:.0}%", v * 100.0));
     app.on_wake_word_triggered(|| log::info!("UI: wake-word acionada"));
     app.on_launch_app(|idx|      log::info!("UI: launch_app({})", idx));
+    app.on_set_rotation(|on| {
+        log::info!("UI: rotacao automatica {}", if on { "ligada" } else { "desligada" });
+        slint_platform::apply_display_rotation(on);
+    });
 
     app.show()
         .map_err(|e| anyhow::anyhow!("falha ao exibir AppWindow Slint: {e:?}"))?;

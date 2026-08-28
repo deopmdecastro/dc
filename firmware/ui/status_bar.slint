@@ -1,21 +1,28 @@
 import { Theme } from "theme.slint";
 
+// Barra de estado 320x24 fixa no topo do ecra. As coordenadas dos icones
+// e do relogio sao absolutas e o proprio componente declara width/height
+// explicitos para nao herdar tamanhos "collapsed" quando o pai nao aplica
+// um layout (o que estava a empurrar o relogio para o meio do ecra).
 export component StatusBar inherits Rectangle {
     in property <string> current-time: "09:42";
     in property <bool> wifi-on: true;
     in property <bool> bluetooth-on: true;
 
+    width: 320px;
     height: 24px;
     background: Theme.bg-0;
 
+    // Linha inferior de separacao
     Rectangle {
-        x: 0px; y: 23px; width: parent.width; height: 1px;
+        x: 0px; y: 23px; width: 320px; height: 1px;
         background: Theme.stroke-soft;
         opacity: 0.8;
     }
 
+    // Relogio centrado
     Text {
-        x: 0px; y: 0px; width: 100%; height: 100%;
+        x: 0px; y: 0px; width: 320px; height: 24px;
         text: root.current-time;
         color: Theme.text-primary;
         font-size: Theme.font-sm;
@@ -24,15 +31,15 @@ export component StatusBar inherits Rectangle {
         vertical-alignment: center;
     }
 
+    // Icones no canto superior direito
     Image {
-        x: 272px; y: 6px; width: 14px; height: 14px;
+        x: 272px; y: 5px; width: 14px; height: 14px;
         source: @image-url("assets/icons/wifi.svg");
         image-fit: contain;
         opacity: root.wifi-on ? 1.0 : 0.35;
     }
-
     Image {
-        x: 294px; y: 6px; width: 14px; height: 14px;
+        x: 294px; y: 5px; width: 14px; height: 14px;
         source: @image-url("assets/icons/bluetooth.svg");
         image-fit: contain;
         opacity: root.bluetooth-on ? 1.0 : 0.35;

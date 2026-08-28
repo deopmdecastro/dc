@@ -32,6 +32,7 @@ export component AppWindow inherits Window {
     in-out property <string> current-time: "09:42";
     in-out property <bool> wifi-on: true;
     in-out property <bool> bluetooth-on: true;
+    in-out property <bool> autorotate: true;
     in-out property <float> audio-level: 0.0;
     in-out property <bool> listening: false;
 
@@ -43,11 +44,17 @@ export component AppWindow inherits Window {
     callback set-volume(float);
     callback wake-word-triggered();
     callback launch-app(int);
+    // Emitido pelo Control Center quando o utilizador liga/desliga a
+    // rotacao automatica. O Rust ajusta MADCTL no ILI9341V.
+    callback set-rotation(bool);
 
+    // Container do conteudo: preenche toda a tela quando a status bar
+    // esta oculta (splash / first boot) e desce 24px caso contrario.
     Rectangle {
+        x: 0px;
         y: root.show-status ? 24px : 0px;
-        width: parent.width;
-        height: parent.height - (root.show-status ? 24px : 0px);
+        width: 320px;
+        height: root.show-status ? 216px : 240px;
 
         if root.current-screen == Screen.Splash:
             SplashScreen { width: 100%; height: 100%; }
@@ -118,8 +125,13 @@ export component AppWindow inherits Window {
             }
     }
 
+    // Status bar SEMPRE fixa no topo (0,0) com 320x24 explicitos. Quando
+    // nao deve aparecer, fica oculta pelo `if`. Isto resolve o bug em que
+    // o relogio aparecia no meio do ecra por a StatusBar herdar tamanhos
+    // "colapsados" ao ser adicionada sem posicao/tamanho explicitos.
     if root.show-status:
         StatusBar {
+            x: 0px; y: 0px; width: 320px; height: 24px;
             current-time: root.current-time;
             wifi-on: root.wifi-on;
             bluetooth-on: root.bluetooth-on;
@@ -128,26 +140,24 @@ export component AppWindow inherits Window {
 
     if root.control-center-open:
         Rectangle {
-            y: 24px;
-            width: 100%;
-            height: parent.height - 24px;
+            x: 0px; y: 24px; width: 320px; height: 216px;
             background: #00000000;
 
             Rectangle {
-                width: 100%;
-                height: 100%;
+                width: 100%; height: 100%;
                 background: #03050ECC;
                 TouchArea { clicked => { root.control-center-open = false; } }
             }
 
             ControlCenter {
                 visible: true;
-                width: 100%;
-                height: 100%;
+                width: 100%; height: 100%;
                 wifi-on <=> root.wifi-on;
                 bluetooth-on <=> root.bluetooth-on;
+                autorotate <=> root.autorotate;
                 brightness-changed(v) => { root.set-brightness(v); }
                 volume-changed(v) => { root.set-volume(v); }
+                rotation-changed(on) => { root.set-rotation(on); }
             }
         }
 }

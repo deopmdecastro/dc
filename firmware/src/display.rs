@@ -156,4 +156,37 @@ impl<'d> Display<'d> {
         self.backlight.set_duty(duty)?;
         Ok(())
     }
+
+    /// Altera a rotacao do painel via MADCTL. O ILI9341V do ES3C28P nao
+    /// permite realmente rodar 360 graus por hardware (o driver so troca
+    /// x/y e espelha eixos), mas isto e' o suficiente para o toggle de
+    /// "rotacao automatica" no Control Center trocar entre landscape
+    /// (0deg) e landscape invertido (180deg), que e' o comportamento
+    /// esperado quando o dispositivo e' viradao de cabeca para baixo.
+    ///
+    /// - `Landscape`  → MADCTL 0x28  (BGR, MV, orientacao normal)
+    /// - `Landscape180` → MADCTL 0xE8 (BGR, MV+MX+MY, invertido)
+    /// - `PortraitCW` → MADCTL 0x48  (BGR, MX)
+    /// - `PortraitCCW`→ MADCTL 0x88  (BGR, MY)
+    pub fn set_rotation(&mut self, rot: DisplayRotation) -> Result<()> {
+        let madctl: u8 = match rot {
+            DisplayRotation::Landscape    => 0x28,
+            DisplayRotation::Landscape180 => 0xE8,
+            DisplayRotation::PortraitCW   => 0x48,
+            DisplayRotation::PortraitCCW  => 0x88,
+        };
+        self.cmd(CMD_MADCTL)?;
+        self.data(&[madctl])?;
+        log::info!("Display: rotacao alterada, MADCTL=0x{:02X}", madctl);
+        Ok(())
+    }
+}
+
+/// Orientacoes suportadas pelo painel ILI9341V do DC Assistant.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DisplayRotation {
+    Landscape,
+    Landscape180,
+    PortraitCW,
+    PortraitCCW,
 }
