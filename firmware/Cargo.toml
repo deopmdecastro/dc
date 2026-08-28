@@ -23,22 +23,33 @@ name = "dc-os-firmware"
 path = "src/main.rs"
 
 [profile.release]
-# NOTE: "opt-level = \"s\"/\"z\"" (otimizacao por tamanho) fazia o LLVM
-# transformar `select`s de dois literais float (ex.: um ternario de opacidade
-# `cond ? 1.0 : 0.55`) num "load sem branch" a partir de um constant pool
-# `[2 x float]`, indexado pela condicao — uma otimizacao classica para
-# reduzir codigo evitando desvios. O backend Xtensa nao consegue selecionar
-# a instrucao de endereçamento (PCREL_WRAPPER) para esse acesso especifico
-# dentro da closure `init` gerada pelo Slint para PasscodeSetup (ver
-# `opacity: root.filled > 0 ? 1.0 : 0.55;` em ui/first_boot.slint):
-#   rustc-LLVM ERROR: Cannot select: XtensaISD::PCREL_WRAPPER
-#   TargetConstantPool<[2 x float] [float 0.55, float 1.0]>
-# lto=thin/false NAO resolve isto — a causa raiz e o nivel de otimizacao,
-# nao o LTO. "opt-level = 2" evita esse caminho especifico de codegen
-# (a transformacao select->array e tipica de -Os/-Oz). Ainda cabe
-# confortavelmente na flash de 16MB deste dispositivo.
-opt-level     = 2
-lto           = "thin"
+# NOTE sobre o crash "rustc-LLVM ERROR: Cannot select: XtensaISD::PCREL_WRAPPER
+# TargetConstantPool<[2 x float] [float 0.55, float 1.0]>" dentro de
+# InnerPasscodeSetup...init:
+#
+# Testado e descartado:
+#   - lto = true/"thin"/false -> sem efeito, crash identico.
+#   - opt-level = "s" ou 2    -> sem efeito, crash identico (mesmo
+#     endereco de constante LCP1072_2 nos dois casos).
+#   - reescrever os ternarios `cond ? 1.0 : 0.55` como Slint `states`
+#     -> sem efeito, crash identico.
+#
+# Ou seja, NAO e uma otimizacao do rustc/LLVM a inventar este padrao —
+# o array [2 x float] ja vem assim do codigo Rust gerado pelo proprio
+# compilador do Slint (slint-build/i-slint-compiler) para propriedades
+# com mais de um valor possivel (opacity condicional, states, etc.),
+# independentemente de opt-level/LTO. O Cargo.lock tinha o slint preso
+# em 1.17.1 (o manifesto so pede "1.8", ^1.8 permite ate <2.0) — o
+# gerador de codigo do item_tree mudou entre 1.8 e 1.17 e a versao mais
+# recente produz um padrao que o backend LLVM-Xtensa (ainda imaturo)
+# nao consegue selecionar. Fixado no [dependencies] abaixo: slint e
+# slint-build pinados em "=1.8.0" (a versao que o projeto sempre visou).
+# Depois de mudar o manifesto, correr localmente (maquina com o
+# toolchain esp, nao da para fazer aqui):
+#   cargo update -p slint --precise 1.8.0 -p slint-build --precise 1.8.0
+# para regenerar o Cargo.lock antes do proximo `cargo build --release --locked`.
+opt-level     = "s"
+lto           = true
 codegen-units = 1
 strip         = true
 panic         = "abort"
@@ -58,7 +69,12 @@ esp-idf-hal   = { version = "0.46" }
 esp-idf-sys   = { version = "0.37",  features = ["binstart"] }
 
 # ---- Slint (no_std, embedded backend) ----
-slint         = { version = "1.8", default-features = false, features = [
+# Pinado em "=1.8.0" (nao "1.8" ^caret): o Cargo.lock tinha subido para
+# 1.17.1, cujo codegen do item_tree crasha o backend LLVM-Xtensa em
+# componentes com propriedades condicionais (ver nota em [profile.release]
+# acima). Depois desta mudanca, correr localmente:
+#   cargo update -p slint --precise 1.8.0 -p slint-build --precise 1.8.0
+slint         = { version = "=1.8.0", default-features = false, features = [
     "compat-1-2",
     "unsafe-single-threaded",
     "renderer-software",
@@ -80,7 +96,7 @@ serde_json    = { version = "1", default-features = false, features = ["alloc"] 
 
 [build-dependencies]
 embuild        = "0.33"
-slint-build    = "1.8"
+slint-build    = "=1.8.0"
 
 # ---- Configuração do esp-idf-sys/embuild ----
 # Sem esta tabela, o esp-idf-sys ignora por completo o `sdkconfig.defaults`
