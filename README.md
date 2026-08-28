@@ -18,6 +18,9 @@ hardware **ES3C28P**:
 - Touch FT6336G inicializa em I2C `0x38` e envia eventos para a UI.
 - UI Slint no estilo DC OS escuro, com launcher sem barra lateral, Definições
   por categorias, Alarme configurável, PIN persistente e região/idioma.
+- A tela inicial usa gesto de deslizar para a esquerda para abrir o launcher
+  de aplicacoes (o botao "Abrir Apps" foi removido).
+- Player de musica integra a Spotify Web API e mostra as top tracks reais.
 - Wi-Fi liga de verdade, sincroniza hora por SNTP e consome a API real por HTTP.
 - Player envia `play`, `pause`, `next` e `prev` para o backend/Mopidy.
 - Brilho ajusta o PWM do backlight; volume fica persistido para integração de
@@ -159,6 +162,24 @@ Quando tocares no ecrã, devem aparecer logs como:
 Touch: down raw=(..., ...) ui=(..., ...)
 Touch: up ui=(..., ...)
 ```
+
+## Spotify
+
+O player de musica agora integra a Spotify Web API. Apos ligar o Wi-Fi,
+o firmware pede as 5 faixas mais ouvidas (`v1/me/top/tracks?time_range=long_term`).
+Os titulos e artistas reais aparecem no ecrã do music player.
+
+Para incluir o token OAuth do Spotify no firmware, define a variavel de
+ambiente antes de compilar:
+
+```powershell
+cd C:\DC\dc\firmware
+$env:SPOTIFY_TOKEN = "BQ..."
+cargo build --release --locked
+```
+
+O token e incorporado no binario em build-time via `option_env!("SPOTIFY_TOKEN")`.
+Sem token, o player mostra "A carregar..." e funciona em modo offline.
 
 ## Configuração Wi-Fi
 

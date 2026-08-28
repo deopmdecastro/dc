@@ -2,10 +2,11 @@ import { Theme } from "theme.slint";
 
 export struct AppEntry { name: string, icon: image, color: color }
 
+// AppLauncher — grelha 4x2 de aplicacoes, design moderno e limpo.
 export component AppLauncher inherits Rectangle {
     in property <[AppEntry]> apps: [
         { name: "DC Assistant", icon: @image-url("assets/icons/message-circle.svg"), color: Theme.accent-blue },
-        { name: "Musica",       icon: @image-url("assets/icons/music.svg"),          color: Theme.accent-pink },
+        { name: "Spotify",       icon: @image-url("assets/icons/music.svg"),          color: Theme.accent-pink },
         { name: "Clima",        icon: @image-url("assets/icons/cloud.svg"),          color: Theme.warning },
         { name: "Agenda",       icon: @image-url("assets/icons/calendar.svg"),       color: Theme.danger },
         { name: "Notas",        icon: @image-url("assets/icons/file-text.svg"),      color: Theme.warning },
@@ -19,42 +20,47 @@ export component AppLauncher inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
+    // Header
     Text {
-        x: 16px; y: 12px; width: 180px; height: 18px;
+        x: 16px; y: 10px; width: 200px; height: 18px;
         text: "Aplicacoes";
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
     }
 
+    // Grid 4 columns x 2 rows
     for row[index] in [[0,1,2,3],[4,5,6,0]] : HorizontalLayout {
-        x: 14px; y: 42px + index * 76px; width: 292px; height: 68px;
-        spacing: 10px;
+        x: 12px; y: 36px + index * 84px; width: 296px; height: 76px;
+        spacing: 8px;
         for i[row-index] in row : Rectangle {
             visible: !(index == 1 && row-index == 3);
-            width: 65px; height: 68px;
+            width: 68px; height: 76px;
             border-radius: Theme.radius-m;
             background: Theme.panel-soft;
             border-width: 1px;
-            border-color: Theme.stroke;
+            border-color: Theme.stroke-soft;
             clip: true;
             TouchArea { clicked => { root.app-clicked(i); } }
 
+            // Icon circle
             Rectangle {
-                x: 18px; y: 8px; width: 30px; height: 30px;
+                x: 19px; y: 10px; width: 30px; height: 30px;
                 border-radius: 15px;
                 background: root.apps[i].color;
+                opacity: 0.15;
             }
             Image {
-                x: 21px; y: 11px; width: 24px; height: 24px;
+                x: 22px; y: 13px; width: 24px; height: 24px;
                 source: root.apps[i].icon;
                 image-fit: contain;
             }
             Text {
-                x: 4px; y: 44px; width: 57px; height: 16px;
+                x: 4px; y: 48px; width: 60px; height: 18px;
                 text: root.apps[i].name;
                 color: Theme.text-primary;
                 font-size: 8px;
+                font-weight: 600;
                 horizontal-alignment: center;
                 vertical-alignment: center;
                 overflow: elide;

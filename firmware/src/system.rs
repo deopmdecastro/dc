@@ -4,6 +4,7 @@ pub enum SystemEvent {
     BluetoothChanged(bool),
     ApiHealthChanged(bool),
     TimeChanged(String),
+    SpotifyTracksLoaded(Vec<crate::spotify::SpotifyTrack>),
 }
 
 #[derive(Debug, Clone)]

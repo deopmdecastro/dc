@@ -1,35 +1,43 @@
 import { Theme } from "theme.slint";
 
+// ChatView — home screen. Swipe left opens the app launcher.
+// The old "Abrir Apps" button has been removed; gesture replaces it.
 export component ChatView inherits Rectangle {
     in property <float> audio-level: 0.0;
     in property <bool> listening: false;
     callback mic-tapped();
     callback menu-tapped();
 
+    // Swipe gesture state
+    property <float> swipe-x: 0px;
+    property <bool> swiping: false;
+
     width: 320px;
     height: 216px;
     background: Theme.bg-0;
 
-    Rectangle {
-        x: 8px; y: 8px; width: 44px; height: 44px;
-        border-radius: 22px;
-        background: Theme.panel-soft;
-        border-width: 1px;
-        border-color: Theme.stroke;
-        TouchArea { clicked => { root.menu-tapped(); } }
-        Image {
-            x: 15px; y: 15px; width: 14px; height: 14px;
-            source: @image-url("assets/icons/menu.svg");
-            image-fit: contain;
+    // Full-screen TouchArea for swipe detection
+    TouchArea {
+        width: 100%;
+        height: 100%;
+        mouse-x => { self.pressed ? root.swiping = true : {}; }
+        mouse-y => { self.pressed ? {} : {}; }
+        moved => {
+            if (self.pressed) {
+                root.swiping = true;
+                root.swipe-x = self.mouse-x - self.pressed-x;
+            }
+        }
+        clicked => {
+            if (root.swiping && root.swipe-x < -40px) {
+                root.menu-tapped();
+            }
+            root.swiping = false;
+            root.swipe-x = 0px;
         }
     }
 
-    Rectangle {
-        x: 58px; y: 66px; width: 204px; height: 44px;
-        border-radius: 22px;
-        background: Theme.bg-2;
-    }
-
+    // Greeting text
     Text {
         x: 0px; y: 48px; width: 100%; height: 20px;
         text: "Ola, eu sou o";
@@ -56,6 +64,22 @@ export component ChatView inherits Rectangle {
         vertical-alignment: center;
     }
 
+    // Swipe hint arrow (left edge)
+    Image {
+        x: 4px; y: 100px; width: 12px; height: 12px;
+        source: @image-url("assets/icons/chevron-left.svg");
+        image-fit: contain;
+        opacity: 0.3;
+    }
+    Text {
+        x: 0px; y: 118px; width: 30px; height: 10px;
+        text: "apps";
+        color: Theme.text-dim;
+        font-size: 7px;
+        horizontal-alignment: center;
+    }
+
+    // Audio waveform visualization
     HorizontalLayout {
         x: 40px; y: 136px; width: 240px; height: 34px;
         alignment: center;
@@ -72,6 +96,7 @@ export component ChatView inherits Rectangle {
         }
     }
 
+    // Mic button
     Rectangle {
         x: 132px; y: 173px; width: 56px; height: 42px;
         border-radius: 21px;

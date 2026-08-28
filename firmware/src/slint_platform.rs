@@ -259,6 +259,18 @@ fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {
                 SystemEvent::TimeChanged(value) => {
                     app.set_current_time(value.into());
                 }
+                SystemEvent::SpotifyTracksLoaded(tracks) => {
+                    let titles: Vec<slint::SharedString> =
+                        tracks.iter().map(|t| t.name.as_str().into()).collect();
+                    let artists: Vec<slint::SharedString> =
+                        tracks.iter().map(|t| t.artist_names().as_str().into()).collect();
+                    let albums: Vec<slint::SharedString> =
+                        tracks.iter().map(|_| "".into()).collect();
+                    app.set_spotify_titles(titles.into());
+                    app.set_spotify_artists(artists.into());
+                    app.set_spotify_albums(albums.into());
+                    log::info!("UI: {} faixas Spotify carregadas", tracks.len());
+                }
             }
         });
         WINDOW.with(|w| {

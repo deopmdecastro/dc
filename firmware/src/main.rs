@@ -16,6 +16,7 @@ mod display;
 mod network;
 mod pinout;
 mod slint_platform;
+mod spotify;
 mod system;
 mod touch;
 

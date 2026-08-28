@@ -26,6 +26,11 @@ fn main() {
     )
     .expect("Falha ao compilar arquivos .slint");
 
+    // Embed the Spotify OAuth token at build time if provided.
+    if let Ok(token) = std::env::var("SPOTIFY_TOKEN") {
+        println!("cargo:rustc-env=SPOTIFY_TOKEN={token}");
+    }
+
     // Encadeia a build do esp-idf/PlatformIO.
     embuild::espidf::sysenv::output();
 }

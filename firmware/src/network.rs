@@ -137,6 +137,13 @@ fn run_network(
                     };
                     next_probe_in = 0;
                     next_clock_in = 0;
+
+                    // Fetch Spotify top tracks once after connecting.
+                    let spotify_token = option_env!("SPOTIFY_TOKEN").unwrap_or("");
+                    if !spotify_token.is_empty() {
+                        log::info!("Spotify: a pedir top tracks apos Wi-Fi");
+                        crate::spotify::fetch_top_tracks(spotify_token, &event_tx);
+                    }
                 }
                 Err(e) => {
                     log::warn!("Wi-Fi: falha ao conectar: {e:?}");

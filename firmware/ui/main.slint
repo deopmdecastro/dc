@@ -40,9 +40,14 @@ export component AppWindow inherits Window {
     in-out property <bool> alarm-enabled: false;
     in-out property <int> alarm-hour: 7;
     in-out property <int> alarm-minute: 0;
-    in-out property <bool> music-playing: true;
+    in-out property <bool> music-playing: false;
     in-out property <float> audio-level: 0.0;
     in-out property <bool> listening: false;
+
+    // Spotify track data (preenchido pelo Rust)
+    in-out property <[string]> spotify-titles: ["A carregar..."];
+    in-out property <[string]> spotify-artists: [""];
+    in-out property <[string]> spotify-albums: [""];
 
     property <bool> show-status: root.current-screen != Screen.Splash
         && root.current-screen != Screen.FirstBootPasscode
@@ -120,6 +125,9 @@ export component AppWindow inherits Window {
             MusicPlayer {
                 width: 100%; height: 100%;
                 playing <=> root.music-playing;
+                track-titles: root.spotify-titles;
+                track-artists: root.spotify-artists;
+                track-albums: root.spotify-albums;
                 playback-changed(playing) => {
                     root.music-command(playing ? "play" : "pause");
                 }
