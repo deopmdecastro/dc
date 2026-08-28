@@ -2,7 +2,6 @@ import { Theme } from "theme.slint";
 
 export struct WifiNetwork { ssid: string, secured: bool, connected: bool }
 
-// Settings — gerência de senha e Wi-Fi/Bluetooth.
 export component SettingsPanel inherits Rectangle {
     in-out property <bool> wifi-on: true;
     in property <[WifiNetwork]> networks: [
@@ -14,69 +13,70 @@ export component SettingsPanel inherits Rectangle {
     callback change-passcode();
     callback network-selected(string);
 
-    width: 100%; height: 100%;
-    background: Theme.bg-1;
+    width: 320px;
+    height: 216px;
+    background: Theme.bg-0;
 
-    VerticalLayout {
-        padding: 8px; spacing: 6px;
-        HorizontalLayout {
-            spacing: 8px;
-            Rectangle {
-                width: 24px; height: 24px; border-radius: 6px; background: Theme.surface;
-                TouchArea { clicked => { root.back(); } }
-                Text { text: "\u{2190}"; horizontal-alignment: center; vertical-alignment: center;
-                       color: Theme.text-primary; }
-            }
-            Text { text: "Definições"; color: Theme.text-primary;
-                   font-size: Theme.font-md; vertical-alignment: center; }
+    Rectangle {
+        x: 0px; y: 0px; width: 42px; height: 100%;
+        background: #0A1222;
+        border-width: 1px;
+        border-color: Theme.stroke;
+
+        for item[index] in [ "\u{2302}", "\u{266A}", "\u{25A1}", "\u{2699}" ] : Rectangle {
+            x: 6px; y: 46px + index * 42px; width: 30px; height: 30px;
+            border-radius: Theme.radius-s;
+            background: index == 3 ? Theme.accent : #00000000;
+            Text { text: item; color: Theme.text-primary; font-size: Theme.font-xl; horizontal-alignment: center; vertical-alignment: center; }
         }
+    }
 
-        // Toggle Wi-Fi
+    Rectangle {
+        x: 8px; y: 7px; width: 24px; height: 24px;
+        border-radius: 12px;
+        background: #00000000;
+        TouchArea { clicked => { root.back(); } }
+        Text { text: "\u{2039}"; color: Theme.text-primary; font-size: 28px; horizontal-alignment: center; vertical-alignment: center; }
+    }
+
+    Text { x: 42px; y: 8px; width: 278px; height: 20px; text: "Definições"; color: Theme.text-primary; font-size: Theme.font-md; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+
+    Text { x: 56px; y: 42px; width: 40px; height: 20px; text: "Wi-Fi"; color: Theme.text-primary; font-size: Theme.font-lg; font-weight: 700; vertical-alignment: center; }
+
+    Rectangle {
+        x: 268px; y: 43px; width: 38px; height: 20px;
+        border-radius: 10px;
+        background: root.wifi-on ? Theme.accent : Theme.tile-hi;
+        TouchArea { clicked => { root.wifi-on = !root.wifi-on; } }
         Rectangle {
-            height: 32px; border-radius: Theme.radius-m; background: Theme.surface;
-            HorizontalLayout {
-                padding-left: 10px; padding-right: 10px; alignment: space-between;
-                Text { text: "Wi-Fi"; color: Theme.text-primary; font-size: Theme.font-sm;
-                       vertical-alignment: center; }
-                Rectangle {
-                    width: 38px; height: 18px; border-radius: 9px;
-                    background: root.wifi-on ? Theme.accent : Theme.surface-hi;
-                    y: (parent.height - self.height) / 2;
-                    TouchArea { clicked => { root.wifi-on = !root.wifi-on; } }
-                    Rectangle {
-                        width: 14px; height: 14px; border-radius: 7px;
-                        background: Theme.text-primary;
-                        x: root.wifi-on ? parent.width - self.width - 2px : 2px;
-                        y: (parent.height - self.height) / 2;
-                        animate x { duration: 180ms; easing: ease-in-out; }
-                    }
-                }
-            }
+            width: 16px; height: 16px;
+            x: root.wifi-on ? 20px : 2px; y: 2px;
+            border-radius: 8px;
+            background: Theme.text-primary;
+            animate x { duration: 150ms; easing: ease-in-out; }
         }
+    }
 
-        Text { text: "Redes disponíveis"; color: Theme.text-secondary;
-               font-size: Theme.font-xs; }
+    Rectangle { x: 54px; y: 69px; width: 252px; height: 1px; background: Theme.stroke; }
+    Text { x: 56px; y: 76px; width: 120px; height: 14px; text: "Redes disponíveis"; color: Theme.text-secondary; font-size: Theme.font-xs; }
 
-        for n in root.networks : Rectangle {
-            height: 26px; border-radius: Theme.radius-s; background: Theme.surface;
-            TouchArea { clicked => { root.network-selected(n.ssid); } }
-            HorizontalLayout {
-                padding-left: 8px; padding-right: 8px; alignment: space-between;
-                Text { text: (n.connected ? "\u{2713} " : "") + n.ssid;
-                       color: n.connected ? Theme.accent-2 : Theme.text-primary;
-                       font-size: Theme.font-xs; vertical-alignment: center; }
-                Text { text: n.secured ? "\u{1F512}" : "";
-                       color: Theme.text-muted; font-size: Theme.font-xs;
-                       vertical-alignment: center; }
-            }
-        }
+    for n[index] in root.networks : Rectangle {
+        x: 54px; y: 96px + index * 31px; width: 252px; height: 29px;
+        border-radius: Theme.radius-s;
+        background: Theme.tile;
+        TouchArea { clicked => { root.network-selected(n.ssid); } }
+        Text { x: 12px; y: 0px; width: 18px; height: 100%; text: "\u{25E0}"; color: Theme.text-primary; font-size: Theme.font-md; horizontal-alignment: center; vertical-alignment: center; }
+        Text { x: 38px; y: 4px; width: 140px; height: 13px; text: n.ssid; color: Theme.text-primary; font-size: Theme.font-sm; }
+        Text { x: 38px; y: 17px; width: 120px; height: 10px; text: n.connected ? "Conectado" : ""; color: Theme.accent-hi; font-size: 8px; }
+        Text { x: 226px; y: 0px; width: 16px; height: 100%; text: n.secured ? "\u{25A1}" : ""; color: Theme.text-secondary; font-size: Theme.font-sm; horizontal-alignment: center; vertical-alignment: center; }
+    }
 
-        Rectangle {
-            height: 28px; border-radius: Theme.radius-m; background: Theme.accent;
-            TouchArea { clicked => { root.change-passcode(); } }
-            Text { text: "Alterar Senha"; color: Theme.text-primary;
-                   font-size: Theme.font-sm; horizontal-alignment: center;
-                   vertical-alignment: center; }
-        }
+    Rectangle {
+        x: 54px; y: 189px; width: 252px; height: 25px;
+        border-radius: Theme.radius-m;
+        background: Theme.tile;
+        TouchArea { clicked => { root.change-passcode(); } }
+        Text { x: 12px; y: 0px; width: 22px; height: 100%; text: "\u{25A1}"; color: Theme.text-primary; font-size: Theme.font-sm; horizontal-alignment: center; vertical-alignment: center; }
+        Text { x: 40px; y: 0px; width: 120px; height: 100%; text: "Outra rede..."; color: Theme.text-primary; font-size: Theme.font-sm; vertical-alignment: center; }
     }
 }

@@ -1,6 +1,5 @@
 import { Theme } from "theme.slint";
 
-// StatusBar — barra superior fixa (24 px). Mostra hora + Wi-Fi + BT.
 export component StatusBar inherits Rectangle {
     in property <string> current-time: "09:42";
     in property <bool>   wifi-on:      true;
@@ -9,32 +8,30 @@ export component StatusBar inherits Rectangle {
     height: 24px;
     background: Theme.bg-0;
 
-    HorizontalLayout {
-        padding-left: 12px;
-        padding-right: 12px;
-        alignment: space-between;
+    Text {
+        x: 0px; y: 0px; width: 100%; height: 100%;
+        text: root.current-time;
+        color: Theme.text-primary;
+        font-size: Theme.font-sm;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
 
+    HorizontalLayout {
+        x: parent.width - 58px; y: 0px; width: 48px; height: 100%;
+        spacing: 8px;
         Text {
-            text: root.current-time;
-            color: Theme.text-primary;
-            font-size: Theme.font-sm;
+            text: root.wifi-on ? "\u{25E0}" : "\u{25CB}";
+            color: root.wifi-on ? Theme.text-primary : Theme.text-muted;
+            font-size: Theme.font-lg;
             vertical-alignment: center;
         }
-
-        HorizontalLayout {
-            spacing: 8px;
-            Text {
-                text: root.wifi-on ? "\u{f1eb}" : "\u{f6ac}"; // wifi / wifi-slash
-                color: root.wifi-on ? Theme.accent-2 : Theme.text-muted;
-                font-size: Theme.font-sm;
-                vertical-alignment: center;
-            }
-            Text {
-                text: "\u{f294}"; // bluetooth
-                color: root.bluetooth-on ? Theme.accent-2 : Theme.text-muted;
-                font-size: Theme.font-sm;
-                vertical-alignment: center;
-            }
+        Text {
+            text: "B";
+            color: root.bluetooth-on ? Theme.text-primary : Theme.text-muted;
+            font-size: Theme.font-md;
+            font-weight: 700;
+            vertical-alignment: center;
         }
     }
 }

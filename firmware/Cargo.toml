@@ -74,5 +74,6 @@ slint-build    = "1.8"
 # do ESP-IDF (ex.: CONFIG_ESP_MAIN_TASK_STACK_SIZE=3584, insuficiente para
 # correr o Slint + Wi-Fi dentro da task `main`, causando stack overflow).
 [package.metadata.esp-idf-sys]
+esp_idf_tools_install_dir   = "custom:C:/DC/.embuild/espressif"
 esp_idf_sdkconfig          = "sdkconfig"
 esp_idf_sdkconfig_defaults = ["sdkconfig.defaults"]

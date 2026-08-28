@@ -7,9 +7,10 @@ Base: ESP32-S3 · 8 MB PSRAM · 16 MB Flash · 2.8" IPS 240×320 · FT6336G · M
 | Sinal | GPIO | Observação |
 |-------|------|------------|
 | SCLK  | 12   | LCD SPI clock |
-| MOSI  | 13   | LCD SPI data |
-| CS    | 46   | Chip select |
-| DC    | 11   | Data/Command (reservado — confirmar em bring-up) |
+| MOSI  | 11   | LCD SPI data |
+| MISO  | 13   | LCD SPI data in (não usado no driver atual) |
+| CS    | 10   | Chip select |
+| DC    | 46   | Data/Command |
 | RST   | CHIP_PU | Compartilhado com reset do ESP32-S3 |
 | BL    | 45   | PWM backlight (LEDC canal 0) |
 

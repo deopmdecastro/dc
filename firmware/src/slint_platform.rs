@@ -3,12 +3,15 @@
 
 use crate::display::Display;
 use crate::pinout::DISPLAY_W;
+use crate::touch::TouchEvent;
+use slint::LogicalPosition;
 use slint::platform::{
     software_renderer::{LineBufferProvider, MinimalSoftwareWindow, Rgb565Pixel},
-    Platform,
+    Platform, PointerEventButton, WindowEvent,
 };
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::mpsc::Receiver;
 
 // O display e a janela ficam em thread-locals porque o `Platform` registado
 // no Slint (via `set_platform`) só é acedido internamente pela lib — mas o
@@ -103,23 +106,71 @@ impl<'a> LineBufferProvider for SpiLineBuffer<'a> {
 }
 
 /// Roda o loop de eventos Slint (bloqueante).
-pub fn run_event_loop() -> ! {
+pub fn run_event_loop(touch_rx: Receiver<TouchEvent>) -> ! {
     // A janela raiz (`AppWindow`) é criada e mostrada pelo main.rs.
+    let mut frame_count: u32 = 0;
+    let mut idle_ticks: u32 = 0;
+
     loop {
+        dispatch_pending_touch_events(&touch_rx);
         slint::platform::update_timers_and_animations();
 
         WINDOW.with(|w| {
             if let Some(window) = w.borrow().as_ref() {
-                window.draw_if_needed(|renderer| {
+                if window.draw_if_needed(|renderer| {
                     DISPLAY.with(|d| {
                         if let Some(display) = d.borrow_mut().as_mut() {
                             renderer.render_by_line(SpiLineBuffer { display });
                         }
                     });
-                });
+                }) {
+                    frame_count = frame_count.wrapping_add(1);
+                    idle_ticks = 0;
+
+                    if frame_count <= 3 || frame_count % 60 == 0 {
+                        log::info!("Slint: frame {} enviado ao display", frame_count);
+                    }
+                } else {
+                    idle_ticks = idle_ticks.wrapping_add(1);
+                    if idle_ticks == 1000 {
+                        log::warn!("Slint: 1000 ciclos sem redraw pendente");
+                    }
+                }
             }
         });
 
         unsafe { esp_idf_sys::vTaskDelay(1); }
     }
+}
+
+fn dispatch_pending_touch_events(touch_rx: &Receiver<TouchEvent>) {
+    while let Ok(event) = touch_rx.try_recv() {
+        WINDOW.with(|w| {
+            if let Some(window) = w.borrow().as_ref() {
+                let window_event = match event {
+                    TouchEvent::Down(point) => WindowEvent::PointerPressed {
+                        position: point_to_position(point),
+                        button: PointerEventButton::Left,
+                    },
+                    TouchEvent::Move(point) => WindowEvent::PointerMoved {
+                        position: point_to_position(point),
+                    },
+                    TouchEvent::Up(point) => WindowEvent::PointerReleased {
+                        position: point_to_position(point),
+                        button: PointerEventButton::Left,
+                    },
+                    TouchEvent::SwipeX { .. } | TouchEvent::SwipeY { .. } => return,
+                };
+
+                if let Err(e) = window.try_dispatch_event(window_event) {
+                    log::warn!("Slint: falha ao entregar touch: {e:?}");
+                }
+                window.request_redraw();
+            }
+        });
+    }
+}
+
+fn point_to_position(point: crate::touch::Point) -> LogicalPosition {
+    LogicalPosition::new(point.x as f32, point.y as f32)
 }

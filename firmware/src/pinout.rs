@@ -4,9 +4,9 @@
 pub mod pins {
     // Display ILI9341V (SPI2 / HSPI)
     pub const DISP_SCLK: u8 = 12;
-    pub const DISP_MOSI: u8 = 13;
-    pub const DISP_CS:   u8 = 46;
-    pub const DISP_DC:   u8 = 11;
+    pub const DISP_MOSI: u8 = 11;
+    pub const DISP_CS:   u8 = 10;
+    pub const DISP_DC:   u8 = 46;
     pub const DISP_BL:   u8 = 45; // PWM backlight (LEDC canal 0)
 
     // Touch FT6336G (I2C0)

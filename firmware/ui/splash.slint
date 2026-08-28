@@ -1,29 +1,46 @@
 import { Theme } from "theme.slint";
 
-// Splash — animação de boot.
 export component SplashScreen inherits Rectangle {
-    width: 100%; height: 100%;
+    width: 320px;
+    height: 240px;
     background: Theme.bg-0;
 
     property <float> pulse: 0;
     animate pulse { duration: 1400ms; easing: ease-in-out; iteration-count: -1; direction: alternate; }
     init => { self.pulse = 1; }
 
-    VerticalLayout {
-        alignment: center; spacing: 6px;
-        Text {
-            text: "DC OS";
-            color: Theme.accent-2;
-            font-size: 42px;
-            font-weight: 700;
-            horizontal-alignment: center;
-        }
-        Text {
-            text: "Seu assistente pessoal";
-            color: Theme.text-secondary;
-            font-size: Theme.font-sm;
-            horizontal-alignment: center;
-            opacity: 0.4 + 0.6 * root.pulse;
-        }
+    Rectangle { x: 0px; y: 0px; width: 100%; height: 100%; background: #060A17; }
+    Rectangle { x: 38px; y: 172px; width: 244px; height: 2px; border-radius: 1px; background: Theme.accent-blue; opacity: 0.45 + root.pulse * 0.35; }
+    Rectangle { x: 65px; y: 166px; width: 190px; height: 10px; border-radius: 5px; background: #37128E; opacity: 0.35; }
+    Rectangle { x: 88px; y: 169px; width: 144px; height: 4px; border-radius: 2px; background: Theme.accent-2; opacity: 0.55 + root.pulse * 0.35; }
+    Rectangle { x: 120px; y: 161px; width: 80px; height: 18px; border-radius: 9px; background: #7A22FF; opacity: 0.28; }
+
+    Text {
+        x: 0px; y: 54px; width: 100%; height: 58px;
+        text: "DC";
+        color: Theme.accent-2;
+        font-size: 58px;
+        font-weight: 800;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    Text {
+        x: 0px; y: 113px; width: 100%; height: 36px;
+        text: "DC OS";
+        color: Theme.text-primary;
+        font-size: 31px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    Text {
+        x: 0px; y: 147px; width: 100%; height: 18px;
+        text: "Seu assistente pessoal";
+        color: Theme.text-secondary;
+        font-size: Theme.font-sm;
+        horizontal-alignment: center;
+        vertical-alignment: center;
     }
 }

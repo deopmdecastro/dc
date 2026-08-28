@@ -8,6 +8,7 @@ import { ChatView }      from "chat_view.slint";
 import { AppLauncher }   from "app_launcher.slint";
 import { MusicPlayer }   from "music_player.slint";
 import { SettingsPanel } from "settings.slint";
+import { StorePanel }    from "store.slint";
 
 export enum Screen {
     Splash,
@@ -17,6 +18,7 @@ export enum Screen {
     Launcher,
     Music,
     Settings,
+    Store,
 }
 
 export component AppWindow inherits Window {
@@ -34,6 +36,9 @@ export component AppWindow inherits Window {
     in-out property <bool>   bluetooth-on: true;
     in-out property <float>  audio-level: 0.0;
     in-out property <bool>   listening: false;
+    property <bool> show-status: root.current-screen != Screen.Splash
+        && root.current-screen != Screen.FirstBootPasscode
+        && root.current-screen != Screen.FirstBootRegion;
 
     // ---- Callbacks para o Rust ----
     callback set-brightness(float);
@@ -43,9 +48,9 @@ export component AppWindow inherits Window {
 
     // ---- Área principal ----
     Rectangle {
-        y: 24px;
+        y: root.show-status ? 24px : 0px;
         width: parent.width;
-        height: parent.height - 24px;
+        height: parent.height - (root.show-status ? 24px : 0px);
 
         // Só uma tela visível de cada vez.
         if root.current-screen == Screen.Splash:
@@ -78,6 +83,7 @@ export component AppWindow inherits Window {
                 app-clicked(idx) => {
                     root.launch-app(idx);
                     if (idx == 1) { root.current-screen = Screen.Music; }
+                    else if (idx == 5) { root.current-screen = Screen.Store; }
                     else if (idx == 6) { root.current-screen = Screen.Settings; }
                     else { root.current-screen = Screen.Home; }
                 }
@@ -94,14 +100,22 @@ export component AppWindow inherits Window {
                 width: 100%; height: 100%;
                 back => { root.current-screen = Screen.Launcher; }
             }
+
+        if root.current-screen == Screen.Store:
+            StorePanel {
+                width: 100%; height: 100%;
+                back => { root.current-screen = Screen.Launcher; }
+            }
     }
 
     // ---- Status bar (fixa no topo) ----
-    StatusBar {
-        current-time: root.current-time;
-        wifi-on:      root.wifi-on;
-        bluetooth-on: root.bluetooth-on;
-    }
+    if root.show-status:
+        StatusBar {
+            current-time: root.current-time;
+            wifi-on:      root.wifi-on;
+            bluetooth-on: root.bluetooth-on;
+            TouchArea { clicked => { root.control-center-open = true; } }
+        }
 
     // ---- Control Center (overlay, swipe Y) ----
     if root.control-center-open:

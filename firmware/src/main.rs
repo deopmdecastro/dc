@@ -58,7 +58,7 @@ fn main() -> Result<()> {
     slint_platform::init_platform(window.clone(), display_static);
 
     // ---- Tasks periféricas ----
-    touch::spawn_touch_task(|ev| log::debug!("touch: {:?}", ev))?;
+    let touch_rx = touch::spawn_touch_task(peripherals.i2c0)?;
     audio::spawn_audio_task(
         |_lvl| { /* atualizar audio-level da UI via .invoke_from_event_loop */ },
         |_pcm| { /* enviar buffer PCM ao WebSocket */ },
@@ -94,6 +94,7 @@ fn main() -> Result<()> {
 
     app.show()
         .map_err(|e| anyhow::anyhow!("falha ao exibir AppWindow Slint: {e:?}"))?;
+    window.request_redraw();
     // ---- Event loop bloqueante ----
-    slint_platform::run_event_loop();
+    slint_platform::run_event_loop(touch_rx);
 }

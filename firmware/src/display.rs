@@ -39,7 +39,11 @@ impl<'d> Display<'d> {
     /// sem ter de duplicar a struct com um `unsafe { core::ptr::read(..) }`,
     /// truque que corrompia o lifetime desses campos e impedia, por
     /// exemplo, mover o `modem` para dentro de uma thread `'static`.
-    pub fn init(spi2: SPI2, ledc_timer0: TIMER0, ledc_channel0: CHANNEL0) -> Result<Self> {
+    pub fn init(
+        spi2: SPI2<'d>,
+        ledc_timer0: TIMER0<'d>,
+        ledc_channel0: CHANNEL0<'d>,
+    ) -> Result<Self> {
         // --- SPI2 ---
         let sclk = unsafe { AnyIOPin::steal(pins::DISP_SCLK as _) };
         let mosi = unsafe { AnyIOPin::steal(pins::DISP_MOSI as _) };
@@ -65,7 +69,7 @@ impl<'d> Display<'d> {
         )?;
         let mut backlight = LedcDriver::new(ledc_channel0, timer,
             unsafe { AnyIOPin::steal(pins::DISP_BL as _) })?;
-        backlight.set_duty(backlight.get_max_duty() * 60 / 100)?; // 60% brilho inicial
+        backlight.set_duty(backlight.get_max_duty())?; // brilho inicial a 100%
 
         let mut disp = Self {
             spi,

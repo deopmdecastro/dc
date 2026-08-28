@@ -32,7 +32,7 @@ const NET_TASK_STACK_SIZE: usize = 12 * 1024;
 /// thread (`option_env!` já dá `&'static str`, por isso os chamadores
 /// não precisam de mudar nada).
 pub fn spawn_network_task(
-    modem: Modem,
+    modem: Modem<'static>,
     sysloop: EspSystemEventLoop,
     nvs: EspDefaultNvsPartition,
     cfg: NetConfig<'static>,
@@ -51,7 +51,7 @@ pub fn spawn_network_task(
 /// Corpo da task de rede — corre na thread própria criada acima, nunca
 /// na `main`.
 fn run_network(
-    modem: Modem,
+    modem: Modem<'static>,
     sysloop: EspSystemEventLoop,
     nvs: EspDefaultNvsPartition,
     cfg: NetConfig<'_>,
