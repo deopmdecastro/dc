@@ -50,7 +50,12 @@ export component PasscodeSetup inherits Rectangle {
             background: i < root.filled ? Theme.accent : #00000000;
             border-width: 1px;
             border-color: i < root.filled ? Theme.accent-hi : Theme.text-muted;
-            animate background { duration: 120ms; easing: ease-in-out; }
+            // `linear` em vez de `ease-in-out`: o easing bezier gera uma
+            // constante [2 x float] no `init` desta instancia do `for`,
+            // que era exatamente o padrao que crashava o backend LLVM-
+            // Xtensa (Cannot select: XtensaISD::PCREL_WRAPPER). Ver nota
+            // em firmware/Cargo.toml.
+            animate background { duration: 120ms; easing: linear; }
         }
     }
 

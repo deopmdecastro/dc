@@ -24,7 +24,16 @@ path = "src/main.rs"
 
 [profile.release]
 opt-level     = "s"
-lto           = true
+# NOTE: "lto = true" (fat LTO) combinado com codegen-units = 1 dispara um bug
+# conhecido do backend LLVM-Xtensa: "Cannot select: XtensaISD::PCREL_WRAPPER
+# TargetConstantPool<[2 x float] ...>". Acontece ao selecionar instrucoes
+# para aceder a um constant pool de floats (ex.: curva bezier gerada pelo
+# Slint para `easing: ease-in-out`) dentro de funcoes `init` repetidas por
+# instancia de um `for` (ver PasscodeSetup em ui/first_boot.slint). O
+# backend Xtensa ainda e imaturo para certos padroes de codegen sob fat LTO.
+# "thin" LTO evita esse caminho de codegen e continua a dar boa parte do
+# ganho de otimizacao entre crates.
+lto           = "thin"
 codegen-units = 1
 strip         = true
 panic         = "abort"

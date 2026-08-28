@@ -69,7 +69,10 @@ export component ChatView inherits Rectangle {
             y: (parent.height - self.height) / 2;
             background: i < 16 ? Theme.accent-pink : Theme.accent-cyan;
             opacity: root.listening ? 1.0 : 0.75;
-            animate height { duration: 120ms; easing: ease-in-out; }
+            // linear em vez de ease-in-out: mesmo padrao (animate dentro de
+            // um `for`) que causava o crash do backend LLVM-Xtensa no
+            // PasscodeSetup — ver nota em firmware/Cargo.toml.
+            animate height { duration: 120ms; easing: linear; }
         }
     }
 
