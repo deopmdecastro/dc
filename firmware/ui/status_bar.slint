@@ -1,5 +1,7 @@
 import { Theme } from "theme.slint";
 
+// Barra de status fixa no topo (24 px). Mostra relógio centralizado
+// e indicadores Wi-Fi/Bluetooth à direita. Toque dispara o Control Center.
 export component StatusBar inherits Rectangle {
     in property <string> current-time: "09:42";
     in property <bool>   wifi-on:      true;
@@ -8,30 +10,53 @@ export component StatusBar inherits Rectangle {
     height: 24px;
     background: Theme.bg-0;
 
+    // Linha sutil inferior separando do conteúdo
+    Rectangle {
+        x: 0px; y: parent.height - 1px; width: 100%; height: 1px;
+        background: Theme.stroke;
+        opacity: 0.45;
+    }
+
     Text {
         x: 0px; y: 0px; width: 100%; height: 100%;
         text: root.current-time;
         color: Theme.text-primary;
         font-size: Theme.font-sm;
+        font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 
     HorizontalLayout {
-        x: parent.width - 58px; y: 0px; width: 48px; height: 100%;
+        x: parent.width - 60px; y: 0px; width: 52px; height: 100%;
         spacing: 8px;
-        Text {
-            text: root.wifi-on ? "\u{25E0}" : "\u{25CB}";
-            color: root.wifi-on ? Theme.text-primary : Theme.text-muted;
-            font-size: Theme.font-lg;
-            vertical-alignment: center;
+
+        // Ícone Wi-Fi em arco simplificado (três arcos decrescentes)
+        Rectangle {
+            width: 14px; height: 14px;
+            x: 0; y: (parent.height - self.height) / 2;
+            Text {
+                text: root.wifi-on ? "\u{2301}" : "\u{25CB}";
+                color: root.wifi-on ? Theme.accent-2 : Theme.text-muted;
+                font-size: 16px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
         }
-        Text {
-            text: "B";
-            color: root.bluetooth-on ? Theme.text-primary : Theme.text-muted;
-            font-size: Theme.font-md;
-            font-weight: 700;
-            vertical-alignment: center;
+
+        // Bluetooth — glifo "B" estilizado em destaque
+        Rectangle {
+            width: 14px; height: 14px;
+            x: 0; y: (parent.height - self.height) / 2;
+            Text {
+                text: "\u{2960}";
+                color: root.bluetooth-on ? Theme.accent-2 : Theme.text-muted;
+                font-size: 13px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
         }
     }
 }

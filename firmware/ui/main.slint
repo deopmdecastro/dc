@@ -1,14 +1,16 @@
 // main.slint — Root da UI. Máquina de estados de telas + gestos.
-import { Theme }         from "theme.slint";
-import { StatusBar }     from "status_bar.slint";
-import { ControlCenter } from "control_center.slint";
-import { SplashScreen }  from "splash.slint";
-import { PasscodeSetup, RegionLanguage } from "first_boot.slint";
-import { ChatView }      from "chat_view.slint";
-import { AppLauncher }   from "app_launcher.slint";
-import { MusicPlayer }   from "music_player.slint";
-import { SettingsPanel } from "settings.slint";
-import { StorePanel }    from "store.slint";
+import { Theme }              from "theme.slint";
+import { StatusBar }          from "status_bar.slint";
+import { ControlCenter }      from "control_center.slint";
+import { SplashScreen }       from "splash.slint";
+import { PasscodeSetup,
+         RegionLanguage }     from "first_boot.slint";
+import { ChatView }           from "chat_view.slint";
+import { AppLauncher }        from "app_launcher.slint";
+import { MusicPlayer }        from "music_player.slint";
+import { SettingsPanel,
+         ChangePasscode }     from "settings.slint";
+import { StorePanel }         from "store.slint";
 
 export enum Screen {
     Splash,
@@ -18,11 +20,12 @@ export enum Screen {
     Launcher,
     Music,
     Settings,
+    SettingsPassword,
     Store,
 }
 
 export component AppWindow inherits Window {
-    // Horizontal display: 320 × 240.
+    // Display horizontal: 320 × 240.
     width:  320px;
     height: 240px;
     background: Theme.bg-0;
@@ -36,6 +39,7 @@ export component AppWindow inherits Window {
     in-out property <bool>   bluetooth-on: true;
     in-out property <float>  audio-level: 0.0;
     in-out property <bool>   listening: false;
+
     property <bool> show-status: root.current-screen != Screen.Splash
         && root.current-screen != Screen.FirstBootPasscode
         && root.current-screen != Screen.FirstBootRegion;
@@ -52,7 +56,6 @@ export component AppWindow inherits Window {
         width: parent.width;
         height: parent.height - (root.show-status ? 24px : 0px);
 
-        // Só uma tela visível de cada vez.
         if root.current-screen == Screen.Splash:
             SplashScreen { width: 100%; height: 100%; }
 
@@ -82,10 +85,10 @@ export component AppWindow inherits Window {
                 width: 100%; height: 100%;
                 app-clicked(idx) => {
                     root.launch-app(idx);
-                    if (idx == 1) { root.current-screen = Screen.Music; }
+                    if (idx == 1)      { root.current-screen = Screen.Music; }
                     else if (idx == 5) { root.current-screen = Screen.Store; }
                     else if (idx == 6) { root.current-screen = Screen.Settings; }
-                    else { root.current-screen = Screen.Home; }
+                    else               { root.current-screen = Screen.Home; }
                 }
             }
 
@@ -98,7 +101,15 @@ export component AppWindow inherits Window {
         if root.current-screen == Screen.Settings:
             SettingsPanel {
                 width: 100%; height: 100%;
-                back => { root.current-screen = Screen.Launcher; }
+                change-passcode => { root.current-screen = Screen.SettingsPassword; }
+                back            => { root.current-screen = Screen.Launcher; }
+            }
+
+        if root.current-screen == Screen.SettingsPassword:
+            ChangePasscode {
+                width: 100%; height: 100%;
+                back            => { root.current-screen = Screen.Settings; }
+                save(cur, next) => { root.current-screen = Screen.Settings; }
             }
 
         if root.current-screen == Screen.Store:
@@ -123,7 +134,7 @@ export component AppWindow inherits Window {
             y: 24px;
             width: 100%;
             height: parent.height - 24px;
-            background: #000000CC;
+            background: #000000DD;
             ControlCenter {
                 visible: true;
                 width:  100%;
@@ -131,7 +142,6 @@ export component AppWindow inherits Window {
                 brightness-changed(v) => { root.set-brightness(v); }
                 volume-changed(v)     => { root.set-volume(v); }
             }
-            // Tap fora fecha o painel
             TouchArea { clicked => { root.control-center-open = false; } }
         }
 }

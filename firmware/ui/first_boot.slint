@@ -1,20 +1,16 @@
 import { Theme } from "theme.slint";
 
+// Definição de senha no primeiro boot.
 export component PasscodeSetup inherits Rectangle {
     in-out property <string> passcode: "";
     callback confirm(string);
 
     width: 320px;
     height: 240px;
-    background: Theme.bg-0;
-
-    Rectangle {
-        x: 0px; y: 0px; width: 100%; height: 100%;
-        background: Theme.bg-1;
-    }
+    background: Theme.bg-1;
 
     Text {
-        x: 0px; y: 18px; width: 100%; height: 22px;
+        x: 0px; y: 14px; width: 100%; height: 22px;
         text: "Definir Senha";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
@@ -24,7 +20,7 @@ export component PasscodeSetup inherits Rectangle {
     }
 
     Text {
-        x: 55px; y: 48px; width: 210px; height: 34px;
+        x: 45px; y: 42px; width: 230px; height: 30px;
         text: "Crie uma senha para proteger\nseu DC Assistant.";
         color: Theme.text-secondary;
         font-size: Theme.font-sm;
@@ -32,8 +28,9 @@ export component PasscodeSetup inherits Rectangle {
         vertical-alignment: center;
     }
 
+    // Indicadores de senha (5 bolinhas)
     HorizontalLayout {
-        x: 91px; y: 88px; width: 138px; height: 14px;
+        x: 91px; y: 82px; width: 138px; height: 14px;
         spacing: 14px;
         for i in 5: Rectangle {
             width: 12px; height: 12px;
@@ -44,8 +41,9 @@ export component PasscodeSetup inherits Rectangle {
         }
     }
 
+    // Teclado numérico 2x5
     for row[index] in [[ "1","2","3","4","5" ], [ "6","7","8","9","0" ]] : HorizontalLayout {
-        x: 50px; y: 116px + index * 40px; width: 220px; height: 32px;
+        x: 50px; y: 110px + index * 40px; width: 220px; height: 32px;
         spacing: 8px;
         for k in row : Rectangle {
             width: 38px; height: 32px;
@@ -66,27 +64,31 @@ export component PasscodeSetup inherits Rectangle {
                 text: k;
                 color: Theme.text-primary;
                 font-size: Theme.font-lg;
+                font-weight: 500;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
     }
 
+    // Botão de confirmar (substitui o "0" após digitado)
     Rectangle {
-        x: 218px; y: 200px; width: 52px; height: 32px;
-        border-radius: Theme.radius-s;
+        x: 218px; y: 196px; width: 52px; height: 32px;
+        border-radius: Theme.radius-m;
         background: Theme.accent;
         TouchArea { clicked => { root.confirm(root.passcode); } }
         Text {
             text: "\u{2713}";
             color: Theme.text-primary;
             font-size: Theme.font-xl;
+            font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
     }
 }
 
+// Seleção de região e idioma.
 export component RegionLanguage inherits Rectangle {
     in-out property <string> region:   "Brasil";
     in-out property <string> language: "Português (Brasil)";
@@ -94,10 +96,10 @@ export component RegionLanguage inherits Rectangle {
 
     width: 320px;
     height: 240px;
-    background: Theme.bg-0;
+    background: Theme.bg-1;
 
     Text {
-        x: 0px; y: 22px; width: 100%; height: 22px;
+        x: 0px; y: 18px; width: 100%; height: 22px;
         text: "Selecione sua Região";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
@@ -106,37 +108,46 @@ export component RegionLanguage inherits Rectangle {
         vertical-alignment: center;
     }
 
+    // Linha de seleção de Região com bandeira
     Rectangle {
-        x: 42px; y: 62px; width: 236px; height: 38px;
+        x: 42px; y: 56px; width: 236px; height: 38px;
         border-radius: Theme.radius-m;
         background: Theme.tile;
         border-width: 1px;
         border-color: Theme.stroke;
 
+        // Mini bandeira do Brasil (verde com losango amarelo e círculo)
         Rectangle {
-            x: 12px; y: 8px; width: 28px; height: 22px;
-            border-radius: 4px;
-            background: #159447;
+            x: 12px; y: 8px; width: 22px; height: 22px;
+            border-radius: 11px;
+            background: #009C3B;
             Text {
-                text: "BR";
-                color: #FFE15A;
-                font-size: 10px;
-                font-weight: 700;
+                text: "\u{25C6}";
+                color: #FFDF00;
+                font-size: 14px;
+                font-weight: 800;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            Text {
+                text: "\u{25CF}";
+                color: #002776;
+                font-size: 8px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
         Text {
-            x: 52px; y: 0px; width: 145px; height: 100%;
+            x: 46px; y: 0px; width: 160px; height: 100%;
             text: root.region;
             color: Theme.text-primary;
             font-size: Theme.font-md;
             vertical-alignment: center;
         }
         Text {
-            x: parent.width - 26px; y: 0px; width: 18px; height: 100%;
+            x: parent.width - 22px; y: 0px; width: 16px; height: 100%;
             text: "\u{203A}";
-            color: Theme.text-primary;
+            color: Theme.text-secondary;
             font-size: Theme.font-xl;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -144,7 +155,7 @@ export component RegionLanguage inherits Rectangle {
     }
 
     Text {
-        x: 0px; y: 122px; width: 100%; height: 20px;
+        x: 0px; y: 116px; width: 100%; height: 22px;
         text: "Selecione seu Idioma";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
@@ -154,22 +165,25 @@ export component RegionLanguage inherits Rectangle {
     }
 
     Rectangle {
-        x: 42px; y: 158px; width: 236px; height: 38px;
+        x: 42px; y: 156px; width: 236px; height: 38px;
         border-radius: Theme.radius-m;
         background: Theme.tile;
         border-width: 1px;
         border-color: Theme.stroke;
+
+        TouchArea { }
+
         Text {
-            x: 14px; y: 0px; width: 185px; height: 100%;
+            x: 14px; y: 0px; width: 200px; height: 100%;
             text: root.language;
             color: Theme.text-primary;
             font-size: Theme.font-md;
             vertical-alignment: center;
         }
         Text {
-            x: parent.width - 26px; y: 0px; width: 18px; height: 100%;
+            x: parent.width - 22px; y: 0px; width: 16px; height: 100%;
             text: "\u{203A}";
-            color: Theme.text-primary;
+            color: Theme.text-secondary;
             font-size: Theme.font-xl;
             horizontal-alignment: center;
             vertical-alignment: center;

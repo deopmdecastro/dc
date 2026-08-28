@@ -1,59 +1,66 @@
 import { Theme } from "theme.slint";
 
+// App launcher com sidebar vertical e grid 4x2 de apps.
 export struct AppEntry { name: string, icon: string, color: color }
 
 export component AppLauncher inherits Rectangle {
     in property <[AppEntry]> apps: [
-        { name: "DC Assistant", icon: "\u{2022}\u{2022}\u{2022}", color: Theme.accent-blue },
-        { name: "Música",       icon: "\u{266A}", color: Theme.accent-hi },
-        { name: "Clima",        icon: "\u{2601}", color: Theme.warning },
-        { name: "Agenda",       icon: "31", color: Theme.danger },
-        { name: "Notas",        icon: "\u{25A3}", color: Theme.warning },
-        { name: "Loja",         icon: "\u{25A0}", color: Theme.accent-pink },
-        { name: "Definições",   icon: "\u{2699}", color: Theme.text-secondary },
-        { name: "Mais",         icon: "\u{2026}", color: Theme.text-muted },
+        { name: "DC Assistant", icon: "\u{2022}\u{2022}\u{2022}", color: Theme.accent-blue  },
+        { name: "Música",        icon: "\u{266A}",                 color: Theme.accent-hi   },
+        { name: "Clima",         icon: "\u{2601}\u{2600}",           color: Theme.warning     },
+        { name: "Agenda",        icon: "31",                        color: Theme.danger      },
+        { name: "Notas",         icon: "\u{25A3}",                  color: Theme.warning     },
+        { name: "Loja",          icon: "\u{25A0}\u{25A1}",          color: Theme.accent-pink },
+        { name: "Definições",    icon: "\u{2699}",                  color: Theme.text-secondary },
+        { name: "Mais",          icon: "\u{2026}",                  color: Theme.text-muted  },
     ];
+    in property <int> active-rail: 0;
     callback app-clicked(int);
+    callback rail-clicked(int);
 
     width: 320px;
     height: 216px;
-    background: Theme.bg-0;
+    background: Theme.bg-1;
 
+    // ===== Sidebar vertical =====
     Rectangle {
-        x: 0px; y: 0px; width: 42px; height: 100%;
-        background: #0A1222;
+        x: 0px; y: 0px; width: 44px; height: 100%;
+        background: #08101F;
         border-width: 1px;
         border-color: Theme.stroke;
 
         for item[index] in [ "\u{2302}", "\u{266A}", "\u{25A1}", "\u{2699}" ] : Rectangle {
-            x: 6px; y: 18px + index * 48px; width: 30px; height: 30px;
+            x: 7px; y: 22px + index * 46px; width: 30px; height: 30px;
             border-radius: Theme.radius-s;
-            background: index == 0 ? Theme.accent : #00000000;
-            TouchArea { clicked => { if (index == 3) { root.app-clicked(6); } } }
+            background: index == root.active-rail ? Theme.accent : #00000000;
+            TouchArea { clicked => { root.rail-clicked(index); } }
             Text {
                 text: item;
                 color: Theme.text-primary;
-                font-size: Theme.font-xl;
+                font-size: 18px;
+                font-weight: 600;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
     }
 
+    // ===== Cabeçalho =====
     Text {
-        x: 54px; y: 20px; width: 130px; height: 18px;
+        x: 56px; y: 18px; width: 200px; height: 20px;
         text: "Aplicações";
         color: Theme.text-primary;
-        font-size: Theme.font-sm;
+        font-size: Theme.font-md;
         font-weight: 700;
         vertical-alignment: center;
     }
 
+    // ===== Grid 4x2 =====
     for row[index] in [[0,1,2,3],[4,5,6,7]] : HorizontalLayout {
-        x: 54px; y: 54px + index * 70px; width: 250px; height: 62px;
+        x: 56px; y: 50px + index * 70px; width: 256px; height: 62px;
         spacing: 8px;
         for i in row : Rectangle {
-            width: 56px; height: 62px;
+            width: 58px; height: 62px;
             border-radius: Theme.radius-m;
             background: Theme.tile;
             border-width: 1px;
@@ -61,36 +68,48 @@ export component AppLauncher inherits Rectangle {
             clip: true;
             TouchArea { clicked => { root.app-clicked(i); } }
 
+            // Glow colorido ícone (canto superior)
             Rectangle {
-                x: 14px; y: 9px; width: 28px; height: 28px;
-                border-radius: 14px;
+                x: 14px; y: 9px; width: 30px; height: 30px;
+                border-radius: 15px;
                 background: root.apps[i].color;
-                opacity: 0.92;
+                opacity: 0.95;
             }
+            // Texto do ícone centrado sobre o círculo
             Text {
-                x: 0px; y: 10px; width: 100%; height: 26px;
+                x: 0px; y: 6px; width: 100%; height: 32px;
                 text: root.apps[i].icon;
                 color: Theme.text-primary;
-                font-size: i == 3 ? Theme.font-sm : Theme.font-lg;
+                font-size: Theme.font-md;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
+            // Nome do app embaixo
             Text {
-                x: 3px; y: 42px; width: 50px; height: 14px;
+                x: 0px; y: 42px; width: 100%; height: 16px;
                 text: root.apps[i].name;
                 color: Theme.text-primary;
-                font-size: 8px;
+                font-size: 9px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
     }
 
+    // ===== Indicador de página =====
     HorizontalLayout {
-        x: 150px; y: 196px; width: 22px; height: 8px;
-        spacing: 5px;
-        Rectangle { width: 8px; height: 8px; border-radius: 4px; background: Theme.accent-blue; }
-        Rectangle { width: 8px; height: 8px; border-radius: 4px; background: Theme.tile-hi; }
+        x: 144px; y: 192px; width: 32px; height: 8px;
+        spacing: 8px;
+        Rectangle {
+            width: 12px; height: 6px;
+            border-radius: 3px;
+            background: Theme.accent-blue;
+        }
+        Rectangle {
+            width: 6px; height: 6px;
+            border-radius: 3px;
+            background: Theme.tile-hi;
+        }
     }
 }

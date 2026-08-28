@@ -1,34 +1,47 @@
-// theme.slint - DC OS visual tokens for the 320x240 display.
+// theme.slint — Tokens visuais do DC OS para display 320×240 (espelhado).
+// Inspirado no mockup anexo: paleta deep-blue + acentos magenta/cyan/purple.
 export global Theme {
-    out property <color> bg-0:          #050914;
-    out property <color> bg-1:          #080D1C;
-    out property <color> bg-2:          #0D1426;
-    out property <color> panel:         #11192D;
-    out property <color> panel-hi:      #18223A;
-    out property <color> tile:          #1A2540;
+    // Plano de fundo (deep night)
+    out property <color> bg-0:          #060A18;
+    out property <color> bg-1:          #0A1024;
+    out property <color> bg-2:          #101737;
+    out property <color> panel:         #131C36;
+    out property <color> panel-hi:      #1A2547;
+
+    // Tiles / cards
+    out property <color> tile:          #18234A;
     out property <color> tile-hi:       #23304F;
-    out property <color> stroke:        #33415F;
+    out property <color> stroke:        #2F3D63;
 
-    out property <color> text-primary:   #F6F8FF;
-    out property <color> text-secondary: #C6CDE5;
-    out property <color> text-muted:     #7E89AA;
+    // Texto
+    out property <color> text-primary:   #F2F4FF;
+    out property <color> text-secondary: #B7C0E2;
+    out property <color> text-muted:     #6E78A3;
 
-    out property <color> accent:         #7727E8;
-    out property <color> accent-hi:      #9B35FF;
-    out property <color> accent-2:       #00D5FF;
+    // Acentos (gradiente neon do logo)
+    out property <color> accent:         #7A22FF;
+    out property <color> accent-hi:      #9B35FF;   // roxo vibrante
+    out property <color> accent-deep:    #4B14B4;
+    out property <color> accent-2:       #00D5FF;   // ciano
     out property <color> accent-blue:    #2B67FF;
     out property <color> accent-pink:    #FF2FD2;
+    out property <color> accent-magenta: #E64CFF;
+
     out property <color> success:        #27D980;
     out property <color> warning:        #FFC145;
     out property <color> danger:         #FF4F6D;
 
+    // Raio / tipografia
+    out property <length> radius-xs: 4px;
     out property <length> radius-s:  6px;
     out property <length> radius-m:  8px;
-    out property <length> radius-l:  16px;
+    out property <length> radius-lg: 12px;
+    out property <length> radius-xl: 18px;
 
     out property <length> font-xs: 9px;
     out property <length> font-sm: 11px;
     out property <length> font-md: 13px;
-    out property <length> font-lg: 17px;
-    out property <length> font-xl: 23px;
+    out property <length> font-lg: 15px;
+    out property <length> font-xl: 21px;
+    out property <length> font-xxl: 28px;
 }
