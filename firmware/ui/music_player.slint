@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 
-// Player de música — capa + metadados + barra de progresso + controles.
+// Player de música — capa retrato (gradient pink/purple) + controles ghost.
 export component MusicPlayer inherits Rectangle {
     in property <string> track-title:  "Blinding Lights";
     in property <string> artist:       "The Weeknd";
@@ -20,22 +20,21 @@ export component MusicPlayer inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // ===== Top bar: back + título + menu =====
+    // ===== Top bar =====
     Rectangle {
-        x: 8px; y: 6px; width: 26px; height: 26px;
-        border-radius: 13px;
+        x: 8px; y: 6px; width: 22px; height: 22px;
+        border-radius: 11px;
         background: #00000000;
         TouchArea { clicked => { root.back(); } }
         Text {
             text: "\u{2039}";
             color: Theme.text-primary;
-            font-size: 26px;
+            font-size: 22px;
             font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
     }
-
     Text {
         x: 0px; y: 6px; width: 100%; height: 22px;
         text: "Player de Música";
@@ -45,53 +44,51 @@ export component MusicPlayer inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
     }
-
     Rectangle {
-        x: 286px; y: 6px; width: 26px; height: 26px;
-        border-radius: 13px;
+        x: 290px; y: 6px; width: 22px; height: 22px;
+        border-radius: 11px;
         background: #00000000;
         Text {
-            text: "\u{2630}";
+            text: "\u{2637}";
             color: Theme.text-primary;
             font-size: Theme.font-lg;
-            font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
     }
 
-    // ===== Capa do álbum =====
+    // ===== Capa do álbum 95×95 (centralizada em y=50) =====
     Rectangle {
-        x: 18px; y: 42px; width: 92px; height: 92px;
+        x: 18px; y: 50px; width: 95px; height: 95px;
         border-radius: Theme.radius-m;
-        background: #2D0D55;
+        background: Theme.accent-deep;
         clip: true;
-        // Gradiente pink/purple sintetizando a capa real
+
+        // Glow roxo/magenta
         Rectangle {
             x: 0px; y: 0px; width: 100%; height: 100%;
             background: Theme.accent-pink;
-            opacity: 0.4;
+            opacity: 0.35;
         }
         Rectangle {
-            x: 0px; y: 30%; width: 100%; height: 30%;
-            background: #51187A;
-            opacity: 0.7;
-        }
-        // "CD" brilhante ao centro
-        Rectangle {
-            x: 32px; y: 32px; width: 28px; height: 28px;
-            border-radius: 14px;
+            x: -10px; y: 30px; width: 130px; height: 50px;
             background: Theme.accent-blue;
             opacity: 0.5;
-            border-width: 2px;
-            border-color: Theme.accent-2;
         }
+        // Sotaque cyan
+        Rectangle {
+            x: 30px; y: 8px; width: 35px; height: 35px;
+            border-radius: 18px;
+            background: Theme.accent-2;
+            opacity: 0.55;
+        }
+        // Glifo ♫ centrado
         Text {
             x: 0px; y: 0px; width: 100%; height: 100%;
             text: "\u{266B}";
             color: Theme.text-primary;
-            font-size: 36px;
-            font-weight: 700;
+            font-size: 30px;
+            font-weight: 800;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -99,28 +96,28 @@ export component MusicPlayer inherits Rectangle {
 
     // ===== Metadados =====
     Text {
-        x: 124px; y: 60px; width: 160px; height: 22px;
+        x: 124px; y: 60px; width: 160px; height: 20px;
         text: root.track-title;
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
     }
     Text {
-        x: 124px; y: 82px; width: 160px; height: 16px;
+        x: 124px; y: 86px; width: 160px; height: 16px;
         text: root.artist;
         color: Theme.text-secondary;
         font-size: Theme.font-sm;
     }
     Text {
-        x: 124px; y: 98px; width: 160px; height: 14px;
+        x: 124px; y: 102px; width: 160px; height: 14px;
         text: root.album;
-        color: Theme.text-muted;
+        color: Theme.text-secondary;
         font-size: 9px;
     }
 
-    // Ícone de favoritar (coração)
+    // Coração (favorito) — pink
     Rectangle {
-        x: 286px; y: 64px; width: 22px; height: 22px;
+        x: 288px; y: 60px; width: 22px; height: 22px;
         border-radius: 11px;
         background: #00000000;
         Text {
@@ -132,32 +129,26 @@ export component MusicPlayer inherits Rectangle {
         }
     }
 
-    // ===== Barra de progresso =====
+    // ===== Barra de progresso mais espessa (h=5) =====
     Rectangle {
-        x: 18px; y: 144px; width: 284px; height: 4px;
-        border-radius: 2px;
+        x: 18px; y: 152px; width: 284px; height: 5px;
+        border-radius: 3px;
         background: Theme.tile-hi;
         Rectangle {
             width: parent.width * root.progress; height: 100%;
-            border-radius: 2px;
-            background: Theme.accent-hi;
-        }
-        Rectangle {
-            x: parent.width * root.progress - 4px; y: -3px;
-            width: 10px; height: 10px;
-            border-radius: 5px;
+            border-radius: 3px;
             background: Theme.text-primary;
         }
     }
 
     Text {
-        x: 18px; y: 152px; width: 40px; height: 12px;
+        x: 18px; y: 161px; width: 40px; height: 12px;
         text: root.pos-label;
         color: Theme.text-secondary;
         font-size: 8px;
     }
     Text {
-        x: 262px; y: 152px; width: 40px; height: 12px;
+        x: 262px; y: 161px; width: 40px; height: 12px;
         text: root.dur-label;
         color: Theme.text-secondary;
         font-size: 8px;
@@ -166,68 +157,55 @@ export component MusicPlayer inherits Rectangle {
 
     // ===== Controles =====
     HorizontalLayout {
-        x: 18px; y: 176px; width: 284px; height: 36px;
+        x: 24px; y: 184px; width: 272px; height: 32px;
         alignment: space-between;
 
-        // Shuffle
-        Text {
-            text: "\u{2928}";
-            color: Theme.text-secondary;
-            font-size: Theme.font-lg;
-            vertical-alignment: center;
-        }
+        Text { text: "\u{2928}"; color: Theme.text-secondary; font-size: Theme.font-md; vertical-alignment: center; }
 
-        // Prev
         Rectangle {
-            width: 32px; height: 32px;
-            border-radius: 16px;
+            width: 28px; height: 28px;
+            border-radius: 14px;
+            background: #00000000;
             TouchArea { clicked => { root.prev(); } }
             Text {
                 text: "\u{23EE}";
                 color: Theme.text-primary;
-                font-size: 22px;
+                font-size: 20px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
 
-        // Play (botão grande roxo)
         Rectangle {
-            width: 48px; height: 48px;
-            y: -6px;
-            border-radius: 24px;
+            width: 40px; height: 40px;
+            y: -4px;
+            border-radius: 20px;
             background: Theme.accent;
             TouchArea { clicked => { root.toggle-play(); root.playing = !root.playing; } }
             Text {
                 text: root.playing ? "\u{23F8}" : "\u{25B6}";
                 color: Theme.text-primary;
-                font-size: 22px;
+                font-size: 18px;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
 
-        // Next
         Rectangle {
-            width: 32px; height: 32px;
-            border-radius: 16px;
+            width: 28px; height: 28px;
+            border-radius: 14px;
+            background: #00000000;
             TouchArea { clicked => { root.next(); } }
             Text {
                 text: "\u{23ED}";
                 color: Theme.text-primary;
-                font-size: 22px;
+                font-size: 20px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
 
-        // Repeat
-        Text {
-            text: "\u{21BB}";
-            color: Theme.text-secondary;
-            font-size: Theme.font-lg;
-            vertical-alignment: center;
-        }
+        Text { text: "\u{21BB}"; color: Theme.text-secondary; font-size: Theme.font-md; vertical-alignment: center; }
     }
 }

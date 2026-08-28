@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 
-// Loja DC OS — banner promocional + lista de apps populares.
+// Loja DC OS — banner promo + apps populares em rows de 30 px.
 export component StorePanel inherits Rectangle {
     callback back();
 
@@ -8,23 +8,17 @@ export component StorePanel inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // ===== Top bar =====
-    Rectangle {
-        x: 8px; y: 6px; width: 26px; height: 26px;
-        border-radius: 13px;
-        background: #00000000;
+    // Top bar
+    Text {
+        x: 12px; y: 10px; width: 22px; height: 22px;
+        text: "\u{2039}";
+        color: Theme.text-primary;
+        font-size: 22px;
+        font-weight: 700;
         TouchArea { clicked => { root.back(); } }
-        Text {
-            text: "\u{2039}";
-            color: Theme.text-primary;
-            font-size: 26px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
     }
     Text {
-        x: 0px; y: 6px; width: 100%; height: 22px;
+        x: 0px; y: 10px; width: 100%; height: 22px;
         text: "Loja DC OS";
         color: Theme.text-primary;
         font-size: Theme.font-md;
@@ -32,146 +26,79 @@ export component StorePanel inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
     }
-    Rectangle {
-        x: 286px; y: 6px; width: 26px; height: 26px;
-        border-radius: 13px;
-        background: #00000000;
-        Text {
-            text: "\u{2630}";
-            color: Theme.text-primary;
-            font-size: Theme.font-lg;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+    Text {
+        x: 296px; y: 12px; width: 16px; height: 18px;
+        text: "\u{2637}";
+        color: Theme.text-primary;
+        font-size: Theme.font-lg;
     }
 
-    // ===== Banner promocional (gradiente roxo→magenta com sacola) =====
+    // ===== Banner promo 60 px (y=36) =====
     Rectangle {
-        x: 18px; y: 38px; width: 284px; height: 60px;
+        x: 18px; y: 36px; width: 284px; height: 60px;
         border-radius: Theme.radius-m;
         background: Theme.accent;
         clip: true;
-        // Manchas de glow para imitar o gradiente vitoriano do mockup
-        Rectangle {
-            x: 200px; y: -10px; width: 100px; height: 80px;
-            border-radius: 40px;
-            background: Theme.accent-hi;
-            opacity: 0.7;
-        }
-        Rectangle {
-            x: -20px; y: 30px; width: 80px; height: 60px;
-            border-radius: 30px;
-            background: Theme.accent-pink;
-            opacity: 0.5;
-        }
 
-        Text {
-            x: 14px; y: 8px; width: 200px; height: 44px;
+        // Manchas de glow
+        Rectangle { x: 200px; y: -10px; width: 100px; height: 80px;
+            border-radius: 40px; background: Theme.accent-hi; opacity: 0.7; }
+        Rectangle { x: -20px; y: 30px; width: 80px; height: 60px;
+            border-radius: 30px; background: Theme.accent-pink; opacity: 0.5; }
+
+        Text { x: 14px; y: 6px; width: 200px; height: 48px;
             text: "Novos apps\ne integrações\npara você!";
             color: Theme.text-primary;
-            font-size: Theme.font-sm;
-            font-weight: 700;
-            vertical-alignment: center;
-        }
-        // Sacola de compras estilizada
-        Rectangle {
-            x: 232px; y: 12px; width: 38px; height: 38px;
-            border-radius: 6px;
-            background: #00000000;
-            // Alça
-            Rectangle {
-                x: 8px; y: -2px; width: 22px; height: 12px;
-                border-radius: 6px;
-                background: #00000000;
-                border-width: 2px;
-                border-color: #FFB7F3;
-            }
-            // Corpo
-            Rectangle {
-                x: 2px; y: 8px; width: 34px; height: 28px;
-                border-radius: 4px;
-                background: #FFB7F3;
-                opacity: 0.85;
-            }
-            Rectangle {
-                x: 12px; y: 16px; width: 14px; height: 2px;
-                border-radius: 1px;
-                background: Theme.accent;
-            }
-        }
+            font-size: Theme.font-sm; font-weight: 700;
+            vertical-alignment: center; }
+
+        // Bag illustrations
+        Rectangle { x: 232px; y: 12px; width: 38px; height: 38px;
+            border-radius: 6px; background: #00000000; }
+        Rectangle { x: 250px; y: 8px;  width: 16px; height: 12px;
+            border-width: 2px; border-color: #FFB7F3;
+            border-radius: 6px; background: #00000000; }
+        Rectangle { x: 240px; y: 18px; width: 30px; height: 26px;
+            border-radius: 4px; background: #FFB7F3; opacity: 0.9; }
     }
 
     // ===== "Apps populares" + "Ver todos" =====
-    Text {
-        x: 18px; y: 108px; width: 200px; height: 16px;
-        text: "Apps populares";
-        color: Theme.text-primary;
-        font-size: Theme.font-sm;
-        font-weight: 700;
-        vertical-alignment: center;
-    }
-    Text {
-        x: 218px; y: 108px; width: 84px; height: 16px;
-        text: "Ver todos";
-        color: Theme.accent-blue;
-        font-size: 9px;
-        font-weight: 700;
-        horizontal-alignment: right;
-        vertical-alignment: center;
-    }
+    Text { x: 18px; y: 108px; width: 160px; height: 16px;
+        text: "Apps populares"; color: Theme.text-primary;
+        font-size: Theme.font-sm; font-weight: 700;
+        vertical-alignment: center; }
+    Text { x: 230px; y: 108px; width: 80px; height: 16px;
+        text: "Ver todos"; color: Theme.accent-blue;
+        font-size: Theme.font-xs; font-weight: 700;
+        horizontal-alignment: right; vertical-alignment: center; }
 
-    // Lista de apps
+    // ===== Lista de apps (rows 26px) =====
     for app[index] in [
-        { name: "Spotify",     kind: "Música", mark: "S", color: #1ED760 },
-        { name: "YouTube",     kind: "Vídeo",  mark: "Y", color: #FF1F1F },
-        { name: "TuneIn Radio", kind: "Rádio", mark: "T", color: #00D5FF },
+        { name: "Spotify",      kind: "Música", mark: "S", color: #1ED760 },
+        { name: "YouTube",      kind: "Vídeo",  mark: "Y", color: #FF1F1F },
+        { name: "TuneIn Radio", kind: "Rádio",  mark: "T", color: #00D5FF },
     ] : Rectangle {
-        x: 18px; y: 130px + index * 26px; width: 284px; height: 24px;
+        x: 18px; y: 132px + index * 26px; width: 284px; height: 22px;
         border-radius: Theme.radius-s;
         background: Theme.tile;
 
-        // Logo circular colorido
-        Rectangle {
-            x: 6px; y: 4px; width: 16px; height: 16px;
-            border-radius: 8px;
-            background: app.color;
-            Text {
-                text: app.mark;
-                color: #051018;
-                font-size: 9px;
-                font-weight: 800;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-        }
+        Rectangle { x: 6px; y: 2px; width: 18px; height: 18px;
+            border-radius: 9px; background: app.color;
+            Text { text: app.mark; color: #051018;
+                font-size: 9px; font-weight: 800;
+                horizontal-alignment: center; vertical-alignment: center; } }
 
-        Text {
-            x: 28px; y: 2px; width: 160px; height: 11px;
-            text: app.name;
-            color: Theme.text-primary;
-            font-size: 9px;
-            font-weight: 700;
-        }
-        Text {
-            x: 28px; y: 13px; width: 160px; height: 10px;
-            text: app.kind;
-            color: Theme.text-secondary;
-            font-size: 8px;
-        }
+        Text { x: 30px; y: 1px; width: 160px; height: 11px;
+            text: app.name; color: Theme.text-primary;
+            font-size: Theme.font-xs; font-weight: 700; }
+        Text { x: 30px; y: 11px; width: 160px; height: 10px;
+            text: app.kind; color: Theme.text-secondary;
+            font-size: 8px; }
 
-        Rectangle {
-            x: 222px; y: 4px; width: 54px; height: 16px;
-            border-radius: 5px;
-            background: Theme.accent;
-            Text {
-                text: "Instalar";
-                color: Theme.text-primary;
-                font-size: 8px;
-                font-weight: 700;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-        }
+        Rectangle { x: 226px; y: 3px; width: 50px; height: 16px;
+            border-radius: 5px; background: Theme.accent;
+            Text { text: "Instalar"; color: Theme.text-primary;
+                font-size: 8px; font-weight: 700;
+                horizontal-alignment: center; vertical-alignment: center; } }
     }
 }

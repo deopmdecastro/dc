@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 
-// Splash — logo "DC OS" + subtítulo + plataforma circular pulsante.
+// Splash — "DC" sobre plataforma neon pulsante. y-pos alinhado à referência.
 export component SplashScreen inherits Rectangle {
     width: 320px;
     height: 240px;
@@ -10,52 +10,35 @@ export component SplashScreen inherits Rectangle {
     animate pulse { duration: 1400ms; easing: ease-in-out; iteration-count: -1; direction: alternate; }
     init => { self.pulse = 1; }
 
-    // ======= "Estágio" circular inferior =======
-    // Halo roxo difuso
+    // Plataforma circular inferior (y=165-200, ~35 px)
     Rectangle {
-        x: 30px; y: 162px; width: 260px; height: 38px;
-        border-radius: 19px;
-        background: #37128E;
+        x: 50px; y: 165px; width: 220px; height: 35px;
+        border-radius: 18px;
+        background: Theme.accent-deep;
         opacity: 0.55;
     }
-    // Anel de luz cyan
     Rectangle {
-        x: 60px; y: 168px; width: 200px; height: 24px;
+        x: 80px; y: 170px; width: 160px; height: 24px;
         border-radius: 12px;
-        background: Theme.accent-2;
-        opacity: 0.18 + root.pulse * 0.22;
+        background: Theme.accent;
+        opacity: 0.25 + root.pulse * 0.3;
     }
-    // Linha de brilho central
     Rectangle {
-        x: 86px; y: 178px; width: 148px; height: 4px;
+        x: 110px; y: 178px; width: 100px; height: 4px;
         border-radius: 2px;
         background: Theme.accent-2;
-        opacity: 0.65;
+        opacity: 0.85;
     }
-    // Núcleo magenta
     Rectangle {
-        x: 118px; y: 174px; width: 84px; height: 12px;
-        border-radius: 6px;
+        x: 134px; y: 173px; width: 52px; height: 16px;
+        border-radius: 8px;
         background: Theme.accent-pink;
         opacity: 0.55;
     }
-    // Pontos de luz orbitando (efeito do palco)
-    Rectangle {
-        x: 64px; y: 184px; width: 6px; height: 6px;
-        border-radius: 3px;
-        background: Theme.text-primary;
-        opacity: 0.85;
-    }
-    Rectangle {
-        x: 250px; y: 184px; width: 6px; height: 6px;
-        border-radius: 3px;
-        background: Theme.text-primary;
-        opacity: 0.85;
-    }
 
-    // ======= Logo "DC" em gradiente (cyan→magenta) =======
+    // Logo "DC" centrado (y=20-100)
     Text {
-        x: 0px; y: 38px; width: 100%; height: 64px;
+        x: 0px; y: 36px; width: 100%; height: 64px;
         text: "DC";
         color: Theme.accent-2;
         font-size: 64px;
@@ -63,31 +46,30 @@ export component SplashScreen inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
     }
-    // "Echo" magenta sutil para simular o blend do gradiente do mockup
     Text {
-        x: 1px; y: 39px; width: 100%; height: 64px;
+        x: 2px; y: 40px; width: 100%; height: 64px;
         text: "DC";
         color: Theme.accent-pink;
         font-size: 64px;
         font-weight: 800;
-        opacity: 0.35;
+        opacity: 0.5;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 
-    // ======= Título =======
+    // Subtítulo do título (y=110-130)
     Text {
-        x: 0px; y: 108px; width: 100%; height: 30px;
+        x: 0px; y: 110px; width: 100%; height: 20px;
         text: "DC OS";
         color: Theme.text-primary;
-        font-size: Theme.font-xxl;
+        font-size: Theme.font-xl;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 
     Text {
-        x: 0px; y: 140px; width: 100%; height: 18px;
+        x: 0px; y: 134px; width: 100%; height: 14px;
         text: "Seu assistente pessoal";
         color: Theme.text-secondary;
         font-size: Theme.font-sm;

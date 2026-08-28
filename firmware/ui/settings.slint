@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 
-// Painel de definições — tab Wi-Fi + acesso à alteração de senha.
+// Settings — sidebar 45 px + painel Wi-Fi + nova tela Alterar Senha.
 export struct WifiNetwork { ssid: string, secured: bool, connected: bool }
 
 export component SettingsPanel inherits Rectangle {
@@ -18,21 +18,22 @@ export component SettingsPanel inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // ===== Sidebar vertical (replica do launcher) =====
+    // ===== Sidebar =====
     Rectangle {
-        x: 0px; y: 0px; width: 44px; height: 100%;
-        background: #08101F;
+        x: 0px; y: 0px; width: 45px; height: 100%;
+        background: Theme.tile;
         border-width: 1px;
         border-color: Theme.stroke;
-        // Item "Configurações" ativo
+
+        // Item "Definições" ativo (último)
         Rectangle {
-            x: 7px; y: 160px; width: 30px; height: 30px;
-            border-radius: Theme.radius-s;
+            x: 7px; y: 156px; width: 30px; height: 30px;
+            border-radius: 6px;
             background: Theme.accent;
             Text {
                 text: "\u{2699}";
                 color: Theme.text-primary;
-                font-size: 18px;
+                font-size: 16px;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -41,23 +42,16 @@ export component SettingsPanel inherits Rectangle {
     }
 
     // ===== Top bar =====
-    Rectangle {
-        x: 54px; y: 8px; width: 22px; height: 22px;
-        border-radius: 11px;
-        background: #00000000;
-        TouchArea { clicked => { root.back(); } }
-        Text {
-            text: "\u{2039}";
-            color: Theme.text-primary;
-            font-size: 24px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
-
     Text {
-        x: 54px; y: 6px; width: 230px; height: 22px;
+        x: 56px; y: 10px; width: 22px; height: 22px;
+        text: "\u{2039}";
+        color: Theme.text-primary;
+        font-size: 22px;
+        font-weight: 700;
+        TouchArea { clicked => { root.back(); } }
+    }
+    Text {
+        x: 0px; y: 10px; width: 100%; height: 22px;
         text: "Definições";
         color: Theme.text-primary;
         font-size: Theme.font-md;
@@ -66,20 +60,19 @@ export component SettingsPanel inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // ===== Toggle row Wi-Fi =====
+    // ===== Wi-Fi toggle row =====
     Text {
-        x: 56px; y: 40px; width: 80px; height: 20px;
+        x: 56px; y: 42px; width: 80px; height: 20px;
         text: "Wi-Fi";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
         font-weight: 700;
         vertical-alignment: center;
     }
-
     Rectangle {
-        x: 264px; y: 42px; width: 42px; height: 22px;
+        x: 264px; y: 44px; width: 42px; height: 22px;
         border-radius: 11px;
-        background: root.wifi-on ? Theme.accent : Theme.tile-hi;
+        background: root.wifi-on ? Theme.accent-hi : Theme.tile-hi;
         TouchArea { clicked => { root.wifi-on = !root.wifi-on; } }
         Rectangle {
             width: 18px; height: 18px;
@@ -90,86 +83,56 @@ export component SettingsPanel inherits Rectangle {
         }
     }
 
-    // Linha divisora
-    Rectangle {
-        x: 54px; y: 70px; width: 252px; height: 1px;
-        background: Theme.stroke;
-    }
-
+    Rectangle { x: 54px; y: 76px; width: 252px; height: 1px; background: Theme.stroke; }
     Text {
-        x: 56px; y: 76px; width: 200px; height: 14px;
+        x: 56px; y: 82px; width: 200px; height: 14px;
         text: "Redes disponíveis";
         color: Theme.text-secondary;
         font-size: Theme.font-xs;
     }
 
-    // Lista de redes Wi-Fi
+    // ===== Lista de redes =====
     for n[index] in root.networks : Rectangle {
-        x: 54px; y: 95px + index * 30px; width: 252px; height: 28px;
+        x: 54px; y: 102px + index * 30px; width: 252px; height: 28px;
         border-radius: Theme.radius-s;
         background: Theme.tile;
         TouchArea { clicked => { root.network-selected(n.ssid); } }
 
-        // Ícone "antena" à esquerda
-        Rectangle {
-            x: 10px; y: 6px; width: 14px; height: 16px;
-            border-radius: 3px;
-            background: #00000000;
-            Text {
-                text: "\u{25E0}";
-                color: Theme.accent-2;
-                font-size: 16px;
-                font-weight: 700;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-        }
-        Text {
-            x: 30px; y: 4px; width: 140px; height: 13px;
-            text: n.ssid;
-            color: Theme.text-primary;
-            font-size: Theme.font-sm;
-            font-weight: 600;
-        }
-        Text {
-            x: 30px; y: 17px; width: 140px; height: 10px;
+        Text { x: 10px; y: 0px; width: 18px; height: 100%;
+            text: "\u{25E0}"; color: Theme.accent-2;
+            font-size: 14px; font-weight: 700;
+            horizontal-alignment: center; vertical-alignment: center; }
+        Text { x: 32px; y: 4px; width: 160px; height: 13px;
+            text: n.ssid; color: Theme.text-primary;
+            font-size: Theme.font-sm; font-weight: 600; }
+        Text { x: 32px; y: 17px; width: 140px; height: 10px;
             text: n.connected ? "Conectado" : "";
             color: Theme.accent-hi;
-            font-size: 8px;
-            font-weight: 700;
-        }
-        Text {
-            x: 222px; y: 0px; width: 22px; height: 100%;
+            font-size: 8px; font-weight: 700; }
+        Text { x: 222px; y: 0px; width: 22px; height: 100%;
             text: n.secured ? "\u{25A1}" : "";
             color: Theme.text-secondary;
             font-size: Theme.font-sm;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+            horizontal-alignment: center; vertical-alignment: center; }
     }
 
-    // Botão "Outra rede..."
     Rectangle {
-        x: 54px; y: 187px; width: 252px; height: 25px;
+        x: 54px; y: 192px; width: 252px; height: 22px;
         border-radius: Theme.radius-s;
         background: Theme.tile;
         TouchArea { clicked => { root.change-passcode(); } }
-        Rectangle {
-            x: 12px; y: 6px; width: 8px; height: 13px;
-            border-radius: 1px;
-            background: Theme.text-secondary;
-        }
-        Text {
-            x: 30px; y: 0px; width: 200px; height: 100%;
-            text: "Outra rede...";
-            color: Theme.text-primary;
+        Text { x: 12px; y: 0px; width: 18px; height: 100%;
+            text: "+"; color: Theme.text-secondary;
+            font-weight: 700;
+            horizontal-alignment: center; vertical-alignment: center; }
+        Text { x: 32px; y: 0px; width: 200px; height: 100%;
+            text: "Outra rede..."; color: Theme.text-primary;
             font-size: Theme.font-sm;
-            vertical-alignment: center;
-        }
+            vertical-alignment: center; }
     }
 }
 
-// Tela de alteração de senha (tela 9 do mockup).
+// Tela 9 — Alterar Senha (sem sidebar; campos diretos + CTA).
 export component ChangePasscode inherits Rectangle {
     in-out property <string> current: "";
     in-out property <string> next:    "";
@@ -181,24 +144,17 @@ export component ChangePasscode inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // ===== Top bar =====
-    Rectangle {
-        x: 8px; y: 6px; width: 26px; height: 26px;
-        border-radius: 13px;
-        background: #00000000;
-        TouchArea { clicked => { root.back(); } }
-        Text {
-            text: "\u{2039}";
-            color: Theme.text-primary;
-            font-size: 26px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
-
+    // Top bar
     Text {
-        x: 0px; y: 6px; width: 100%; height: 22px;
+        x: 12px; y: 10px; width: 22px; height: 22px;
+        text: "\u{2039}";
+        color: Theme.text-primary;
+        font-size: 22px;
+        font-weight: 700;
+        TouchArea { clicked => { root.back(); } }
+    }
+    Text {
+        x: 0px; y: 10px; width: 100%; height: 22px;
         text: "Alterar Senha";
         color: Theme.text-primary;
         font-size: Theme.font-md;
@@ -207,97 +163,64 @@ export component ChangePasscode inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // "Senha atual" (label + campo + olho)
-    Text {
-        x: 18px; y: 46px; width: 100px; height: 14px;
-        text: "Senha atual";
-        color: Theme.text-primary;
-        font-size: Theme.font-xs;
-        font-weight: 700;
-    }
+    // Campo "Senha atual" + olho
+    Text { x: 18px; y: 42px; width: 200px; height: 12px;
+        text: "Senha atual"; color: Theme.text-primary;
+        font-size: Theme.font-xs; font-weight: 700; }
     Rectangle {
-        x: 18px; y: 60px; width: 248px; height: 30px;
-        border-radius: Theme.radius-m;
+        x: 18px; y: 54px; width: 248px; height: 30px;
+        border-radius: 6px;
         background: Theme.tile;
         border-width: 1px;
         border-color: Theme.stroke;
-
-        TouchArea { clicked => { /* abrir teclado */ } }
-
-        Text {
-            x: 12px; y: 0px; width: 200px; height: 100%;
+        Text { x: 12px; y: 0px; width: 200px; height: 100%;
             text: "\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}";
             color: Theme.text-primary;
-            font-size: Theme.font-md;
-            font-weight: 700;
-            vertical-alignment: center;
-        }
-        // Botão "mostrar/ocultar"
-        Rectangle {
-            x: 218px; y: 6px; width: 22px; height: 18px;
-            border-radius: 4px;
-            background: #00000000;
-            Text {
-                text: "\u{25CE}";
-                color: Theme.text-secondary;
-                font-size: 12px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-        }
+            font-size: Theme.font-sm;
+            vertical-alignment: center; }
+        Text { x: 218px; y: 0px; width: 22px; height: 100%;
+            text: "\u{25CE}"; color: Theme.text-secondary;
+            font-size: 14px;
+            horizontal-alignment: center; vertical-alignment: center; }
     }
 
     // "Nova senha"
-    Text {
-        x: 18px; y: 100px; width: 100px; height: 14px;
-        text: "Nova senha";
-        color: Theme.text-primary;
-        font-size: Theme.font-xs;
-        font-weight: 700;
-    }
+    Text { x: 18px; y: 96px; width: 200px; height: 12px;
+        text: "Nova senha"; color: Theme.text-primary;
+        font-size: Theme.font-xs; font-weight: 700; }
     Rectangle {
-        x: 18px; y: 114px; width: 248px; height: 30px;
-        border-radius: Theme.radius-m;
+        x: 18px; y: 108px; width: 248px; height: 30px;
+        border-radius: 6px;
         background: Theme.tile;
         border-width: 1px;
         border-color: Theme.stroke;
-        Text {
-            x: 12px; y: 0px; width: 220px; height: 100%;
+        Text { x: 12px; y: 0px; width: 220px; height: 100%;
             text: "\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}";
             color: Theme.text-primary;
-            font-size: Theme.font-md;
-            font-weight: 700;
-            vertical-alignment: center;
-        }
+            font-size: Theme.font-sm;
+            vertical-alignment: center; }
     }
 
     // "Confirmar nova senha"
-    Text {
-        x: 18px; y: 154px; width: 160px; height: 14px;
-        text: "Confirmar nova senha";
-        color: Theme.text-primary;
-        font-size: Theme.font-xs;
-        font-weight: 700;
-    }
+    Text { x: 18px; y: 150px; width: 200px; height: 12px;
+        text: "Confirmar nova senha"; color: Theme.text-primary;
+        font-size: Theme.font-xs; font-weight: 700; }
     Rectangle {
-        x: 18px; y: 168px; width: 248px; height: 30px;
-        border-radius: Theme.radius-m;
+        x: 18px; y: 162px; width: 248px; height: 30px;
+        border-radius: 6px;
         background: Theme.tile;
         border-width: 1px;
         border-color: Theme.stroke;
-        Text {
-            x: 12px; y: 0px; width: 220px; height: 100%;
+        Text { x: 12px; y: 0px; width: 220px; height: 100%;
             text: "\u{2022}\u{2022}\u{2022}\u{2022}\u{2022}";
             color: Theme.text-primary;
-            font-size: Theme.font-md;
-            font-weight: 700;
-            vertical-alignment: center;
-        }
+            font-size: Theme.font-sm;
+            vertical-alignment: center; }
     }
 
     // CTA "Salvar Alterações"
     Rectangle {
-        x: 56px; y: 204px; width: 208px; height: 0;
-        // Vai ficar fora da tela 216→ vou mover
+        x: 30px; y: 198px; width: 260px; height: 18px;
+        // CTA não cabe em 216 px quando positioned + 30h; ajustar para h=18
     }
 }
