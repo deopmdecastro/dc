@@ -186,9 +186,9 @@ fn dispatch_pending_touch_events(touch_rx: &Receiver<TouchEvent>) {
                     TouchEvent::SwipeX { .. } | TouchEvent::SwipeY { .. } => return,
                 };
 
-                if let Err(e) = window.try_dispatch_event(window_event) {
-                    log::warn!("Slint: falha ao entregar touch: {e:?}");
-                }
+                // Slint 1.8: `dispatch_event` (nao existe `try_dispatch_event`,
+                // adicionado so em versoes mais recentes do Slint).
+                window.dispatch_event(window_event);
                 window.request_redraw();
             }
         });
