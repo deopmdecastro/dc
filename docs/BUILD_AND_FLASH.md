@@ -88,6 +88,8 @@ espflash board-info
 | `Failed to connect to ESP32-S3` no flash | Placa não entrou em modo bootloader | Mantém **BOOT** premido, toca em **RESET**, solta **BOOT** e repete o comando de flash |
 | Build demora muito na primeira vez | Está a compilar o ESP-IDF completo | Normal na 1ª build (10–20 min); as seguintes usam cache |
 | Ecrã liga o backlight mas fica branco | Sequência de bring-up do ILI9341V incompleta/pixels não enviados | Ver secção "Debug do ecrã branco" abaixo |
+| Build passa (`pio run` / `cargo build` OK) mas a placa reinicia em boot-loop / crasha logo a seguir ao flash, com `Guru Meditation Error: ... StoreProhibited` ou `stack overflow in task main` no monitor série | `sdkconfig.defaults` não estava a ser lido pelo `esp-idf-sys` (faltava a tabela `[package.metadata.esp-idf-sys]` no `Cargo.toml`), pelo que a stack da task `main` ficava no valor de fábrica do ESP-IDF (3584 bytes) em vez dos 32 KB necessários para o renderer do Slint + Wi-Fi | Já corrigido no `Cargo.toml` (commit `5645bb4`). Se voltares a ver isto depois de mexer no `Cargo.toml`/`sdkconfig.defaults`, força a regeneração: `cargo clean` + apaga a pasta de build do `esp-idf-sys` (normalmente em `target/**/esp-idf-sys-*/out` ou `~/.espressif`/cache do embuild) antes de rebuildar |
+| `esptool` liga, mas falha a meio do write com `Timed out waiting for packet content` ou timeouts repetidos | Cabo USB só de carga, hub USB sem alimentação suficiente, ou `upload_speed`/baudrate de flash demasiado alto para o cabo/porta | Usa cabo de dados direto ao PC (não hub), ou baixa `upload_speed` no `platformio.ini` (ex.: `460800`) / usa `espflash flash --baud 460800 ...` |
 
 ## 4. Debug do ecrã branco (contexto)
 
@@ -129,3 +131,29 @@ ordem:
 - **Baudrate do SPI** — 40 MHz é o valor configurado; em fios longos ou
   breadboard, baixar para 20 MHz (`SpiConfig::new().baudrate(20.MHz().into())`)
   ajuda a descartar problemas de integridade de sinal.
+
+## 5. Checklist rápida antes de regravar
+
+Depois de qualquer correção no firmware (ecrã, stack, Wi-Fi, etc.), segue
+esta ordem para evitar reaproveitar um build/sdkconfig desatualizado:
+
+1. `cd firmware`
+2. `cargo clean` (garante que o `sdkconfig` é regenerado a partir do
+   `sdkconfig.defaults` atual — importante depois de mexer nesse ficheiro
+   ou no `[package.metadata.esp-idf-sys]` do `Cargo.toml`)
+3. `cargo build --release --locked` (ou `pio run -e dc_assistant`) —
+   confirma que termina sem erros
+4. Coloca o ES3C28P em modo bootloader se o `esptool` não conseguir ligar
+   sozinho: mantém **BOOT** premido, toca em **RESET**, solta **BOOT**
+5. `espflash flash --release --monitor /dev/ttyUSB0` (ou
+   `pio run -t upload` seguido de `pio device monitor`)
+6. No monitor série, confirma pela ordem:
+   ```
+   DC OS boot — DC Assistant firmware v0.1.0
+   Display: ILI9341V bring-up (320×240)
+   Display: ILI9341V pronto
+   Display OK — 320×240
+   ```
+   Sem "Guru Meditation Error" nem "stack overflow in task main" a seguir.
+7. Se o ecrã continuar branco com estes logs a aparecer, segue a secção 4
+   acima (é já um problema de hardware/fiação, não de firmware).
