@@ -1,16 +1,13 @@
-// main.slint — Root da UI. Máquina de estados de telas + gestos.
-import { Theme }              from "theme.slint";
-import { StatusBar }          from "status_bar.slint";
-import { ControlCenter }      from "control_center.slint";
-import { SplashScreen }       from "splash.slint";
-import { PasscodeSetup,
-         RegionLanguage }     from "first_boot.slint";
-import { ChatView }           from "chat_view.slint";
-import { AppLauncher }        from "app_launcher.slint";
-import { MusicPlayer }        from "music_player.slint";
-import { SettingsPanel,
-         ChangePasscode }     from "settings.slint";
-import { StorePanel }         from "store.slint";
+import { Theme } from "theme.slint";
+import { StatusBar } from "status_bar.slint";
+import { ControlCenter } from "control_center.slint";
+import { SplashScreen } from "splash.slint";
+import { PasscodeSetup, RegionLanguage } from "first_boot.slint";
+import { ChatView } from "chat_view.slint";
+import { AppLauncher } from "app_launcher.slint";
+import { MusicPlayer } from "music_player.slint";
+import { SettingsPanel, ChangePasscode } from "settings.slint";
+import { StorePanel } from "store.slint";
 
 export enum Screen {
     Splash,
@@ -25,32 +22,28 @@ export enum Screen {
 }
 
 export component AppWindow inherits Window {
-    // Display horizontal: 320 × 240.
-    width:  320px;
+    width: 320px;
     height: 240px;
     background: Theme.bg-0;
     title: "DC OS";
 
-    // ---- Estado global exposto ao Rust ----
     in-out property <Screen> current-screen: Screen.Splash;
-    in-out property <bool>   control-center-open: false;
+    in-out property <bool> control-center-open: false;
     in-out property <string> current-time: "09:42";
-    in-out property <bool>   wifi-on: true;
-    in-out property <bool>   bluetooth-on: true;
-    in-out property <float>  audio-level: 0.0;
-    in-out property <bool>   listening: false;
+    in-out property <bool> wifi-on: true;
+    in-out property <bool> bluetooth-on: true;
+    in-out property <float> audio-level: 0.0;
+    in-out property <bool> listening: false;
 
     property <bool> show-status: root.current-screen != Screen.Splash
         && root.current-screen != Screen.FirstBootPasscode
         && root.current-screen != Screen.FirstBootRegion;
 
-    // ---- Callbacks para o Rust ----
     callback set-brightness(float);
     callback set-volume(float);
     callback wake-word-triggered();
     callback launch-app(int);
 
-    // ---- Área principal ----
     Rectangle {
         y: root.show-status ? 24px : 0px;
         width: parent.width;
@@ -75,8 +68,8 @@ export component AppWindow inherits Window {
             ChatView {
                 width: 100%; height: 100%;
                 audio-level: root.audio-level;
-                listening:   root.listening;
-                mic-tapped  => { root.wake-word-triggered(); }
+                listening: root.listening;
+                mic-tapped => { root.wake-word-triggered(); }
                 menu-tapped => { root.current-screen = Screen.Launcher; }
             }
 
@@ -85,10 +78,16 @@ export component AppWindow inherits Window {
                 width: 100%; height: 100%;
                 app-clicked(idx) => {
                     root.launch-app(idx);
-                    if (idx == 1)      { root.current-screen = Screen.Music; }
+                    if (idx == 1) { root.current-screen = Screen.Music; }
                     else if (idx == 5) { root.current-screen = Screen.Store; }
                     else if (idx == 6) { root.current-screen = Screen.Settings; }
-                    else               { root.current-screen = Screen.Home; }
+                    else { root.current-screen = Screen.Home; }
+                }
+                rail-clicked(idx) => {
+                    if (idx == 0) { root.current-screen = Screen.Home; }
+                    else if (idx == 1) { root.current-screen = Screen.Music; }
+                    else if (idx == 2) { root.current-screen = Screen.Store; }
+                    else if (idx == 3) { root.current-screen = Screen.Settings; }
                 }
             }
 
@@ -102,13 +101,13 @@ export component AppWindow inherits Window {
             SettingsPanel {
                 width: 100%; height: 100%;
                 change-passcode => { root.current-screen = Screen.SettingsPassword; }
-                back            => { root.current-screen = Screen.Launcher; }
+                back => { root.current-screen = Screen.Launcher; }
             }
 
         if root.current-screen == Screen.SettingsPassword:
             ChangePasscode {
                 width: 100%; height: 100%;
-                back            => { root.current-screen = Screen.Settings; }
+                back => { root.current-screen = Screen.Settings; }
                 save(cur, next) => { root.current-screen = Screen.Settings; }
             }
 
@@ -119,29 +118,36 @@ export component AppWindow inherits Window {
             }
     }
 
-    // ---- Status bar (fixa no topo) ----
     if root.show-status:
         StatusBar {
             current-time: root.current-time;
-            wifi-on:      root.wifi-on;
+            wifi-on: root.wifi-on;
             bluetooth-on: root.bluetooth-on;
             TouchArea { clicked => { root.control-center-open = true; } }
         }
 
-    // ---- Control Center (overlay, swipe Y) ----
     if root.control-center-open:
         Rectangle {
             y: 24px;
             width: 100%;
             height: parent.height - 24px;
-            background: #000000DD;
+            background: #00000000;
+
+            Rectangle {
+                width: 100%;
+                height: 100%;
+                background: #03050ECC;
+                TouchArea { clicked => { root.control-center-open = false; } }
+            }
+
             ControlCenter {
                 visible: true;
-                width:  100%;
+                width: 100%;
                 height: 100%;
+                wifi-on <=> root.wifi-on;
+                bluetooth-on <=> root.bluetooth-on;
                 brightness-changed(v) => { root.set-brightness(v); }
-                volume-changed(v)     => { root.set-volume(v); }
+                volume-changed(v) => { root.set-volume(v); }
             }
-            TouchArea { clicked => { root.control-center-open = false; } }
         }
 }

@@ -1,9 +1,8 @@
 import { Theme } from "theme.slint";
 
-// Home / Chat — áudio wave simétrico + mic circular menor (35 px).
 export component ChatView inherits Rectangle {
-    in property <float>  audio-level: 0.0;
-    in property <bool>   listening:   false;
+    in property <float> audio-level: 0.0;
+    in property <bool> listening: false;
     callback mic-tapped();
     callback menu-tapped();
 
@@ -11,36 +10,29 @@ export component ChatView inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // Glow magenta difuso atrás do título
     Rectangle {
-        x: 0px; y: 78px; width: 100%; height: 50px;
-        background: Theme.accent-deep;
-        opacity: 0.35;
-    }
-    Rectangle {
-        x: 60px; y: 110px; width: 200px; height: 2px;
-        background: Theme.accent-pink;
-        opacity: 0.5;
-    }
-
-    // Botão de menu (hamburger) — outline ao invés de tile preenchido
-    Rectangle {
-        x: 12px; y: 14px; width: 28px; height: 28px;
-        border-radius: 14px;
-        background: #00000000;
+        x: 14px; y: 14px; width: 30px; height: 30px;
+        border-radius: 15px;
+        background: Theme.panel-soft;
+        border-width: 1px;
+        border-color: Theme.stroke;
         TouchArea { clicked => { root.menu-tapped(); } }
-        Text {
-            text: "\u{2630}";
-            color: Theme.text-primary;
-            font-size: Theme.font-lg;
-            font-weight: 600;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: 8px; y: 8px; width: 14px; height: 14px;
+            source: @image-url("assets/icons/menu.svg");
+            image-fit: contain;
         }
     }
 
+    Rectangle {
+        x: 58px; y: 66px; width: 204px; height: 44px;
+        border-radius: 22px;
+        background: Theme.accent-deep;
+        opacity: 0.18;
+    }
+
     Text {
-        x: 0px; y: 50px; width: 100%; height: 20px;
+        x: 0px; y: 48px; width: 100%; height: 20px;
         text: "Olá, eu sou o";
         color: Theme.text-primary;
         font-size: Theme.font-md;
@@ -48,16 +40,16 @@ export component ChatView inherits Rectangle {
         vertical-alignment: center;
     }
     Text {
-        x: 0px; y: 74px; width: 100%; height: 28px;
+        x: 0px; y: 70px; width: 100%; height: 30px;
         text: "DC Assistant";
-        color: Theme.accent-hi;
-        font-size: Theme.font-xl;
+        color: Theme.accent-cyan;
+        font-size: 20px;
         font-weight: 800;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
     Text {
-        x: 0px; y: 116px; width: 100%; height: 18px;
+        x: 0px; y: 102px; width: 100%; height: 16px;
         text: "Como posso ajudar você hoje?";
         color: Theme.text-secondary;
         font-size: Theme.font-sm;
@@ -65,34 +57,39 @@ export component ChatView inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // Waveform simétrica: gradiente pink → cyan
     HorizontalLayout {
-        x: 36px; y: 148px; width: 248px; height: 30px;
+        x: 40px; y: 136px; width: 240px; height: 34px;
         alignment: center;
         spacing: 3px;
-        for i in 28 : Rectangle {
+        for i in 32 : Rectangle {
+            property <int> dist: i < 16 ? 15 - i : i - 16;
             width: 4px;
-            height: 4px + (root.listening ? 22px : 12px) * (0.3 + 0.7 * (mod(i * 13, 9) / 9));
-            y: (parent.height - self.height) / 2;
+            height: 7px + (root.listening ? 16px : 8px) - dist * 0.7px + root.audio-level * (dist < 5 ? 10px : 5px);
             border-radius: 2px;
-            background: i < 14 ? Theme.accent-pink : Theme.accent-2;
+            y: (parent.height - self.height) / 2;
+            background: i < 16 ? Theme.accent-pink : Theme.accent-cyan;
+            opacity: root.listening ? 1.0 : 0.75;
             animate height { duration: 120ms; easing: ease-in-out; }
         }
     }
 
-    // Mic — apenas outline (35 px, y=190)
     Rectangle {
-        x: 142px; y: 188px; width: 36px; height: 36px;
-        border-radius: 18px;
-        background: #00000000;
+        x: 139px; y: 180px; width: 42px; height: 42px;
+        border-radius: 21px;
+        background: Theme.panel-soft;
         border-width: 2px;
-        border-color: root.listening ? Theme.accent-pink : Theme.accent-hi;
+        border-color: root.listening ? Theme.accent-pink : Theme.accent;
         TouchArea { clicked => { root.mic-tapped(); } }
-        Text {
-            text: "\u{1F3A4}";
-            font-size: 16px;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Rectangle {
+            x: 5px; y: 5px; width: 32px; height: 32px;
+            border-radius: 16px;
+            background: root.listening ? Theme.accent : #00000000;
+            opacity: root.listening ? 0.28 : 0.0;
+        }
+        Image {
+            x: 11px; y: 10px; width: 20px; height: 20px;
+            source: @image-url("assets/icons/mic.svg");
+            image-fit: contain;
         }
     }
 }

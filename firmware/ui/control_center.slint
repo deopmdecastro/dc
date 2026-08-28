@@ -1,13 +1,12 @@
 import { Theme } from "theme.slint";
 
-// Control Center — tiles 45×45 + sliders compactos na parte inferior.
 export component ControlCenter inherits Rectangle {
-    in-out property <float> volume:     0.75;
+    in-out property <float> volume: 0.75;
     in-out property <float> brightness: 0.60;
-    in-out property <bool>  wifi-on:      true;
-    in-out property <bool>  bluetooth-on: true;
-    in-out property <bool>  dnd-on:       false;
-    in-out property <bool>  autorotate:   true;
+    in-out property <bool> wifi-on: true;
+    in-out property <bool> bluetooth-on: true;
+    in-out property <bool> dnd-on: false;
+    in-out property <bool> autorotate: true;
 
     callback brightness-changed(float);
     callback volume-changed(float);
@@ -16,16 +15,22 @@ export component ControlCenter inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // ===== 4 tiles quadradas 45×45 =====
+    Rectangle {
+        x: 137px; y: 8px; width: 46px; height: 4px;
+        border-radius: 2px;
+        background: Theme.text-secondary;
+        opacity: 0.7;
+    }
+
     for tile[index] in [
-        { label: "Wi-Fi",            icon: "\u{2301}", active: root.wifi-on,      color: Theme.accent-blue },
-        { label: "Bluetooth",        icon: "\u{2960}", active: root.bluetooth-on, color: Theme.accent-blue },
-        { label: "Não perturbe",     icon: "\u{25D4}", active: root.dnd-on,       color: Theme.accent      },
-        { label: "Rotação automática", icon: "\u{21BB}", active: root.autorotate,  color: Theme.accent-2    },
+        { label: "Wi‑Fi", icon: @image-url("assets/icons/wifi.svg"),       active: root.wifi-on,      color: Theme.accent-blue },
+        { label: "Bluetooth", icon: @image-url("assets/icons/bluetooth.svg"), active: root.bluetooth-on, color: Theme.accent-blue },
+        { label: "Não perturbe", icon: @image-url("assets/icons/moon.svg"), active: root.dnd-on,       color: Theme.accent },
+        { label: "Rotação\nautomática", icon: @image-url("assets/icons/rotate-cw.svg"), active: root.autorotate, color: Theme.accent-cyan },
     ] : Rectangle {
-        x: 30px + index * 60px; y: 26px; width: 45px; height: 45px;
-        border-radius: 22px;
-        background: tile.active ? tile.color : Theme.tile;
+        x: 18px + index * 72px; y: 28px; width: 54px; height: 54px;
+        border-radius: 27px;
+        background: tile.active ? tile.color : Theme.panel-soft;
         border-width: 1px;
         border-color: tile.active ? tile.color : Theme.stroke;
         TouchArea {
@@ -36,21 +41,17 @@ export component ControlCenter inherits Rectangle {
                 if (index == 3) { root.autorotate = !root.autorotate; }
             }
         }
-        Text {
-            x: 0px; y: 0px; width: 100%; height: 100%;
-            text: tile.icon;
-            color: tile.active ? Theme.text-primary : Theme.text-muted;
-            font-size: 18px;
-            font-weight: 800;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: 17px; y: 17px; width: 20px; height: 20px;
+            source: tile.icon;
+            image-fit: contain;
+            opacity: tile.active ? 1.0 : 0.75;
         }
     }
 
-    // Labels sob as tiles (1 linha)
-    for tile_lbl[index] in [ "Wi-Fi", "Bluetooth", "Não perturbe", "Rotação automática" ] : Text {
-        x: 22px + index * 60px; y: 75px; width: 60px; height: 14px;
-        text: tile_lbl;
+    for label[index] in ["Wi‑Fi", "Bluetooth", "Não perturbe", "Rotação\nautomática"] : Text {
+        x: 10px + index * 72px; y: 88px; width: 70px; height: 24px;
+        text: label;
         color: Theme.text-primary;
         font-size: 8px;
         font-weight: 600;
@@ -58,23 +59,35 @@ export component ControlCenter inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // ===== Volume slider =====
     Rectangle {
-        x: 14px; y: 110px; width: 292px; height: 28px;
+        x: 14px; y: 122px; width: 292px; height: 30px;
         border-radius: Theme.radius-m;
-        background: Theme.tile;
+        background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke;
-
-        Text { x: 14px; y: 0px; width: 80px; height: 100%;
-            text: "\u{266A}  Volume"; color: Theme.text-primary;
-            font-size: Theme.font-sm; font-weight: 600; vertical-alignment: center; }
-        Text { x: 232px; y: 0px; width: 48px; height: 100%;
-            text: Math.round(root.volume * 100) + "%"; color: Theme.text-secondary;
-            font-size: Theme.font-sm; horizontal-alignment: right; vertical-alignment: center; }
-
+        Image {
+            x: 12px; y: 8px; width: 14px; height: 14px;
+            source: @image-url("assets/icons/volume-2.svg");
+            image-fit: contain;
+        }
+        Text {
+            x: 32px; y: 0px; width: 90px; height: 100%;
+            text: "Volume";
+            color: Theme.text-primary;
+            font-size: Theme.font-sm;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+        Text {
+            x: 236px; y: 0px; width: 44px; height: 100%;
+            text: Math.round(root.volume * 100) + "%";
+            color: Theme.text-secondary;
+            font-size: Theme.font-sm;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
         Rectangle {
-            x: 100px; y: 12px; width: 178px; height: 4px;
+            x: 88px; y: 13px; width: 148px; height: 4px;
             border-radius: 2px;
             background: Theme.bg-2;
             Rectangle {
@@ -91,29 +104,41 @@ export component ControlCenter inherits Rectangle {
         }
     }
 
-    // ===== Brightness slider =====
     Rectangle {
-        x: 14px; y: 148px; width: 292px; height: 28px;
+        x: 14px; y: 162px; width: 292px; height: 30px;
         border-radius: Theme.radius-m;
-        background: Theme.tile;
+        background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke;
-
-        Text { x: 14px; y: 0px; width: 80px; height: 100%;
-            text: "\u{2600}  Brilho"; color: Theme.text-primary;
-            font-size: Theme.font-sm; font-weight: 600; vertical-alignment: center; }
-        Text { x: 232px; y: 0px; width: 48px; height: 100%;
-            text: Math.round(root.brightness * 100) + "%"; color: Theme.text-secondary;
-            font-size: Theme.font-sm; horizontal-alignment: right; vertical-alignment: center; }
-
+        Image {
+            x: 12px; y: 8px; width: 14px; height: 14px;
+            source: @image-url("assets/icons/sun.svg");
+            image-fit: contain;
+        }
+        Text {
+            x: 32px; y: 0px; width: 90px; height: 100%;
+            text: "Brilho";
+            color: Theme.text-primary;
+            font-size: Theme.font-sm;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+        Text {
+            x: 236px; y: 0px; width: 44px; height: 100%;
+            text: Math.round(root.brightness * 100) + "%";
+            color: Theme.text-secondary;
+            font-size: Theme.font-sm;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
         Rectangle {
-            x: 100px; y: 12px; width: 178px; height: 4px;
+            x: 88px; y: 13px; width: 148px; height: 4px;
             border-radius: 2px;
             background: Theme.bg-2;
             Rectangle {
                 width: parent.width * root.brightness; height: 100%;
                 border-radius: 2px;
-                background: Theme.accent-hi;
+                background: Theme.accent;
             }
             Rectangle {
                 x: parent.width * root.brightness - 5px; y: -3px;

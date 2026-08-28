@@ -1,14 +1,18 @@
 import { Theme } from "theme.slint";
 
-// Barra de status fixa no topo (24 px) — relógio centralizado,
-// Wi-Fi + Bluetooth à direita.
 export component StatusBar inherits Rectangle {
     in property <string> current-time: "09:42";
-    in property <bool>   wifi-on:      true;
-    in property <bool>   bluetooth-on: true;
+    in property <bool> wifi-on: true;
+    in property <bool> bluetooth-on: true;
 
     height: 24px;
     background: Theme.bg-0;
+
+    Rectangle {
+        x: 0px; y: 23px; width: parent.width; height: 1px;
+        background: Theme.stroke-soft;
+        opacity: 0.8;
+    }
 
     Text {
         x: 0px; y: 0px; width: 100%; height: 100%;
@@ -20,23 +24,17 @@ export component StatusBar inherits Rectangle {
         vertical-alignment: center;
     }
 
-    HorizontalLayout {
-        x: parent.width - 56px; y: 0px; width: 48px; height: 100%;
-        spacing: 8px;
+    Image {
+        x: 272px; y: 6px; width: 14px; height: 14px;
+        source: @image-url("assets/icons/wifi.svg");
+        image-fit: contain;
+        opacity: root.wifi-on ? 1.0 : 0.35;
+    }
 
-        Text {
-            text: root.wifi-on ? "\u{2301}" : "\u{25CB}";
-            color: root.wifi-on ? Theme.text-primary : Theme.text-muted;
-            font-size: 13px;
-            font-weight: 700;
-            vertical-alignment: center;
-        }
-        Text {
-            text: "\u{2960}";
-            color: root.bluetooth-on ? Theme.text-primary : Theme.text-muted;
-            font-size: 12px;
-            font-weight: 700;
-            vertical-alignment: center;
-        }
+    Image {
+        x: 294px; y: 6px; width: 14px; height: 14px;
+        source: @image-url("assets/icons/bluetooth.svg");
+        image-fit: contain;
+        opacity: root.bluetooth-on ? 1.0 : 0.35;
     }
 }

@@ -1,6 +1,5 @@
 import { Theme } from "theme.slint";
 
-// Definição de senha (4 dígitos, conforme mockup).
 export component PasscodeSetup inherits Rectangle {
     in-out property <string> passcode: "";
     callback confirm(string);
@@ -10,7 +9,7 @@ export component PasscodeSetup inherits Rectangle {
     background: Theme.bg-0;
 
     Text {
-        x: 0px; y: 14px; width: 100%; height: 20px;
+        x: 0px; y: 16px; width: 100%; height: 20px;
         text: "Definir Senha";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
@@ -20,7 +19,7 @@ export component PasscodeSetup inherits Rectangle {
     }
 
     Text {
-        x: 40px; y: 38px; width: 240px; height: 28px;
+        x: 42px; y: 40px; width: 236px; height: 28px;
         text: "Crie uma senha para proteger\nseu DC Assistant.";
         color: Theme.text-secondary;
         font-size: Theme.font-sm;
@@ -28,30 +27,27 @@ export component PasscodeSetup inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // 4 bolinhas indicadoras (referência)
     HorizontalLayout {
-        x: 105px; y: 78px; width: 110px; height: 12px;
+        x: 102px; y: 78px; width: 116px; height: 12px;
         spacing: 12px;
         for i in 4: Rectangle {
             width: 12px; height: 12px;
             border-radius: 6px;
-            background: i < root.passcode.character-count ? Theme.accent-hi : #00000000;
+            background: i < root.passcode.character-count ? Theme.accent : #00000000;
             border-width: 1px;
             border-color: i < root.passcode.character-count ? Theme.accent-hi : Theme.text-muted;
         }
     }
 
-    // Teclado numérico 2x5 (35x30 px cada)
     for row[index] in [[ "1","2","3","4","5" ], [ "6","7","8","9","0" ]] : HorizontalLayout {
-        x: 52px; y: 110px + index * 40px; width: 216px; height: 32px;
-        spacing: 8px;
+        x: 40px; y: 108px + index * 42px; width: 240px; height: 34px;
+        spacing: 10px;
         for k in row : Rectangle {
-            width: 38px; height: 32px;
-            border-radius: 4px;
-            background: Theme.tile;
+            width: 40px; height: 34px;
+            border-radius: Theme.radius-s;
+            background: Theme.panel-soft;
             border-width: 1px;
             border-color: Theme.stroke;
-
             TouchArea {
                 clicked => {
                     if (root.passcode.character-count < 4) {
@@ -59,38 +55,32 @@ export component PasscodeSetup inherits Rectangle {
                     }
                 }
             }
-
             Text {
                 text: k;
                 color: Theme.text-primary;
                 font-size: Theme.font-lg;
-                font-weight: 500;
+                font-weight: 600;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
         }
     }
 
-    // Botão OK (✓ no canto inferior direito, pixel da referência)
     Rectangle {
-        x: 218px; y: 200px; width: 50px; height: 30px;
-        border-radius: 4px;
+        x: 220px; y: 198px; width: 54px; height: 32px;
+        border-radius: Theme.radius-s;
         background: Theme.accent;
         TouchArea { clicked => { root.confirm(root.passcode); } }
-        Text {
-            text: "\u{2713}";
-            color: Theme.text-primary;
-            font-size: Theme.font-lg;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: 18px; y: 9px; width: 18px; height: 14px;
+            source: @image-url("assets/icons/chevron-right.svg");
+            image-fit: contain;
         }
     }
 }
 
-// Região + Idioma (botão Continuar centralizado em y=180).
 export component RegionLanguage inherits Rectangle {
-    in-out property <string> region:   "Brasil";
+    in-out property <string> region: "Brasil";
     in-out property <string> language: "Português (Brasil)";
     callback continue-clicked();
 
@@ -110,39 +100,41 @@ export component RegionLanguage inherits Rectangle {
 
     Rectangle {
         x: 30px; y: 52px; width: 260px; height: 36px;
-        border-radius: 6px;
-        background: Theme.tile;
+        border-radius: Theme.radius-s;
+        background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke;
 
-        // Mini-bandeira do Brasil (verde+amarelo+azul)
         Rectangle {
-            x: 10px; y: 8px; width: 20px; height: 20px;
-            border-radius: 10px;
-            background: #009C3B;
+            x: 12px; y: 8px; width: 22px; height: 20px;
+            border-radius: 4px;
+            background: #009B3A;
             Text {
-                text: "\u{25C6}";
+                x: 0px; y: -1px; width: 100%; height: 100%;
+                text: "◆";
                 color: #FFDF00;
                 font-size: 12px;
-                font-weight: 800;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
+            Rectangle {
+                x: 8px; y: 7px; width: 6px; height: 6px;
+                border-radius: 3px;
+                background: #002776;
+            }
         }
         Text {
-            x: 42px; y: 0px; width: 180px; height: 100%;
+            x: 46px; y: 0px; width: 180px; height: 100%;
             text: root.region;
             color: Theme.text-primary;
             font-size: Theme.font-md;
             vertical-alignment: center;
         }
-        Text {
-            x: parent.width - 22px; y: 0px; width: 16px; height: 100%;
-            text: "\u{203A}";
-            color: Theme.text-secondary;
-            font-size: Theme.font-lg;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: 236px; y: 11px; width: 14px; height: 14px;
+            source: @image-url("assets/icons/chevron-right.svg");
+            image-fit: contain;
+            opacity: 0.8;
         }
     }
 
@@ -158,31 +150,28 @@ export component RegionLanguage inherits Rectangle {
 
     Rectangle {
         x: 30px; y: 126px; width: 260px; height: 36px;
-        border-radius: 6px;
-        background: Theme.tile;
+        border-radius: Theme.radius-s;
+        background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke;
-
         Text {
-            x: 14px; y: 0px; width: 220px; height: 100%;
+            x: 14px; y: 0px; width: 210px; height: 100%;
             text: root.language;
             color: Theme.text-primary;
             font-size: Theme.font-md;
             vertical-alignment: center;
         }
-        Text {
-            x: parent.width - 22px; y: 0px; width: 16px; height: 100%;
-            text: "\u{203A}";
-            color: Theme.text-secondary;
-            font-size: Theme.font-lg;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: 236px; y: 11px; width: 14px; height: 14px;
+            source: @image-url("assets/icons/chevron-right.svg");
+            image-fit: contain;
+            opacity: 0.8;
         }
     }
 
     Rectangle {
-        x: 30px; y: 180px; width: 260px; height: 36px;
-        border-radius: 6px;
+        x: 30px; y: 182px; width: 260px; height: 38px;
+        border-radius: Theme.radius-s;
         background: Theme.accent;
         TouchArea { clicked => { root.continue-clicked(); } }
         Text {

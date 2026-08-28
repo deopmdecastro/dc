@@ -14,6 +14,9 @@ fn main() {
     println!("cargo:rerun-if-changed=ui/music_player.slint");
     println!("cargo:rerun-if-changed=ui/settings.slint");
     println!("cargo:rerun-if-changed=ui/control_center.slint");
+    println!("cargo:rerun-if-changed=ui/store.slint");
+    println!("cargo:rerun-if-changed=ui/assets/branding/dc-assistant-logo-white.png");
+    println!("cargo:rerun-if-changed=ui/assets/icons");
 
     // Compila a árvore Slint (entrypoint: ui/main.slint).
     slint_build::compile_with_config(

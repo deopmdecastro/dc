@@ -1,18 +1,17 @@
 import { Theme } from "theme.slint";
 
-// App Launcher — sidebar 45 px + grid 4×2 (cells 50×60).
-export struct AppEntry { name: string, icon: string, color: color }
+export struct AppEntry { name: string, icon: image, color: color }
 
 export component AppLauncher inherits Rectangle {
     in property <[AppEntry]> apps: [
-        { name: "DC Assistant", icon: "\u{2706}", color: Theme.accent-blue  },
-        { name: "Música",        icon: "\u{266A}", color: Theme.accent-hi   },
-        { name: "Clima",         icon: "\u{2601}", color: Theme.warning     },
-        { name: "Agenda",        icon: "31",       color: Theme.danger      },
-        { name: "Notas",         icon: "\u{270E}", color: Theme.warning     },
-        { name: "Loja",          icon: "\u{25A0}", color: Theme.accent-pink },
-        { name: "Definições",    icon: "\u{2699}", color: Theme.text-secondary },
-        { name: "Mais",          icon: "\u{2026}", color: Theme.text-muted  },
+        { name: "DC Assistant", icon: @image-url("assets/icons/message-circle.svg"), color: Theme.accent-blue },
+        { name: "Música",       icon: @image-url("assets/icons/music.svg"),          color: Theme.accent-pink },
+        { name: "Clima",        icon: @image-url("assets/icons/cloud.svg"),          color: Theme.warning },
+        { name: "Agenda",       icon: @image-url("assets/icons/calendar.svg"),       color: Theme.danger },
+        { name: "Notas",        icon: @image-url("assets/icons/file-text.svg"),      color: Theme.warning },
+        { name: "Loja",         icon: @image-url("assets/icons/shopping-bag.svg"),   color: Theme.accent },
+        { name: "Definições",   icon: @image-url("assets/icons/settings.svg"),       color: Theme.text-secondary },
+        { name: "Mais",         icon: @image-url("assets/icons/more-horizontal.svg"), color: Theme.text-muted },
     ];
     in property <int> active-rail: 0;
     callback app-clicked(int);
@@ -22,84 +21,78 @@ export component AppLauncher inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // ===== Sidebar 45 px =====
     Rectangle {
-        x: 0px; y: 0px; width: 45px; height: 100%;
-        background: Theme.tile;
+        x: 0px; y: 0px; width: 46px; height: 100%;
+        background: Theme.panel;
         border-width: 1px;
         border-color: Theme.stroke;
 
-        for item[index] in [ "\u{2302}", "\u{266A}", "\u{25A1}", "\u{2699}" ] : Rectangle {
-            x: 7px; y: 30px + index * 42px; width: 30px; height: 30px;
-            border-radius: 6px;
+        for item[index] in [
+            @image-url("assets/icons/home.svg"),
+            @image-url("assets/icons/music.svg"),
+            @image-url("assets/icons/shopping-bag.svg"),
+            @image-url("assets/icons/settings.svg")
+        ] : Rectangle {
+            x: 8px; y: 28px + index * 42px; width: 30px; height: 30px;
+            border-radius: Theme.radius-s;
             background: index == root.active-rail ? Theme.accent : #00000000;
             TouchArea { clicked => { root.rail-clicked(index); } }
-            Text {
-                text: item;
-                color: Theme.text-primary;
-                font-size: 16px;
-                font-weight: 600;
-                horizontal-alignment: center;
-                vertical-alignment: center;
+            Image {
+                x: 7px; y: 7px; width: 16px; height: 16px;
+                source: item;
+                image-fit: contain;
+                opacity: 0.96;
             }
         }
     }
 
-    // ===== Título =====
     Text {
-        x: 56px; y: 32px; width: 200px; height: 20px;
+        x: 58px; y: 12px; width: 120px; height: 18px;
         text: "Aplicações";
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
-        vertical-alignment: center;
     }
 
-    // ===== Grid 4x2 =====
     for row[index] in [[0,1,2,3],[4,5,6,7]] : HorizontalLayout {
-        x: 56px; y: 60px + index * 68px; width: 250px; height: 60px;
+        x: 58px; y: 42px + index * 72px; width: 244px; height: 62px;
         spacing: 12px;
         for i in row : Rectangle {
-            width: 50px; height: 60px;
-            border-radius: 8px;
-            background: Theme.tile;
+            width: 52px; height: 62px;
+            border-radius: Theme.radius-m;
+            background: Theme.panel-soft;
             border-width: 1px;
             border-color: Theme.stroke;
             clip: true;
             TouchArea { clicked => { root.app-clicked(i); } }
 
-            // Disco de cor no topo
             Rectangle {
-                x: 10px; y: 6px; width: 30px; height: 30px;
-                border-radius: 15px;
+                x: 12px; y: 8px; width: 28px; height: 28px;
+                border-radius: 14px;
                 background: root.apps[i].color;
-                opacity: 0.95;
+                opacity: 0.96;
+            }
+            Image {
+                x: 15px; y: 11px; width: 22px; height: 22px;
+                source: root.apps[i].icon;
+                image-fit: contain;
             }
             Text {
-                x: 0px; y: 4px; width: 100%; height: 28px;
-                text: root.apps[i].icon;
-                color: Theme.text-primary;
-                font-size: 13px;
-                font-weight: 700;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-            Text {
-                x: 0px; y: 40px; width: 100%; height: 14px;
+                x: 4px; y: 42px; width: 44px; height: 14px;
                 text: root.apps[i].name;
                 color: Theme.text-primary;
                 font-size: 8px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
+                overflow: elide;
             }
         }
     }
 
-    // ===== Page indicator =====
     HorizontalLayout {
-        x: 142px; y: 196px; width: 36px; height: 6px;
+        x: 140px; y: 194px; width: 40px; height: 6px;
         spacing: 6px;
         Rectangle { width: 14px; height: 6px; border-radius: 3px; background: Theme.accent-blue; }
-        Rectangle { width:  6px; height: 6px; border-radius: 3px; background: Theme.tile-hi; }
+        Rectangle { width: 6px; height: 6px; border-radius: 3px; background: Theme.panel-elevated; }
     }
 }

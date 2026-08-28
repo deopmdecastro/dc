@@ -1,45 +1,46 @@
-// theme.slint — Tokens visuais do DC OS para display 320×240.
-// Cores alinhadas com o mockup de referência (#0b0c16, purple neon).
+// theme.slint — tokens visuais refinados para o DC OS 320x240.
 export global Theme {
-    // Plano de fundo
-    out property <color> bg-0:          #0B0C16;   // base do mockup
-    out property <color> bg-1:          #101428;
-    out property <color> bg-2:          #151B33;
-    out property <color> panel:         #15192B;
-    out property <color> panel-hi:      #1A2038;
-
-    // Tiles / cards (sidebar, keypad, redes)
-    out property <color> tile:          #1F2235;   // tile mockup
-    out property <color> tile-hi:       #232A44;
-    out property <color> stroke:        #2D3556;
+    // Fundos
+    out property <color> bg-0:           #090B16;
+    out property <color> bg-1:           #0E1222;
+    out property <color> bg-2:           #141A31;
+    out property <color> panel:          #151A2C;
+    out property <color> panel-soft:     #1A2035;
+    out property <color> panel-elevated: #202742;
+    out property <color> stroke:         #2A3150;
+    out property <color> stroke-soft:    #202745;
 
     // Texto
     out property <color> text-primary:   #FFFFFF;
-    out property <color> text-secondary: #A0A5C0;
-    out property <color> text-muted:     #6E78A3;
+    out property <color> text-secondary: #B2B8D5;
+    out property <color> text-muted:     #6D7499;
+    out property <color> text-dim:       #4B537A;
 
-    // Acentos
-    out property <color> accent:         #5A20CB;   // roxo principal (botão)
-    out property <color> accent-hi:      #8A2BE2;   // roxo do "DC Assistant"
-    out property <color> accent-deep:    #37128E;
-    out property <color> accent-2:       #00D5FF;   // ciano
-    out property <color> accent-blue:    #1A73E8;   // azul toggle wifi/bt
-    out property <color> accent-pink:    #D500F9;   // magenta onda
-    out property <color> accent-purple:  #4B14B4;
+    // Acentos neon
+    out property <color> accent:         #6C2BFF;
+    out property <color> accent-hi:      #9155FF;
+    out property <color> accent-deep:    #35117F;
+    out property <color> accent-cyan:    #1FD6FF;
+    out property <color> accent-blue:    #3C6CFF;
+    out property <color> accent-pink:    #F032FF;
+    out property <color> accent-violet:  #5020C8;
 
-    out property <color> success:        #27D980;
-    out property <color> warning:        #FFC145;
-    out property <color> danger:         #FF4F6D;
+    // Estados
+    out property <color> success:        #23DA81;
+    out property <color> warning:        #FFC54C;
+    out property <color> danger:         #FF5774;
 
-    // Raio / tipografia
+    // Radius
     out property <length> radius-xs: 4px;
-    out property <length> radius-s:  6px;
-    out property <length> radius-m:  8px;
-    out property <length> radius-lg: 12px;
+    out property <length> radius-s:  7px;
+    out property <length> radius-m:  10px;
+    out property <length> radius-lg: 14px;
+    out property <length> radius-xl: 18px;
 
+    // Tipografia
     out property <length> font-xs: 9px;
     out property <length> font-sm: 11px;
     out property <length> font-md: 13px;
     out property <length> font-lg: 15px;
-    out property <length> font-xl: 21px;
+    out property <length> font-xl: 22px;
 }

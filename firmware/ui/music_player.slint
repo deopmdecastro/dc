@@ -1,15 +1,14 @@
 import { Theme } from "theme.slint";
 
-// Player de música — capa retrato (gradient pink/purple) + controles ghost.
 export component MusicPlayer inherits Rectangle {
-    in property <string> track-title:  "Blinding Lights";
-    in property <string> artist:       "The Weeknd";
-    in property <string> album:        "After Hours";
-    in property <image>  cover;
-    in property <float>  progress:     0.4;
-    in property <string> pos-label:    "1:24";
-    in property <string> dur-label:    "3:20";
-    in-out property <bool> playing:    true;
+    in property <string> track-title: "Blinding Lights";
+    in property <string> artist: "The Weeknd";
+    in property <string> album: "After Hours";
+    in property <image> cover;
+    in property <float> progress: 0.4;
+    in property <string> pos-label: "1:24";
+    in property <string> dur-label: "3:20";
+    in-out property <bool> playing: true;
 
     callback toggle-play();
     callback next();
@@ -20,19 +19,15 @@ export component MusicPlayer inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // ===== Top bar =====
     Rectangle {
         x: 8px; y: 6px; width: 22px; height: 22px;
         border-radius: 11px;
         background: #00000000;
         TouchArea { clicked => { root.back(); } }
-        Text {
-            text: "\u{2039}";
-            color: Theme.text-primary;
-            font-size: 22px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: 3px; y: 3px; width: 16px; height: 16px;
+            source: @image-url("assets/icons/chevron-left.svg");
+            image-fit: contain;
         }
     }
     Text {
@@ -44,146 +39,109 @@ export component MusicPlayer inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
     }
-    Rectangle {
-        x: 290px; y: 6px; width: 22px; height: 22px;
-        border-radius: 11px;
-        background: #00000000;
-        Text {
-            text: "\u{2637}";
-            color: Theme.text-primary;
-            font-size: Theme.font-lg;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+    Image {
+        x: 292px; y: 8px; width: 16px; height: 16px;
+        source: @image-url("assets/icons/more-horizontal.svg");
+        image-fit: contain;
     }
 
-    // ===== Capa do álbum 95×95 (centralizada em y=50) =====
     Rectangle {
-        x: 18px; y: 50px; width: 95px; height: 95px;
+        x: 16px; y: 42px; width: 98px; height: 98px;
         border-radius: Theme.radius-m;
         background: Theme.accent-deep;
         clip: true;
-
-        // Glow roxo/magenta
-        Rectangle {
-            x: 0px; y: 0px; width: 100%; height: 100%;
-            background: Theme.accent-pink;
-            opacity: 0.35;
-        }
-        Rectangle {
-            x: -10px; y: 30px; width: 130px; height: 50px;
-            background: Theme.accent-blue;
-            opacity: 0.5;
-        }
-        // Sotaque cyan
-        Rectangle {
-            x: 30px; y: 8px; width: 35px; height: 35px;
-            border-radius: 18px;
-            background: Theme.accent-2;
-            opacity: 0.55;
-        }
-        // Glifo ♫ centrado
-        Text {
-            x: 0px; y: 0px; width: 100%; height: 100%;
-            text: "\u{266B}";
-            color: Theme.text-primary;
-            font-size: 30px;
-            font-weight: 800;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Rectangle { x: -10px; y: 50px; width: 120px; height: 34px; background: Theme.accent-cyan; opacity: 0.42; }
+        Rectangle { x: 18px; y: 8px; width: 44px; height: 44px; border-radius: 22px; background: Theme.accent-pink; opacity: 0.50; }
+        Rectangle { x: 52px; y: 20px; width: 36px; height: 56px; border-radius: 18px; background: Theme.accent-blue; opacity: 0.55; }
+        Image {
+            x: 31px; y: 31px; width: 36px; height: 36px;
+            source: @image-url("assets/icons/music.svg");
+            image-fit: contain;
         }
     }
 
-    // ===== Metadados =====
     Text {
-        x: 124px; y: 60px; width: 160px; height: 20px;
+        x: 126px; y: 60px; width: 150px; height: 18px;
         text: root.track-title;
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
+        overflow: elide;
     }
     Text {
-        x: 124px; y: 86px; width: 160px; height: 16px;
+        x: 126px; y: 84px; width: 150px; height: 15px;
         text: root.artist;
         color: Theme.text-secondary;
         font-size: Theme.font-sm;
+        overflow: elide;
     }
     Text {
-        x: 124px; y: 102px; width: 160px; height: 14px;
+        x: 126px; y: 102px; width: 150px; height: 12px;
         text: root.album;
-        color: Theme.text-secondary;
+        color: Theme.text-muted;
         font-size: 9px;
+        overflow: elide;
+    }
+    Image {
+        x: 286px; y: 62px; width: 18px; height: 18px;
+        source: @image-url("assets/icons/heart.svg");
+        image-fit: contain;
     }
 
-    // Coração (favorito) — pink
     Rectangle {
-        x: 288px; y: 60px; width: 22px; height: 22px;
-        border-radius: 11px;
-        background: #00000000;
-        Text {
-            text: "\u{2665}";
-            color: Theme.accent-pink;
-            font-size: 18px;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
-
-    // ===== Barra de progresso mais espessa (h=5) =====
-    Rectangle {
-        x: 18px; y: 152px; width: 284px; height: 5px;
-        border-radius: 3px;
-        background: Theme.tile-hi;
+        x: 16px; y: 152px; width: 288px; height: 4px;
+        border-radius: 2px;
+        background: Theme.panel-elevated;
         Rectangle {
             width: parent.width * root.progress; height: 100%;
-            border-radius: 3px;
+            border-radius: 2px;
             background: Theme.text-primary;
         }
     }
-
     Text {
-        x: 18px; y: 161px; width: 40px; height: 12px;
+        x: 16px; y: 160px; width: 40px; height: 11px;
         text: root.pos-label;
         color: Theme.text-secondary;
         font-size: 8px;
     }
     Text {
-        x: 262px; y: 161px; width: 40px; height: 12px;
+        x: 264px; y: 160px; width: 40px; height: 11px;
         text: root.dur-label;
         color: Theme.text-secondary;
         font-size: 8px;
         horizontal-alignment: right;
     }
 
-    // ===== Controles =====
     HorizontalLayout {
-        x: 24px; y: 184px; width: 272px; height: 32px;
+        x: 24px; y: 181px; width: 272px; height: 30px;
         alignment: space-between;
-
-        Text { text: "\u{2928}"; color: Theme.text-secondary; font-size: Theme.font-md; vertical-alignment: center; }
-
+        Image { width: 14px; height: 14px; source: @image-url("assets/icons/shuffle.svg"); image-fit: contain; }
         Rectangle {
-            width: 28px; height: 28px;
-            border-radius: 14px;
-            background: #00000000;
+            width: 26px; height: 26px; border-radius: 13px; background: #00000000;
             TouchArea { clicked => { root.prev(); } }
-            Text {
-                text: "\u{23EE}";
-                color: Theme.text-primary;
-                font-size: 20px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
+            Image { x: 5px; y: 5px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-back.svg"); image-fit: contain; }
         }
-
         Rectangle {
-            width: 40px; height: 40px;
-            y: -4px;
-            border-radius: 20px;
+            width: 42px; height: 42px; y: -6px;
+            border-radius: 21px;
             background: Theme.accent;
             TouchArea { clicked => { root.toggle-play(); root.playing = !root.playing; } }
+            Rectangle {
+                visible: root.playing;
+                x: 13px; y: 12px; width: 5px; height: 16px;
+                border-radius: 2px;
+                background: Theme.text-primary;
+            }
+            Rectangle {
+                visible: root.playing;
+                x: 24px; y: 12px; width: 5px; height: 16px;
+                border-radius: 2px;
+                background: Theme.text-primary;
+            }
             Text {
-                text: root.playing ? "\u{23F8}" : "\u{25B6}";
+                visible: !root.playing;
+                x: 0px; y: 0px; width: 100%; height: 100%;
+                text: "▶";
                 color: Theme.text-primary;
                 font-size: 18px;
                 font-weight: 700;
@@ -191,21 +149,11 @@ export component MusicPlayer inherits Rectangle {
                 vertical-alignment: center;
             }
         }
-
         Rectangle {
-            width: 28px; height: 28px;
-            border-radius: 14px;
-            background: #00000000;
+            width: 26px; height: 26px; border-radius: 13px; background: #00000000;
             TouchArea { clicked => { root.next(); } }
-            Text {
-                text: "\u{23ED}";
-                color: Theme.text-primary;
-                font-size: 20px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
+            Image { x: 5px; y: 5px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-forward.svg"); image-fit: contain; }
         }
-
-        Text { text: "\u{21BB}"; color: Theme.text-secondary; font-size: Theme.font-md; vertical-alignment: center; }
+        Image { width: 14px; height: 14px; source: @image-url("assets/icons/repeat.svg"); image-fit: contain; }
     }
 }
