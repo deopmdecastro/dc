@@ -1,55 +1,225 @@
-# DC OS — DC Assistant
+# DC OS - DC Assistant
 
-Firmware e sistema operacional para o **DC Assistant**, um assistente virtual pessoal
-(estilo Alexa) construído sobre o módulo hardware **ES3C28P**
-(ESP32-S3 · 8 MB PSRAM · 16 MB Flash · IPS 2.8" ILI9341V 240×320 · Touch FT6336G · MEMS mic + I2S DAC).
+Firmware e backend local para o **DC Assistant**, um assistente pessoal em
+hardware **ES3C28P**:
 
-## Stack
+- ESP32-S3
+- 8 MB PSRAM
+- 16 MB flash
+- Display IPS 2.8" ILI9341V 240x320, usado em landscape 320x240
+- Touch FT6336G por I2C
+- MEMS mic + DAC/amp I2S
 
-| Camada | Tecnologia |
-|--------|------------|
-| Firmware | **Rust** (`esp-idf-hal`, `esp-idf-svc`) + PlatformIO |
-| GUI | **Slint** (horizontal 320×240) |
-| Backend local | **Docker Compose** (Rust · `axum` + Whisper.cpp + Mopidy/Librespot) |
-| Áudio | I2S (mic MEMS in / DAC out) → streaming WebSocket → STT local |
+## Estado Atual
 
-## Estrutura do repositório
+- Firmware Rust/ESP-IDF compila em `release`.
+- Flash usa tabela custom de 16 MB com app `factory` de 4 MB.
+- Display ILI9341V inicializa e recebe frames Slint.
+- Touch FT6336G inicializa em I2C `0x38` e envia eventos para a UI.
+- UI Slint redesenhada no estilo DC OS escuro, baseada no mockup.
+- Bluetooth/BLE está desligado no `sdkconfig.defaults` porque o firmware atual
+  ainda não usa BLE e isso evita incompatibilidade com ESP-IDF 5.2.3.
 
-```
+## Estrutura
+
+```text
 dc/
-├── firmware/                # Firmware Rust para ESP32-S3
-│   ├── platformio.ini
+├── firmware/                 # Firmware Rust para ESP32-S3
+│   ├── .cargo/config.toml     # target Xtensa e target-dir ../../t
 │   ├── Cargo.toml
-│   ├── src/                 # main.rs + tasks (display, touch, audio, net)
-│   └── ui/                  # Módulos Slint (.slint)
-├── backend/                 # Servidor local (Docker Compose)
-│   ├── docker-compose.yml
-│   ├── dc-os-core/          # Hub em Rust (axum + tokio + WS)
-│   ├── stt-whisper/         # Container Whisper.cpp
-│   └── music-mopidy/        # Player + Librespot (Spotify Connect)
-└── docs/
-    └── PINOUT.md            # Mapeamento de GPIO do ES3C28P
+│   ├── partitions.csv         # tabela 16 MB, factory app 4 MB
+│   ├── sdkconfig.defaults     # flash, PSRAM, stacks, Wi-Fi
+│   ├── src/                   # display, touch, audio, network, Slint platform
+│   └── ui/                    # telas Slint 320x240
+├── backend/                   # Docker Compose: core, Whisper, Mopidy
+└── docs/                      # pinout e guia detalhado de build/flash
 ```
 
-## Quick start
+## Pré-Requisitos
 
-### Backend
-```bash
-cd backend
-docker compose up -d
-# API HTTP em http://localhost:8080
-# WebSocket em  ws://localhost:8080/ws
+No Windows/PowerShell:
+
+```powershell
+cargo install espup --locked
+espup install
+. $HOME/export-esp.ps1
+
+cargo install cargo-espflash espflash ldproxy --locked
+cargo install slint-viewer --version 1.17.1 --locked
 ```
 
-### Firmware
-```bash
-cd firmware
+Abre um PowerShell novo se `slint-viewer`, `cargo espflash` ou `ldproxy` não
+forem encontrados logo após a instalação.
+
+## Backend
+
+```powershell
+cd C:\DC\dc\backend
+docker compose up -d --build
+docker compose ps
+curl.exe -s http://localhost:8080/health
+```
+
+Serviços principais:
+
+- `dc-os-core`: HTTP + WebSocket em `localhost:8080`
+- `stt-whisper`: ASR local em `localhost:9000`
+- `mopidy`: música em `localhost:6680` e `localhost:6600`
+
+Para parar:
+
+```powershell
+cd C:\DC\dc\backend
+docker compose down
+```
+
+## Preview da UI
+
+Validar sintaxe Slint sem abrir janela:
+
+```powershell
+cd C:\DC\dc\firmware
+slint-viewer ui\main.slint --check
+```
+
+Abrir preview desktop:
+
+```powershell
+cd C:\DC\dc\firmware
+slint-viewer ui\main.slint
+```
+
+Se o comando não estiver no `PATH`, usa o executável direto:
+
+```powershell
+cd C:\DC\dc\firmware
+& "$env:USERPROFILE\.cargo\bin\slint-viewer.exe" ui\main.slint
+```
+
+## Firmware
+
+Sempre corre os comandos a partir de `firmware/`.
+
+```powershell
+cd C:\DC\dc\firmware
+. $HOME/export-esp.ps1
 cargo build --release --locked
+```
+
+Flash + monitor na porta `COM6`:
+
+```powershell
+cd C:\DC\dc\firmware
 cargo espflash flash --release --locked --chip esp32s3 --flash-mode dio --flash-size 16mb --partition-table partitions.csv --bootloader ..\..\t\xtensa-esp32s3-espidf\release\bootloader.bin --port COM6 --monitor --monitor-baud 115200 --skip-update-check
 ```
 
-O firmware usa Rust/ESP-IDF com a toolchain `esp` e `cargo-espflash`. A
-configuração do PlatformIO permanece no projeto para o ambiente ESP-IDF, mas o
-build/upload reprodutível do binário Rust é feito pelo Cargo com `Cargo.lock`.
+Se a porta for outra, troca `COM6` por `COM<n>`.
 
-Consulte [`docs/PINOUT.md`](docs/PINOUT.md) para o mapeamento de GPIO.
+Com o monitor aberto:
+
+- `CTRL+R`: reset por software
+- `CTRL+C`: sair do monitor
+
+Ao carregar no botão físico de reset, o Windows pode reiniciar a porta USB/JTAG
+e o monitor pode mostrar `os error 22`. Isso normalmente é da porta série a
+cair e voltar, não necessariamente erro do firmware.
+
+## Flash Sem Monitor
+
+Útil para validar gravação sem deixar a porta série presa:
+
+```powershell
+cd C:\DC\dc\firmware
+cargo espflash flash --release --locked --chip esp32s3 --flash-mode dio --flash-size 16mb --partition-table partitions.csv --bootloader ..\..\t\xtensa-esp32s3-espidf\release\bootloader.bin --port COM6 --skip-update-check
+```
+
+## Logs Esperados
+
+Depois do flash, o monitor deve mostrar algo nesta linha:
+
+```text
+Flash size:        16MB
+App/part. size:    .../4,194,304 bytes
+Display: ILI9341V bring-up (320x240)
+Display: ILI9341V pronto
+Display OK - 320x240
+Touch FT6336G: I2C OK, chip/vendor id=0x11
+Touch FT6336G task: polling 20 ms, SDA=16, SCL=15, RST=18, INT=17
+Slint: frame 1 enviado ao display
+```
+
+Quando tocares no ecrã, devem aparecer logs como:
+
+```text
+Touch: down raw=(..., ...) ui=(..., ...)
+Touch: up ui=(..., ...)
+```
+
+## Configuração Wi-Fi
+
+Por omissão, o firmware tenta:
+
+- SSID: `DC_Network`
+- Password: vazia
+- WebSocket: `ws://192.168.1.50:8080/ws`
+
+Podes alterar em build-time com variáveis de ambiente:
+
+```powershell
+cd C:\DC\dc\firmware
+$env:DC_WIFI_SSID = "MinhaRede"
+$env:DC_WIFI_PASS = "MinhaSenha"
+$env:DC_CORE_WS = "ws://192.168.1.50:8080/ws"
+cargo build --release --locked
+```
+
+Depois grava normalmente com `cargo espflash flash ...`.
+
+## Limpeza / Rebuild Completo
+
+Usa quando mudares `sdkconfig.defaults`, partições ou metadata do
+`esp-idf-sys`:
+
+```powershell
+cd C:\DC\dc\firmware
+cargo clean
+cargo build --release --locked
+```
+
+O projeto usa `target-dir = "../../t"`, então os artefatos principais ficam em:
+
+```text
+C:\DC\t\xtensa-esp32s3-espidf\release\
+```
+
+## Pinout Principal
+
+Display ILI9341V:
+
+- SCLK: GPIO12
+- MOSI: GPIO11
+- MISO: GPIO13, não usado no driver atual
+- CS: GPIO10
+- DC: GPIO46
+- BL: GPIO45
+- RST: `CHIP_PU`
+
+Touch FT6336G:
+
+- SDA: GPIO16
+- SCL: GPIO15
+- INT: GPIO17
+- RST: GPIO18
+
+Ver [docs/PINOUT.md](docs/PINOUT.md) para a tabela completa.
+
+## Troubleshooting Rápido
+
+- `slint-viewer` não reconhecido: instala com `cargo install slint-viewer --version 1.17.1 --locked` e abre um PowerShell novo.
+- `image_too_big`: confirma que estás em `firmware/` e que o comando inclui `--partition-table partitions.csv --flash-size 16mb`.
+- `linker 'xtensa-esp32s3-elf-gcc' not found`: corre `. $HOME/export-esp.ps1`.
+- Flash não conecta: mantém `BOOT` premido, toca em `RESET`, solta `BOOT` e repete o flash.
+- Ecrã branco/sem UI: confirma os logs `Display OK` e o pinout em `docs/PINOUT.md`.
+- Touch não reage: confirma `Touch FT6336G: I2C OK` no monitor.
+
+Guia detalhado: [docs/BUILD_AND_FLASH.md](docs/BUILD_AND_FLASH.md).

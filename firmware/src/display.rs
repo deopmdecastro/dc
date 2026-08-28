@@ -14,6 +14,7 @@ use esp_idf_hal::{
 // Comandos ILI9341V usados no bring-up e no envio de pixels.
 const CMD_SWRESET: u8 = 0x01;
 const CMD_SLPOUT:  u8 = 0x11;
+const CMD_INVON:   u8 = 0x21;
 const CMD_DISPON:  u8 = 0x29;
 const CMD_CASET:   u8 = 0x2A;
 const CMD_PASET:   u8 = 0x2B;
@@ -97,8 +98,9 @@ impl<'d> Display<'d> {
     }
 
     /// Sequência de comandos do ILI9341V para 320×240 horizontal (MADCTL 0x28,
-    /// BGR, sem mirror) e 16 bpp (RGB565). Sem esta sequência o painel fica
-    /// com o backlight ligado mas sem imagem — ecrã aparenta "luz branca".
+    /// BGR, inversao ligada para o painel IPS do ES3C28P) e 16 bpp (RGB565).
+    /// Sem a inversao, este modulo mostra o tema escuro como fundo claro e
+    /// troca os acentos ciano/magenta por vermelho/verde.
     fn bring_up_ili9341v(&mut self) -> Result<()> {
         log::info!("Display: ILI9341V bring-up ({}×{})", self.width, self.height);
 
@@ -113,6 +115,9 @@ impl<'d> Display<'d> {
 
         self.cmd(CMD_COLMOD)?;
         self.data(&[0x55])?; // 16 bpp (RGB565)
+        FreeRtos::delay_ms(10);
+
+        self.cmd(CMD_INVON)?;
         FreeRtos::delay_ms(10);
 
         self.cmd(CMD_DISPON)?;
