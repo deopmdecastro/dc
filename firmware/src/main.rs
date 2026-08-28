@@ -36,9 +36,15 @@ fn main() -> Result<()> {
     let nvs         = EspDefaultNvsPartition::take()?;
 
     // ---- Display + backlight ----
-    let display = display::Display::init(unsafe {
-        core::ptr::read(&peripherals as *const _)
-    })?;
+    // Só se passam os periféricos concretos de que o Display precisa
+    // (SPI2 + timer0/channel0 do LEDC) — assim `peripherals.modem` fica
+    // livre, com o lifetime normal ('static), para ir para a thread de
+    // rede sem qualquer truque unsafe de duplicação da struct inteira.
+    let display = display::Display::init(
+        peripherals.spi2,
+        peripherals.ledc.timer0,
+        peripherals.ledc.channel0,
+    )?;
     let modem = peripherals.modem;
     log::info!("Display OK — {}×{}", display.width, display.height);
 

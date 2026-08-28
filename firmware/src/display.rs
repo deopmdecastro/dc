@@ -6,9 +6,8 @@ use anyhow::Result;
 use esp_idf_hal::{
     delay::FreeRtos,
     gpio::{AnyIOPin, Output, PinDriver},
-    ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver, Resolution},
-    peripherals::Peripherals,
-    spi::{config::Config as SpiConfig, SpiDeviceDriver, SpiDriver, SpiDriverConfig},
+    ledc::{config::TimerConfig, LedcDriver, LedcTimerDriver, Resolution, CHANNEL0, TIMER0},
+    spi::{config::Config as SpiConfig, SpiDeviceDriver, SpiDriver, SpiDriverConfig, SPI2},
     units::*,
 };
 
@@ -33,7 +32,14 @@ pub struct Display<'d> {
 impl<'d> Display<'d> {
     /// Inicializa o SPI, DC, BL (PWM) e envia a sequência de bring-up do
     /// ILI9341V para orientação **horizontal** (Memory Access Control = 0x28).
-    pub fn init(p: Peripherals) -> Result<Self> {
+    ///
+    /// Recebe só os periféricos concretos de que precisa (SPI2 + o timer/
+    /// canal do LEDC) em vez do `Peripherals` inteiro — assim quem chama
+    /// (`main.rs`) pode continuar a usar os restantes campos (ex.: `modem`)
+    /// sem ter de duplicar a struct com um `unsafe { core::ptr::read(..) }`,
+    /// truque que corrompia o lifetime desses campos e impedia, por
+    /// exemplo, mover o `modem` para dentro de uma thread `'static`.
+    pub fn init(spi2: SPI2, ledc_timer0: TIMER0, ledc_channel0: CHANNEL0) -> Result<Self> {
         // --- SPI2 ---
         let sclk = unsafe { AnyIOPin::steal(pins::DISP_SCLK as _) };
         let mosi = unsafe { AnyIOPin::steal(pins::DISP_MOSI as _) };
@@ -41,7 +47,7 @@ impl<'d> Display<'d> {
         let dc   = unsafe { AnyIOPin::steal(pins::DISP_DC   as _) };
 
         let spi_drv = SpiDriver::new(
-            p.spi2, sclk, mosi, Option::<AnyIOPin>::None, &SpiDriverConfig::new(),
+            spi2, sclk, mosi, Option::<AnyIOPin>::None, &SpiDriverConfig::new(),
         )?;
         let spi = SpiDeviceDriver::new(
             spi_drv, Some(cs),
@@ -52,12 +58,12 @@ impl<'d> Display<'d> {
 
         // --- Backlight PWM (LEDC canal 0) ---
         let timer = LedcTimerDriver::new(
-            p.ledc.timer0,
+            ledc_timer0,
             &TimerConfig::default()
                 .frequency(5.kHz().into())
                 .resolution(Resolution::Bits10),
         )?;
-        let mut backlight = LedcDriver::new(p.ledc.channel0, timer,
+        let mut backlight = LedcDriver::new(ledc_channel0, timer,
             unsafe { AnyIOPin::steal(pins::DISP_BL as _) })?;
         backlight.set_duty(backlight.get_max_duty() * 60 / 100)?; // 60% brilho inicial
 
