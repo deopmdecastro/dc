@@ -4,6 +4,7 @@ use crate::system::{NetworkCommand, SystemEvent};
 use anyhow::{anyhow, Result};
 use core::convert::TryInto;
 use embedded_svc::{
+    io::Write as EmbeddedWrite,
     http::{client::Client as HttpClient, Method},
     utils::io,
     wifi::{AuthMethod, ClientConfiguration, Configuration},
@@ -24,6 +25,7 @@ pub struct NetConfig {
     pub ssid: String,
     pub password: String,
     pub api_health_url: String,
+    pub timezone_offset_secs: i32,
 }
 
 const NET_TASK_STACK_SIZE: usize = 16 * 1024;
@@ -65,6 +67,7 @@ fn run_network(
     let mut desired_wifi = cfg.enabled;
     let mut ssid = cfg.ssid;
     let mut password = cfg.password;
+    let mut timezone_offset_secs = cfg.timezone_offset_secs;
     let mut connected = false;
     let mut sntp: Option<EspSntp<'static>> = None;
     let mut next_probe_in = 0_u64;
@@ -98,6 +101,20 @@ fn run_network(
                         connected = false;
                         let _ = event_tx.send(SystemEvent::WifiChanged(false));
                         let _ = event_tx.send(SystemEvent::ApiHealthChanged(false));
+                    }
+                }
+                NetworkCommand::SetTimezoneOffset(offset_secs) => {
+                    timezone_offset_secs = offset_secs;
+                    let _ = event_tx.send(SystemEvent::TimeChanged(current_hhmm(timezone_offset_secs)));
+                    log::info!("SNTP: timezone offset={}s", offset_secs);
+                }
+                NetworkCommand::MusicCommand(action) => {
+                    if connected {
+                        if let Err(e) = post_music_command(&cfg.api_health_url, &action) {
+                            log::warn!("API: comando de musica falhou: {e:?}");
+                        }
+                    } else {
+                        log::warn!("API: comando de musica ignorado sem Wi-Fi");
                     }
                 }
             }
@@ -141,7 +158,7 @@ fn run_network(
 
         if connected {
             if next_clock_in == 0 {
-                let _ = event_tx.send(SystemEvent::TimeChanged(current_hhmm()));
+                let _ = event_tx.send(SystemEvent::TimeChanged(current_hhmm(timezone_offset_secs)));
                 next_clock_in = CLOCK_INTERVAL_SECS;
             } else {
                 next_clock_in = next_clock_in.saturating_sub(1);
@@ -212,7 +229,33 @@ fn probe_api(url: &str) -> Result<bool> {
     Ok((200..300).contains(&status))
 }
 
-fn current_hhmm() -> String {
+fn post_music_command(health_url: &str, action: &str) -> Result<()> {
+    let url = music_command_url(health_url);
+    let payload = format!("{{\"action\":\"{}\"}}", action);
+    let content_length = payload.len().to_string();
+    let headers = [
+        ("content-type", "application/json"),
+        ("content-length", content_length.as_str()),
+    ];
+
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default())?);
+    let mut request = client.request(Method::Post, &url, &headers)?;
+    request.write_all(payload.as_bytes())?;
+    request.flush()?;
+    let response = request.submit()?;
+    log::info!("API: POST {} action={} status={}", url, action, response.status());
+    Ok(())
+}
+
+fn music_command_url(health_url: &str) -> String {
+    if let Some(base) = health_url.strip_suffix("/health") {
+        format!("{base}/music/command")
+    } else {
+        format!("{}/music/command", health_url.trim_end_matches('/'))
+    }
+}
+
+fn current_hhmm(offset_secs: i32) -> String {
     let now = match SystemTime::now().duration_since(UNIX_EPOCH) {
         Ok(value) => value.as_secs(),
         Err(_) => return "--:--".to_owned(),
@@ -222,9 +265,11 @@ fn current_hhmm() -> String {
         return "--:--".to_owned();
     }
 
-    // Portugal continental em horario de verao no periodo de testes atual.
-    // O SNTP atualiza UTC; aplicamos +1h para apresentar hora local.
-    let local = now + 3600;
+    let local = if offset_secs >= 0 {
+        now.saturating_add(offset_secs as u64)
+    } else {
+        now.saturating_sub(offset_secs.unsigned_abs() as u64)
+    };
     let seconds_of_day = local % 86_400;
     let hour = seconds_of_day / 3600;
     let minute = (seconds_of_day % 3600) / 60;

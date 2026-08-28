@@ -1,5 +1,64 @@
 import { Theme } from "theme.slint";
 
+component ControlSlider inherits Rectangle {
+    in property <string> label;
+    in property <image> icon;
+    in property <color> accent-color;
+    in-out property <float> value;
+    callback changed(float);
+
+    border-radius: Theme.radius-m;
+    background: Theme.panel-soft;
+    border-width: 1px;
+    border-color: Theme.stroke;
+
+    Image { x: 12px; y: 11px; width: 14px; height: 14px; source: root.icon; image-fit: contain; }
+    Text {
+        x: 32px; y: 0px; width: 72px; height: 100%;
+        text: root.label;
+        color: Theme.text-primary;
+        font-size: Theme.font-sm;
+        font-weight: 600;
+        vertical-alignment: center;
+    }
+    Text {
+        x: 236px; y: 0px; width: 44px; height: 100%;
+        text: Math.round(root.value * 100) + "%";
+        color: Theme.text-secondary;
+        font-size: Theme.font-sm;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+    }
+    Rectangle {
+        x: 88px; y: 16px; width: 148px; height: 4px;
+        border-radius: 2px;
+        background: Theme.bg-2;
+        Rectangle {
+            width: parent.width * root.value; height: 100%;
+            border-radius: 2px;
+            background: root.accent-color;
+        }
+        Rectangle {
+            x: parent.width * root.value - 5px; y: -3px;
+            width: 10px; height: 10px;
+            border-radius: 5px;
+            background: Theme.text-primary;
+        }
+        TouchArea {
+            clicked => {
+                root.value = max(0.0, min(1.0, self.mouse-x / parent.width));
+                root.changed(root.value);
+            }
+            moved => {
+                if (self.pressed) {
+                    root.value = max(0.0, min(1.0, self.mouse-x / parent.width));
+                    root.changed(root.value);
+                }
+            }
+        }
+    }
+}
+
 export component ControlCenter inherits Rectangle {
     in-out property <float> volume: 0.75;
     in-out property <float> brightness: 0.60;
@@ -12,9 +71,6 @@ export component ControlCenter inherits Rectangle {
     callback volume-changed(float);
     callback wifi-changed(bool);
     callback bluetooth-changed(bool);
-    // Emitido quando o utilizador toca no tile "Rotacao automatica". O Rust
-    // recebe o novo estado e ajusta MADCTL no ILI9341V + informa o Slint
-    // sobre o novo tamanho logico da janela.
     callback rotation-changed(bool);
 
     width: 320px;
@@ -28,10 +84,10 @@ export component ControlCenter inherits Rectangle {
     }
 
     for tile[index] in [
-        { label: "Wi‑Fi", icon: @image-url("assets/icons/wifi.svg"),       active: root.wifi-on,      color: Theme.accent-blue },
+        { label: "Wi-Fi", icon: @image-url("assets/icons/wifi.svg"), active: root.wifi-on, color: Theme.accent-blue },
         { label: "Bluetooth", icon: @image-url("assets/icons/bluetooth.svg"), active: root.bluetooth-on, color: Theme.accent-blue },
-        { label: "Não perturbe", icon: @image-url("assets/icons/moon.svg"), active: root.dnd-on,       color: Theme.accent },
-        { label: "Rotação\nautomática", icon: @image-url("assets/icons/rotate-cw.svg"), active: root.autorotate, color: Theme.accent-cyan },
+        { label: "Nao perturbe", icon: @image-url("assets/icons/moon.svg"), active: root.dnd-on, color: Theme.accent },
+        { label: "Orientacao", icon: @image-url("assets/icons/rotate-cw.svg"), active: root.autorotate, color: Theme.accent-cyan },
     ] : Rectangle {
         x: 10px + index * 76px; y: 24px; width: 62px; height: 58px;
         border-radius: 29px;
@@ -55,14 +111,10 @@ export component ControlCenter inherits Rectangle {
                 }
             }
         }
-        Image {
-            x: 21px; y: 19px; width: 20px; height: 20px;
-            source: tile.icon;
-            image-fit: contain;
-        }
+        Image { x: 21px; y: 19px; width: 20px; height: 20px; source: tile.icon; image-fit: contain; }
     }
 
-    for label[index] in ["Wi‑Fi", "Bluetooth", "Não perturbe", "Rotação\nautomática"] : Text {
+    for label[index] in ["Wi-Fi", "Bluetooth", "Nao perturbe", "Orientacao"] : Text {
         x: 10px + index * 72px; y: 88px; width: 70px; height: 24px;
         text: label;
         color: Theme.text-primary;
@@ -70,95 +122,24 @@ export component ControlCenter inherits Rectangle {
         font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;
+        wrap: word-wrap;
     }
 
-    Rectangle {
+    ControlSlider {
         x: 14px; y: 118px; width: 292px; height: 36px;
-        border-radius: Theme.radius-m;
-        background: Theme.panel-soft;
-        border-width: 1px;
-        border-color: Theme.stroke;
-        Image {
-            x: 12px; y: 11px; width: 14px; height: 14px;
-            source: @image-url("assets/icons/volume-2.svg");
-            image-fit: contain;
-        }
-        Text {
-            x: 32px; y: 0px; width: 90px; height: 100%;
-            text: "Volume";
-            color: Theme.text-primary;
-            font-size: Theme.font-sm;
-            font-weight: 600;
-            vertical-alignment: center;
-        }
-        Text {
-            x: 236px; y: 0px; width: 44px; height: 100%;
-            text: Math.round(root.volume * 100) + "%";
-            color: Theme.text-secondary;
-            font-size: Theme.font-sm;
-            horizontal-alignment: right;
-            vertical-alignment: center;
-        }
-        Rectangle {
-            x: 88px; y: 16px; width: 148px; height: 4px;
-            border-radius: 2px;
-            background: Theme.bg-2;
-            Rectangle {
-                width: parent.width * root.volume; height: 100%;
-                border-radius: 2px;
-                background: Theme.accent-blue;
-            }
-            Rectangle {
-                x: parent.width * root.volume - 5px; y: -3px;
-                width: 10px; height: 10px;
-                border-radius: 5px;
-                background: Theme.text-primary;
-            }
-        }
+        label: "Volume";
+        icon: @image-url("assets/icons/volume-2.svg");
+        accent-color: Theme.accent-blue;
+        value <=> root.volume;
+        changed(v) => { root.volume-changed(v); }
     }
 
-    Rectangle {
+    ControlSlider {
         x: 14px; y: 160px; width: 292px; height: 36px;
-        border-radius: Theme.radius-m;
-        background: Theme.panel-soft;
-        border-width: 1px;
-        border-color: Theme.stroke;
-        Image {
-            x: 12px; y: 11px; width: 14px; height: 14px;
-            source: @image-url("assets/icons/sun.svg");
-            image-fit: contain;
-        }
-        Text {
-            x: 32px; y: 0px; width: 90px; height: 100%;
-            text: "Brilho";
-            color: Theme.text-primary;
-            font-size: Theme.font-sm;
-            font-weight: 600;
-            vertical-alignment: center;
-        }
-        Text {
-            x: 236px; y: 0px; width: 44px; height: 100%;
-            text: Math.round(root.brightness * 100) + "%";
-            color: Theme.text-secondary;
-            font-size: Theme.font-sm;
-            horizontal-alignment: right;
-            vertical-alignment: center;
-        }
-        Rectangle {
-            x: 88px; y: 16px; width: 148px; height: 4px;
-            border-radius: 2px;
-            background: Theme.bg-2;
-            Rectangle {
-                width: parent.width * root.brightness; height: 100%;
-                border-radius: 2px;
-                background: Theme.accent;
-            }
-            Rectangle {
-                x: parent.width * root.brightness - 5px; y: -3px;
-                width: 10px; height: 10px;
-                border-radius: 5px;
-                background: Theme.text-primary;
-            }
-        }
+        label: "Brilho";
+        icon: @image-url("assets/icons/sun.svg");
+        accent-color: Theme.accent;
+        value <=> root.brightness;
+        changed(v) => { root.brightness-changed(v); }
     }
 }

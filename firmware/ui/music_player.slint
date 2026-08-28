@@ -1,16 +1,21 @@
 import { Theme } from "theme.slint";
 
 export component MusicPlayer inherits Rectangle {
-    in property <string> track-title: "Blinding Lights";
-    in property <string> artist: "The Weeknd";
-    in property <string> album: "After Hours";
-    in property <image> cover;
-    in property <float> progress: 0.4;
-    in property <string> pos-label: "1:24";
-    in property <string> dur-label: "3:20";
+    in-out property <int> track-index: 0;
+    in-out property <float> progress: 0.4;
     in-out property <bool> playing: true;
 
-    callback toggle-play();
+    property <string> track-title:
+        root.track-index == 0 ? "Blinding Lights" :
+        root.track-index == 1 ? "Save Your Tears" : "After Hours";
+    property <string> artist: "The Weeknd";
+    property <string> album: "After Hours";
+    property <string> pos-label:
+        root.progress < 0.34 ? "0:42" :
+        root.progress < 0.67 ? "1:24" : "2:18";
+    property <string> dur-label: "3:20";
+
+    callback playback-changed(bool);
     callback next();
     callback prev();
     callback back();
@@ -20,29 +25,20 @@ export component MusicPlayer inherits Rectangle {
     background: Theme.bg-0;
 
     Rectangle {
-        x: 0px; y: 0px; width: 44px; height: 34px;
+        x: 0px; y: 0px; width: 48px; height: 38px;
         border-radius: 12px;
         background: #00000000;
         TouchArea { clicked => { root.back(); } }
-        Image {
-            x: 14px; y: 9px; width: 16px; height: 16px;
-            source: @image-url("assets/icons/chevron-left.svg");
-            image-fit: contain;
-        }
+        Image { x: 14px; y: 10px; width: 18px; height: 18px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; }
     }
     Text {
-        x: 0px; y: 6px; width: 100%; height: 22px;
-        text: "Player de Música";
+        x: 0px; y: 7px; width: 100%; height: 22px;
+        text: "Player de Musica";
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
-    }
-    Image {
-        x: 292px; y: 8px; width: 16px; height: 16px;
-        source: @image-url("assets/icons/more-horizontal.svg");
-        image-fit: contain;
     }
 
     Rectangle {
@@ -53,15 +49,11 @@ export component MusicPlayer inherits Rectangle {
         Rectangle { x: -10px; y: 50px; width: 120px; height: 34px; background: Theme.accent-cyan; }
         Rectangle { x: 18px; y: 8px; width: 44px; height: 44px; border-radius: 22px; background: Theme.accent-pink; }
         Rectangle { x: 52px; y: 20px; width: 36px; height: 56px; border-radius: 18px; background: Theme.accent-blue; }
-        Image {
-            x: 31px; y: 31px; width: 36px; height: 36px;
-            source: @image-url("assets/icons/music.svg");
-            image-fit: contain;
-        }
+        Image { x: 31px; y: 31px; width: 36px; height: 36px; source: @image-url("assets/icons/music.svg"); image-fit: contain; }
     }
 
     Text {
-        x: 126px; y: 60px; width: 150px; height: 18px;
+        x: 126px; y: 58px; width: 160px; height: 18px;
         text: root.track-title;
         color: Theme.text-primary;
         font-size: Theme.font-md;
@@ -69,24 +61,20 @@ export component MusicPlayer inherits Rectangle {
         overflow: elide;
     }
     Text {
-        x: 126px; y: 84px; width: 150px; height: 15px;
+        x: 126px; y: 82px; width: 160px; height: 15px;
         text: root.artist;
         color: Theme.text-secondary;
         font-size: Theme.font-sm;
         overflow: elide;
     }
     Text {
-        x: 126px; y: 102px; width: 150px; height: 12px;
+        x: 126px; y: 101px; width: 160px; height: 12px;
         text: root.album;
         color: Theme.text-muted;
         font-size: 9px;
         overflow: elide;
     }
-    Image {
-        x: 286px; y: 62px; width: 18px; height: 18px;
-        source: @image-url("assets/icons/heart.svg");
-        image-fit: contain;
-    }
+    Image { x: 286px; y: 62px; width: 18px; height: 18px; source: @image-url("assets/icons/heart.svg"); image-fit: contain; }
 
     Rectangle {
         x: 16px; y: 152px; width: 288px; height: 4px;
@@ -98,12 +86,7 @@ export component MusicPlayer inherits Rectangle {
             background: Theme.text-primary;
         }
     }
-    Text {
-        x: 16px; y: 160px; width: 40px; height: 11px;
-        text: root.pos-label;
-        color: Theme.text-secondary;
-        font-size: 8px;
-    }
+    Text { x: 16px; y: 160px; width: 40px; height: 11px; text: root.pos-label; color: Theme.text-secondary; font-size: 8px; }
     Text {
         x: 264px; y: 160px; width: 40px; height: 11px;
         text: root.dur-label;
@@ -118,30 +101,31 @@ export component MusicPlayer inherits Rectangle {
         Image { width: 14px; height: 14px; source: @image-url("assets/icons/shuffle.svg"); image-fit: contain; }
         Rectangle {
             width: 42px; height: 40px; border-radius: 20px; background: #00000000;
-            TouchArea { clicked => { root.prev(); } }
+            TouchArea {
+                clicked => {
+                    root.track-index = root.track-index == 0 ? 2 : root.track-index - 1;
+                    root.progress = 0.1;
+                    root.prev();
+                }
+            }
             Image { x: 13px; y: 12px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-back.svg"); image-fit: contain; }
         }
         Rectangle {
             width: 54px; height: 40px;
             border-radius: 20px;
             background: Theme.accent;
-            TouchArea { clicked => { root.toggle-play(); root.playing = !root.playing; } }
-            Rectangle {
-                visible: root.playing;
-                x: 18px; y: 12px; width: 5px; height: 16px;
-                border-radius: 2px;
-                background: Theme.text-primary;
+            TouchArea {
+                clicked => {
+                    root.playing = !root.playing;
+                    root.playback-changed(root.playing);
+                }
             }
-            Rectangle {
-                visible: root.playing;
-                x: 31px; y: 12px; width: 5px; height: 16px;
-                border-radius: 2px;
-                background: Theme.text-primary;
-            }
+            Rectangle { visible: root.playing; x: 18px; y: 12px; width: 5px; height: 16px; border-radius: 2px; background: Theme.text-primary; }
+            Rectangle { visible: root.playing; x: 31px; y: 12px; width: 5px; height: 16px; border-radius: 2px; background: Theme.text-primary; }
             Text {
                 visible: !root.playing;
                 x: 0px; y: 0px; width: 100%; height: 100%;
-                text: "▶";
+                text: ">";
                 color: Theme.text-primary;
                 font-size: 18px;
                 font-weight: 700;
@@ -151,7 +135,13 @@ export component MusicPlayer inherits Rectangle {
         }
         Rectangle {
             width: 42px; height: 40px; border-radius: 20px; background: #00000000;
-            TouchArea { clicked => { root.next(); } }
+            TouchArea {
+                clicked => {
+                    root.track-index = root.track-index == 2 ? 0 : root.track-index + 1;
+                    root.progress = 0.1;
+                    root.next();
+                }
+            }
             Image { x: 13px; y: 12px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-forward.svg"); image-fit: contain; }
         }
         Image { width: 14px; height: 14px; source: @image-url("assets/icons/repeat.svg"); image-fit: contain; }

@@ -10,6 +10,13 @@ const KEY_WIFI_SSID: &str = "wifi_ssid";
 const KEY_WIFI_PASS: &str = "wifi_pass";
 const KEY_BT_ON: &str = "bt_on";
 const KEY_API_HEALTH: &str = "api_health";
+const KEY_REGION: &str = "region";
+const KEY_LANGUAGE: &str = "language";
+const KEY_ALARM_ON: &str = "alarm_on";
+const KEY_ALARM_HOUR: &str = "alarm_hour";
+const KEY_ALARM_MINUTE: &str = "alarm_minute";
+const KEY_VOLUME: &str = "volume";
+const KEY_BRIGHTNESS: &str = "brightness";
 
 const MAX_PASSCODE: usize = 16;
 const MAX_SSID: usize = 64;
@@ -24,6 +31,13 @@ pub struct AppConfig {
     pub wifi_password: String,
     pub bluetooth_enabled: bool,
     pub api_health_url: String,
+    pub region_index: u8,
+    pub language_index: u8,
+    pub alarm_enabled: bool,
+    pub alarm_hour: u8,
+    pub alarm_minute: u8,
+    pub volume: u8,
+    pub brightness: u8,
 }
 
 pub struct ConfigStore {
@@ -55,6 +69,13 @@ impl ConfigStore {
             api_health_url: self
                 .read_string(KEY_API_HEALTH, MAX_URL)
                 .unwrap_or_else(|| default_api.to_owned()),
+            region_index: self.read_u8(KEY_REGION).unwrap_or(0).min(4),
+            language_index: self.read_u8(KEY_LANGUAGE).unwrap_or(0).min(4),
+            alarm_enabled: self.read_bool(KEY_ALARM_ON).unwrap_or(false),
+            alarm_hour: self.read_u8(KEY_ALARM_HOUR).unwrap_or(7).min(23),
+            alarm_minute: self.read_u8(KEY_ALARM_MINUTE).unwrap_or(0).min(59),
+            volume: self.read_u8(KEY_VOLUME).unwrap_or(75).min(100),
+            brightness: self.read_u8(KEY_BRIGHTNESS).unwrap_or(60).min(100),
         }
     }
 
@@ -83,6 +104,29 @@ impl ConfigStore {
         self.write_bool(KEY_BT_ON, enabled)
     }
 
+    pub fn save_locale(&self, region_index: u8, language_index: u8) -> Result<()> {
+        self.nvs.set_u8(KEY_REGION, region_index.min(4))?;
+        self.nvs.set_u8(KEY_LANGUAGE, language_index.min(4))?;
+        Ok(())
+    }
+
+    pub fn save_alarm(&self, enabled: bool, hour: u8, minute: u8) -> Result<()> {
+        self.write_bool(KEY_ALARM_ON, enabled)?;
+        self.nvs.set_u8(KEY_ALARM_HOUR, hour.min(23))?;
+        self.nvs.set_u8(KEY_ALARM_MINUTE, minute.min(59))?;
+        Ok(())
+    }
+
+    pub fn save_volume(&self, value: u8) -> Result<()> {
+        self.nvs.set_u8(KEY_VOLUME, value.min(100))?;
+        Ok(())
+    }
+
+    pub fn save_brightness(&self, value: u8) -> Result<()> {
+        self.nvs.set_u8(KEY_BRIGHTNESS, value.min(100))?;
+        Ok(())
+    }
+
     fn read_string(&self, key: &str, max_len: usize) -> Option<String> {
         let mut buf = vec![0_u8; max_len + 1];
         match self.nvs.get_str(key, &mut buf) {
@@ -96,8 +140,12 @@ impl ConfigStore {
     }
 
     fn read_bool(&self, key: &str) -> Option<bool> {
+        self.read_u8(key).map(|value| value != 0)
+    }
+
+    fn read_u8(&self, key: &str) -> Option<u8> {
         match self.nvs.get_u8(key) {
-            Ok(Some(value)) => Some(value != 0),
+            Ok(Some(value)) => Some(value),
             Ok(None) => None,
             Err(e) => {
                 log::warn!("NVS: falha ao ler {key}: {e:?}");

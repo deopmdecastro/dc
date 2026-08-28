@@ -78,6 +78,7 @@ fn main() -> Result<()> {
             ssid: app_config.wifi_ssid.clone(),
             password: app_config.wifi_password.clone(),
             api_health_url: app_config.api_health_url.clone(),
+            timezone_offset_secs: timezone_offset_secs(app_config.region_index),
         },
         network_cmd_rx,
         system_event_tx.clone(),
@@ -88,6 +89,13 @@ fn main() -> Result<()> {
         .map_err(|e| anyhow::anyhow!("falha ao criar AppWindow Slint: {e:?}"))?;
     app.set_wifi_on(app_config.wifi_enabled);
     app.set_bluetooth_on(app_config.bluetooth_enabled);
+    app.set_volume(app_config.volume as f32 / 100.0);
+    app.set_brightness(app_config.brightness as f32 / 100.0);
+    app.set_region_index(app_config.region_index as i32);
+    app.set_language_index(app_config.language_index as i32);
+    app.set_alarm_enabled(app_config.alarm_enabled);
+    app.set_alarm_hour(app_config.alarm_hour as i32);
+    app.set_alarm_minute(app_config.alarm_minute as i32);
     app.set_current_time("--:--".into());
     slint_platform::set_app_window(&app);
     // Boot animation → home. 2200ms deixa o fade-in + hold do logo completos
@@ -105,13 +113,59 @@ fn main() -> Result<()> {
     });
 
     // Callbacks Rust ↔ Slint
-    app.on_set_brightness(|level| {
-        log::info!("UI: brilho ajustado para {:.0}%", level * 100.0);
-        // TODO: platform.display.borrow_mut().set_brightness(level)
-    });
-    app.on_set_volume(|v| log::info!("UI: volume {:.0}%", v * 100.0));
+    {
+        let store = config_store.clone();
+        app.on_set_brightness(move |level| {
+            let level = level.clamp(0.0, 1.0);
+            log::info!("UI: brilho ajustado para {:.0}%", level * 100.0);
+            slint_platform::set_display_brightness(level);
+            if let Err(e) = store.borrow().save_brightness(percent_u8(level)) {
+                log::warn!("NVS: falha ao guardar brilho: {e:?}");
+            }
+        });
+    }
+    {
+        let store = config_store.clone();
+        app.on_set_volume(move |v| {
+            let v = v.clamp(0.0, 1.0);
+            log::info!("UI: volume {:.0}%", v * 100.0);
+            if let Err(e) = store.borrow().save_volume(percent_u8(v)) {
+                log::warn!("NVS: falha ao guardar volume: {e:?}");
+            }
+        });
+    }
     app.on_wake_word_triggered(|| log::info!("UI: wake-word acionada"));
     app.on_launch_app(|idx|      log::info!("UI: launch_app({})", idx));
+    {
+        let tx = network_cmd_tx.clone();
+        app.on_music_command(move |action| {
+            let _ = tx.send(NetworkCommand::MusicCommand(action.to_string()));
+        });
+    }
+    {
+        let store = config_store.clone();
+        let tx = network_cmd_tx.clone();
+        app.on_locale_changed(move |region, language| {
+            let region = region.clamp(0, 4) as u8;
+            let language = language.clamp(0, 4) as u8;
+            if let Err(e) = store.borrow().save_locale(region, language) {
+                log::warn!("NVS: falha ao guardar idioma/regiao: {e:?}");
+            }
+            let _ = tx.send(NetworkCommand::SetTimezoneOffset(timezone_offset_secs(region)));
+        });
+    }
+    {
+        let store = config_store.clone();
+        app.on_alarm_changed(move |enabled, hour, minute| {
+            let hour = hour.clamp(0, 23) as u8;
+            let minute = minute.clamp(0, 59) as u8;
+            if let Err(e) = store.borrow().save_alarm(enabled, hour, minute) {
+                log::warn!("NVS: falha ao guardar alarme: {e:?}");
+            } else {
+                log::info!("Alarme: {} {:02}:{:02}", if enabled { "ligado" } else { "desligado" }, hour, minute);
+            }
+        });
+    }
     {
         let store = config_store.clone();
         app.on_passcode_created(move |pass| {
@@ -171,7 +225,7 @@ fn main() -> Result<()> {
         });
     }
     app.on_set_rotation(|on| {
-        log::info!("UI: rotacao automatica {}", if on { "ligada" } else { "desligada" });
+        log::info!("UI: orientacao {}", if on { "normal" } else { "invertida" });
         slint_platform::apply_display_rotation(on);
     });
 
@@ -180,4 +234,19 @@ fn main() -> Result<()> {
     window.request_redraw();
     // ---- Event loop bloqueante ----
     slint_platform::run_event_loop(touch_rx, system_event_rx);
+}
+
+fn timezone_offset_secs(region_index: u8) -> i32 {
+    match region_index {
+        0 => -3 * 3600, // Brasilia
+        1 => 3600,      // Portugal continental em horario de verao
+        2 => 3600,      // Angola
+        3 => 2 * 3600,  // Mocambique
+        4 => -4 * 3600, // EUA Eastern em horario de verao
+        _ => 0,
+    }
+}
+
+fn percent_u8(value: f32) -> u8 {
+    (value.clamp(0.0, 1.0) * 100.0).round() as u8
 }

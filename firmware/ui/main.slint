@@ -7,7 +7,7 @@ import { ChatView } from "chat_view.slint";
 import { AppLauncher } from "app_launcher.slint";
 import { MusicPlayer } from "music_player.slint";
 import { SettingsPanel, ChangePasscode } from "settings.slint";
-import { StorePanel } from "store.slint";
+import { AlarmPanel } from "alarm.slint";
 
 export enum Screen {
     Splash,
@@ -16,9 +16,9 @@ export enum Screen {
     Home,
     Launcher,
     Music,
+    Alarm,
     Settings,
     SettingsPassword,
-    Store,
 }
 
 export component AppWindow inherits Window {
@@ -33,6 +33,14 @@ export component AppWindow inherits Window {
     in-out property <bool> wifi-on: true;
     in-out property <bool> bluetooth-on: true;
     in-out property <bool> autorotate: true;
+    in-out property <float> volume: 0.75;
+    in-out property <float> brightness: 0.60;
+    in-out property <int> region-index: 0;
+    in-out property <int> language-index: 0;
+    in-out property <bool> alarm-enabled: false;
+    in-out property <int> alarm-hour: 7;
+    in-out property <int> alarm-minute: 0;
+    in-out property <bool> music-playing: true;
     in-out property <float> audio-level: 0.0;
     in-out property <bool> listening: false;
 
@@ -49,6 +57,9 @@ export component AppWindow inherits Window {
     callback wifi-enabled-changed(bool);
     callback wifi-network-selected(string);
     callback bluetooth-enabled-changed(bool);
+    callback locale-changed(int, int);
+    callback alarm-changed(bool, int, int);
+    callback music-command(string);
     // Emitido pelo Control Center quando o utilizador liga/desliga a
     // rotacao automatica. O Rust ajusta MADCTL no ILI9341V.
     callback set-rotation(bool);
@@ -76,7 +87,12 @@ export component AppWindow inherits Window {
         if root.current-screen == Screen.FirstBootRegion:
             RegionLanguage {
                 width: 100%; height: 100%;
-                continue-clicked => { root.current-screen = Screen.Home; }
+                region-index <=> root.region-index;
+                language-index <=> root.language-index;
+                continue-clicked(region, language) => {
+                    root.locale-changed(region, language);
+                    root.current-screen = Screen.Home;
+                }
             }
 
         if root.current-screen == Screen.Home:
@@ -94,21 +110,31 @@ export component AppWindow inherits Window {
                 app-clicked(idx) => {
                     root.launch-app(idx);
                     if (idx == 1) { root.current-screen = Screen.Music; }
-                    else if (idx == 5) { root.current-screen = Screen.Store; }
+                    else if (idx == 5) { root.current-screen = Screen.Alarm; }
                     else if (idx == 6) { root.current-screen = Screen.Settings; }
                     else { root.current-screen = Screen.Home; }
-                }
-                rail-clicked(idx) => {
-                    if (idx == 0) { root.current-screen = Screen.Home; }
-                    else if (idx == 1) { root.current-screen = Screen.Music; }
-                    else if (idx == 2) { root.current-screen = Screen.Store; }
-                    else if (idx == 3) { root.current-screen = Screen.Settings; }
                 }
             }
 
         if root.current-screen == Screen.Music:
             MusicPlayer {
                 width: 100%; height: 100%;
+                playing <=> root.music-playing;
+                playback-changed(playing) => {
+                    root.music-command(playing ? "play" : "pause");
+                }
+                next => { root.music-command("next"); }
+                prev => { root.music-command("prev"); }
+                back => { root.current-screen = Screen.Launcher; }
+            }
+
+        if root.current-screen == Screen.Alarm:
+            AlarmPanel {
+                width: 100%; height: 100%;
+                enabled <=> root.alarm-enabled;
+                hour <=> root.alarm-hour;
+                minute <=> root.alarm-minute;
+                alarm-changed(on, hour, minute) => { root.alarm-changed(on, hour, minute); }
                 back => { root.current-screen = Screen.Launcher; }
             }
 
@@ -117,9 +143,16 @@ export component AppWindow inherits Window {
                 width: 100%; height: 100%;
                 wifi-on <=> root.wifi-on;
                 bluetooth-on <=> root.bluetooth-on;
+                volume <=> root.volume;
+                brightness <=> root.brightness;
+                region-index <=> root.region-index;
+                language-index <=> root.language-index;
                 change-passcode => { root.current-screen = Screen.SettingsPassword; }
                 wifi-changed(on) => { root.wifi-enabled-changed(on); }
                 bluetooth-changed(on) => { root.bluetooth-enabled-changed(on); }
+                locale-changed(region, language) => { root.locale-changed(region, language); }
+                volume-changed(v) => { root.set-volume(v); }
+                brightness-changed(v) => { root.set-brightness(v); }
                 network-selected(ssid) => {
                     root.wifi-on = true;
                     root.wifi-network-selected(ssid);
@@ -138,11 +171,6 @@ export component AppWindow inherits Window {
                 }
             }
 
-        if root.current-screen == Screen.Store:
-            StorePanel {
-                width: 100%; height: 100%;
-                back => { root.current-screen = Screen.Launcher; }
-            }
     }
 
     // Status bar SEMPRE fixa no topo (0,0) com 320x24 explicitos. Quando
@@ -172,11 +200,19 @@ export component AppWindow inherits Window {
             ControlCenter {
                 visible: true;
                 width: 100%; height: 100%;
+                volume <=> root.volume;
+                brightness <=> root.brightness;
                 wifi-on <=> root.wifi-on;
                 bluetooth-on <=> root.bluetooth-on;
                 autorotate <=> root.autorotate;
-                brightness-changed(v) => { root.set-brightness(v); }
-                volume-changed(v) => { root.set-volume(v); }
+                brightness-changed(v) => {
+                    root.brightness = v;
+                    root.set-brightness(v);
+                }
+                volume-changed(v) => {
+                    root.volume = v;
+                    root.set-volume(v);
+                }
                 wifi-changed(on) => { root.wifi-enabled-changed(on); }
                 bluetooth-changed(on) => { root.bluetooth-enabled-changed(on); }
                 rotation-changed(on) => { root.set-rotation(on); }

@@ -5,59 +5,34 @@ export struct AppEntry { name: string, icon: image, color: color }
 export component AppLauncher inherits Rectangle {
     in property <[AppEntry]> apps: [
         { name: "DC Assistant", icon: @image-url("assets/icons/message-circle.svg"), color: Theme.accent-blue },
-        { name: "Música",       icon: @image-url("assets/icons/music.svg"),          color: Theme.accent-pink },
+        { name: "Musica",       icon: @image-url("assets/icons/music.svg"),          color: Theme.accent-pink },
         { name: "Clima",        icon: @image-url("assets/icons/cloud.svg"),          color: Theme.warning },
         { name: "Agenda",       icon: @image-url("assets/icons/calendar.svg"),       color: Theme.danger },
         { name: "Notas",        icon: @image-url("assets/icons/file-text.svg"),      color: Theme.warning },
-        { name: "Loja",         icon: @image-url("assets/icons/shopping-bag.svg"),   color: Theme.accent },
-        { name: "Definições",   icon: @image-url("assets/icons/settings.svg"),       color: Theme.text-secondary },
-        { name: "Mais",         icon: @image-url("assets/icons/more-horizontal.svg"), color: Theme.text-muted },
+        { name: "Alarme",       icon: @image-url("assets/icons/calendar.svg"),       color: Theme.accent-cyan },
+        { name: "Definicoes",   icon: @image-url("assets/icons/settings.svg"),       color: Theme.text-secondary },
     ];
-    in property <int> active-rail: 0;
+
     callback app-clicked(int);
-    callback rail-clicked(int);
 
     width: 320px;
     height: 216px;
     background: Theme.bg-0;
 
-    Rectangle {
-        x: 0px; y: 0px; width: 46px; height: 100%;
-        background: Theme.panel;
-        border-width: 1px;
-        border-color: Theme.stroke;
-
-        for item[index] in [
-            @image-url("assets/icons/home.svg"),
-            @image-url("assets/icons/music.svg"),
-            @image-url("assets/icons/shopping-bag.svg"),
-            @image-url("assets/icons/settings.svg")
-        ] : Rectangle {
-            x: 4px; y: 23px + index * 42px; width: 38px; height: 38px;
-            border-radius: Theme.radius-m;
-            background: index == root.active-rail ? Theme.accent : #00000000;
-            TouchArea { clicked => { root.rail-clicked(index); } }
-            Image {
-                x: 11px; y: 11px; width: 16px; height: 16px;
-                source: item;
-                image-fit: contain;
-            }
-        }
-    }
-
     Text {
-        x: 58px; y: 12px; width: 120px; height: 18px;
-        text: "Aplicações";
+        x: 16px; y: 12px; width: 180px; height: 18px;
+        text: "Aplicacoes";
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
     }
 
-    for row[index] in [[0,1,2,3],[4,5,6,7]] : HorizontalLayout {
-        x: 54px; y: 40px + index * 74px; width: 256px; height: 66px;
-        spacing: 8px;
-        for i in row : Rectangle {
-            width: 58px; height: 66px;
+    for row[index] in [[0,1,2,3],[4,5,6,0]] : HorizontalLayout {
+        x: 14px; y: 42px + index * 76px; width: 292px; height: 68px;
+        spacing: 10px;
+        for i[row-index] in row : Rectangle {
+            visible: !(index == 1 && row-index == 3);
+            width: 65px; height: 68px;
             border-radius: Theme.radius-m;
             background: Theme.panel-soft;
             border-width: 1px;
@@ -66,17 +41,17 @@ export component AppLauncher inherits Rectangle {
             TouchArea { clicked => { root.app-clicked(i); } }
 
             Rectangle {
-                x: 15px; y: 8px; width: 28px; height: 28px;
-                border-radius: 14px;
+                x: 18px; y: 8px; width: 30px; height: 30px;
+                border-radius: 15px;
                 background: root.apps[i].color;
             }
             Image {
-                x: 18px; y: 11px; width: 22px; height: 22px;
+                x: 21px; y: 11px; width: 24px; height: 24px;
                 source: root.apps[i].icon;
                 image-fit: contain;
             }
             Text {
-                x: 4px; y: 43px; width: 50px; height: 14px;
+                x: 4px; y: 44px; width: 57px; height: 16px;
                 text: root.apps[i].name;
                 color: Theme.text-primary;
                 font-size: 8px;
@@ -85,12 +60,5 @@ export component AppLauncher inherits Rectangle {
                 overflow: elide;
             }
         }
-    }
-
-    HorizontalLayout {
-        x: 140px; y: 194px; width: 40px; height: 6px;
-        spacing: 6px;
-        Rectangle { width: 14px; height: 6px; border-radius: 3px; background: Theme.accent-blue; }
-        Rectangle { width: 6px; height: 6px; border-radius: 3px; background: Theme.panel-elevated; }
     }
 }

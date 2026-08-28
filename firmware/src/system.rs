@@ -10,4 +10,6 @@ pub enum SystemEvent {
 pub enum NetworkCommand {
     SetWifiEnabled(bool),
     SetWifiCredentials { ssid: String, password: String },
+    SetTimezoneOffset(i32),
+    MusicCommand(String),
 }

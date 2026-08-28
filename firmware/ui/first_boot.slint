@@ -1,7 +1,32 @@
 import { Theme } from "theme.slint";
 
-// PIN de 5 digitos com teclado numerico. Mantem a logica simples para o
-// firmware e evita constantes float decorativas no codigo Slint gerado.
+component LocalePicker inherits Rectangle {
+    in property <string> title;
+    in property <string> value;
+    callback clicked();
+
+    border-radius: Theme.radius-s;
+    background: Theme.panel-soft;
+    border-width: 1px;
+    border-color: Theme.stroke;
+    TouchArea { clicked => { root.clicked(); } }
+    Text {
+        x: 14px; y: 7px; width: 150px; height: 12px;
+        text: root.title;
+        color: Theme.text-secondary;
+        font-size: Theme.font-xs;
+    }
+    Text {
+        x: 14px; y: 21px; width: 205px; height: 18px;
+        text: root.value;
+        color: Theme.text-primary;
+        font-size: Theme.font-md;
+        font-weight: 700;
+        vertical-alignment: center;
+    }
+    Image { x: 232px; y: 16px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-right.svg"); image-fit: contain; }
+}
+
 export component PasscodeSetup inherits Rectangle {
     in-out property <string> d0: "";
     in-out property <string> d1: "";
@@ -21,7 +46,7 @@ export component PasscodeSetup inherits Rectangle {
 
     Text {
         x: 0px; y: 10px; width: 320px; height: 20px;
-        text: "Definir Senha";
+        text: "Definir PIN";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
         font-weight: 700;
@@ -100,11 +125,7 @@ export component PasscodeSetup inherits Rectangle {
                 }
             }
         }
-        Image {
-            x: 20px; y: 10px; width: 20px; height: 16px;
-            source: @image-url("assets/icons/delete-left.svg");
-            image-fit: contain;
-        }
+        Image { x: 20px; y: 10px; width: 20px; height: 16px; source: @image-url("assets/icons/delete-left.svg"); image-fit: contain; }
     }
 
     Rectangle {
@@ -120,18 +141,26 @@ export component PasscodeSetup inherits Rectangle {
                 }
             }
         }
-        Image {
-            x: 20px; y: 10px; width: 20px; height: 16px;
-            source: @image-url("assets/icons/check.svg");
-            image-fit: contain;
-        }
+        Image { x: 20px; y: 10px; width: 20px; height: 16px; source: @image-url("assets/icons/check.svg"); image-fit: contain; }
     }
 }
 
 export component RegionLanguage inherits Rectangle {
-    in-out property <string> region: "Brasil";
-    in-out property <string> language: "Portugues (Brasil)";
-    callback continue-clicked();
+    in-out property <int> region-index: 0;
+    in-out property <int> language-index: 0;
+
+    property <string> region-label:
+        root.region-index == 0 ? "Brasil" :
+        root.region-index == 1 ? "Portugal" :
+        root.region-index == 2 ? "Angola" :
+        root.region-index == 3 ? "Mocambique" : "Estados Unidos";
+    property <string> language-label:
+        root.language-index == 0 ? "Portugues (Brasil)" :
+        root.language-index == 1 ? "Portugues (Portugal)" :
+        root.language-index == 2 ? "English" :
+        root.language-index == 3 ? "Francais" : "Espanol";
+
+    callback continue-clicked(int, int);
 
     width: 320px;
     height: 240px;
@@ -139,7 +168,7 @@ export component RegionLanguage inherits Rectangle {
 
     Text {
         x: 0px; y: 14px; width: 320px; height: 20px;
-        text: "Selecione sua Regiao";
+        text: "Idioma e Regiao";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
         font-weight: 700;
@@ -147,77 +176,33 @@ export component RegionLanguage inherits Rectangle {
         vertical-alignment: center;
     }
 
-    Rectangle {
-        x: 30px; y: 46px; width: 260px; height: 36px;
-        border-radius: Theme.radius-s;
-        background: Theme.panel-soft;
-        border-width: 1px;
-        border-color: Theme.stroke;
+    LocalePicker {
+        x: 30px; y: 52px; width: 260px; height: 46px;
+        title: "Regiao";
+        value: root.region-label;
+        clicked => { root.region-index = root.region-index == 4 ? 0 : root.region-index + 1; }
+    }
 
-        Rectangle {
-            x: 12px; y: 8px; width: 22px; height: 20px;
-            border-radius: 4px;
-            background: #009B3A;
-            Rectangle {
-                x: 3px; y: 4px; width: 16px; height: 12px;
-                border-radius: 2px;
-                background: #FFDF00;
-            }
-            Rectangle {
-                x: 8px; y: 7px; width: 6px; height: 6px;
-                border-radius: 3px;
-                background: #002776;
-            }
-        }
-        Text {
-            x: 46px; y: 0px; width: 180px; height: 36px;
-            text: root.region;
-            color: Theme.text-primary;
-            font-size: Theme.font-md;
-            vertical-alignment: center;
-        }
-        Image {
-            x: 236px; y: 11px; width: 14px; height: 14px;
-            source: @image-url("assets/icons/chevron-right.svg");
-            image-fit: contain;
-        }
+    LocalePicker {
+        x: 30px; y: 116px; width: 260px; height: 46px;
+        title: "Idioma";
+        value: root.language-label;
+        clicked => { root.language-index = root.language-index == 4 ? 0 : root.language-index + 1; }
     }
 
     Text {
-        x: 0px; y: 96px; width: 320px; height: 20px;
-        text: "Selecione seu Idioma";
-        color: Theme.text-primary;
-        font-size: Theme.font-lg;
-        font-weight: 700;
+        x: 30px; y: 168px; width: 260px; height: 16px;
+        text: "Toque para percorrer 5 opcoes.";
+        color: Theme.text-muted;
+        font-size: Theme.font-xs;
         horizontal-alignment: center;
-        vertical-alignment: center;
     }
 
     Rectangle {
-        x: 30px; y: 128px; width: 260px; height: 36px;
-        border-radius: Theme.radius-s;
-        background: Theme.panel-soft;
-        border-width: 1px;
-        border-color: Theme.stroke;
-        Text {
-            x: 14px; y: 0px; width: 210px; height: 36px;
-            text: root.language;
-            color: Theme.text-primary;
-            font-size: Theme.font-md;
-            vertical-alignment: center;
-        }
-        Image {
-            x: 236px; y: 11px; width: 14px; height: 14px;
-            source: @image-url("assets/icons/chevron-right.svg");
-            image-fit: contain;
-        }
-    }
-
-    Rectangle {
-        x: 30px; y: 190px; width: 260px; height: 40px;
+        x: 30px; y: 194px; width: 260px; height: 36px;
         border-radius: Theme.radius-s;
         background: Theme.accent;
-        TouchArea { clicked => { root.continue-clicked(); } }
+        TouchArea { clicked => { root.continue-clicked(root.region-index, root.language-index); } }
         Text {
             text: "Continuar";
             color: Theme.text-primary;

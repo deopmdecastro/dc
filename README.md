@@ -16,7 +16,12 @@ hardware **ES3C28P**:
 - Flash usa tabela custom de 16 MB com app `factory` de 4 MB.
 - Display ILI9341V inicializa e recebe frames Slint.
 - Touch FT6336G inicializa em I2C `0x38` e envia eventos para a UI.
-- UI Slint redesenhada no estilo DC OS escuro, baseada no mockup.
+- UI Slint no estilo DC OS escuro, com launcher sem barra lateral, Definições
+  por categorias, Alarme configurável, PIN persistente e região/idioma.
+- Wi-Fi liga de verdade, sincroniza hora por SNTP e consome a API real por HTTP.
+- Player envia `play`, `pause`, `next` e `prev` para o backend/Mopidy.
+- Brilho ajusta o PWM do backlight; volume fica persistido para integração de
+  áudio.
 - Bluetooth/BLE está desligado no `sdkconfig.defaults` porque o firmware atual
   ainda não usa BLE e isso evita incompatibilidade com ESP-IDF 5.2.3.
 
@@ -184,14 +189,35 @@ houver PIN.
 ## Hora, API e Bluetooth
 
 Quando o Wi-Fi liga, o firmware inicia SNTP e atualiza o relógio da status bar.
+O fuso é escolhido pela região configurada:
+
+- Brasil: UTC-3
+- Portugal: UTC+1
+- Angola: UTC+1
+- Moçambique: UTC+2
+- Estados Unidos: UTC-4
+
 Em seguida faz `GET` periódico ao endpoint `DC_CORE_HTTP` para confirmar se a
-API real está acessível.
+API real está acessível. Os botões do player chamam `POST /music/command` no
+mesmo backend.
+
+As Definições abrem primeiro em categorias:
+
+- Conexões: Wi-Fi, Bluetooth e redes conhecidas
+- Segurança: alterar PIN
+- Idioma e Região: 5 regiões e 5 idiomas
+- Som e Ecrã: volume e brilho
+- Sistema: resumo do firmware
 
 O Bluetooth já aparece e fica persistido nas Definições/Control Center. O stack
 BLE real continua desligado em `sdkconfig.defaults` porque este projeto fixou
 ESP-IDF 5.2.3 + `esp-idf-svc 0.52.x`, combinação que anteriormente quebrou o
 build ao ativar BLE. Para ativar rádio BLE de verdade, primeiro será preciso
 trocar para um driver BLE compatível e reabrir `CONFIG_BT_ENABLED`.
+
+A rotação agora é manual entre paisagem normal e paisagem invertida. Este módulo
+não tem acelerómetro mapeado no pinout atual, portanto ainda não existe
+auto-rotação real por posição física.
 
 ## Limpeza / Rebuild Completo
 

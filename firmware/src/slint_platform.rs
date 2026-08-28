@@ -12,7 +12,10 @@ use slint::platform::{
 };
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
+
+static DISPLAY_INVERTED: AtomicBool = AtomicBool::new(false);
 
 // O display e a janela ficam em thread-locals porque o `Platform` registado
 // no Slint (via `set_platform`) só é acedido internamente pela lib — mas o
@@ -68,6 +71,7 @@ pub fn apply_display_rotation(autorotate: bool) {
     } else {
         DisplayRotation::Landscape180
     };
+    DISPLAY_INVERTED.store(!autorotate, Ordering::Relaxed);
     DISPLAY.with(|d| {
         if let Some(display) = d.borrow_mut().as_mut() {
             if let Err(e) = display.set_rotation(rot) {
@@ -78,6 +82,16 @@ pub fn apply_display_rotation(autorotate: bool) {
     WINDOW.with(|w| {
         if let Some(window) = w.borrow().as_ref() {
             window.request_redraw();
+        }
+    });
+}
+
+pub fn set_display_brightness(level: f32) {
+    DISPLAY.with(|d| {
+        if let Some(display) = d.borrow_mut().as_mut() {
+            if let Err(e) = display.set_brightness(level) {
+                log::warn!("Display: falha ao ajustar brilho: {e:?}");
+            }
         }
     });
 }
@@ -210,7 +224,14 @@ fn dispatch_pending_touch_events(touch_rx: &Receiver<TouchEvent>) {
 }
 
 fn point_to_position(point: crate::touch::Point) -> LogicalPosition {
-    LogicalPosition::new(point.x as f32, point.y as f32)
+    if DISPLAY_INVERTED.load(Ordering::Relaxed) {
+        LogicalPosition::new(
+            (crate::pinout::DISPLAY_W as i16 - 1 - point.x) as f32,
+            (crate::pinout::DISPLAY_H as i16 - 1 - point.y) as f32,
+        )
+    } else {
+        LogicalPosition::new(point.x as f32, point.y as f32)
+    }
 }
 
 fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {

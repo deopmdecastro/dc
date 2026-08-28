@@ -1,0 +1,133 @@
+import { Theme } from "theme.slint";
+
+component AlarmToggle inherits Rectangle {
+    in property <string> label;
+    in-out property <bool> checked;
+    callback changed(bool);
+
+    border-radius: Theme.radius-s;
+    background: Theme.panel-soft;
+    border-width: 1px;
+    border-color: Theme.stroke-soft;
+    TouchArea {
+        clicked => {
+            root.checked = !root.checked;
+            root.changed(root.checked);
+        }
+    }
+    Text {
+        x: 14px; y: 0px; width: 160px; height: 100%;
+        text: root.label;
+        color: Theme.text-primary;
+        font-size: Theme.font-md;
+        font-weight: 700;
+        vertical-alignment: center;
+    }
+    Rectangle {
+        x: 210px; y: 5px; width: 48px; height: 24px;
+        border-radius: 12px;
+        background: root.checked ? Theme.accent : Theme.panel-elevated;
+        Rectangle {
+            x: root.checked ? 25px : 3px; y: 3px; width: 18px; height: 18px;
+            border-radius: 9px;
+            background: Theme.text-primary;
+        }
+    }
+}
+
+export component AlarmPanel inherits Rectangle {
+    in-out property <bool> enabled: false;
+    in-out property <int> hour: 7;
+    in-out property <int> minute: 0;
+
+    property <string> hour-label: root.hour < 10 ? "0" + root.hour : "" + root.hour;
+    property <string> minute-label: root.minute < 10 ? "0" + root.minute : "" + root.minute;
+
+    callback back();
+    callback alarm-changed(bool, int, int);
+
+    width: 320px;
+    height: 216px;
+    background: Theme.bg-0;
+
+    Rectangle {
+        x: 0px; y: 0px; width: 46px; height: 36px;
+        background: #00000000;
+        TouchArea { clicked => { root.back(); } }
+        Image { x: 14px; y: 10px; width: 16px; height: 16px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; }
+    }
+
+    Text {
+        x: 0px; y: 10px; width: 320px; height: 18px;
+        text: "Alarme";
+        color: Theme.text-primary;
+        font-size: Theme.font-md;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    Rectangle {
+        x: 24px; y: 48px; width: 272px; height: 68px;
+        border-radius: Theme.radius-m;
+        background: Theme.panel-soft;
+        border-width: 1px;
+        border-color: Theme.stroke-soft;
+        Text {
+            x: 0px; y: 10px; width: 100%; height: 38px;
+            text: root.hour-label + ":" + root.minute-label;
+            color: Theme.text-primary;
+            font-size: 32px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        Text {
+            x: 0px; y: 48px; width: 100%; height: 12px;
+            text: root.enabled ? "Ativo" : "Desligado";
+            color: root.enabled ? Theme.success : Theme.text-secondary;
+            font-size: Theme.font-xs;
+            horizontal-alignment: center;
+        }
+    }
+
+    AlarmToggle {
+        x: 24px; y: 126px; width: 272px; height: 34px;
+        label: "Ativar alarme";
+        checked <=> root.enabled;
+        changed(on) => {
+            root.enabled = on;
+            root.alarm-changed(root.enabled, root.hour, root.minute);
+        }
+    }
+
+    for item[index] in [
+        { label: "Hora -", kind: 0 },
+        { label: "Hora +", kind: 1 },
+        { label: "Min -", kind: 2 },
+        { label: "Min +", kind: 3 },
+    ] : Rectangle {
+        x: 24px + index * 70px; y: 172px; width: 62px; height: 34px;
+        border-radius: Theme.radius-s;
+        background: index == 1 || index == 3 ? Theme.accent : Theme.panel-elevated;
+        border-width: 1px;
+        border-color: Theme.stroke;
+        TouchArea {
+            clicked => {
+                if (item.kind == 0) { root.hour = root.hour == 0 ? 23 : root.hour - 1; }
+                if (item.kind == 1) { root.hour = root.hour == 23 ? 0 : root.hour + 1; }
+                if (item.kind == 2) { root.minute = root.minute == 0 ? 55 : root.minute - 5; }
+                if (item.kind == 3) { root.minute = root.minute == 55 ? 0 : root.minute + 5; }
+                root.alarm-changed(root.enabled, root.hour, root.minute);
+            }
+        }
+        Text {
+            text: item.label;
+            color: Theme.text-primary;
+            font-size: Theme.font-xs;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
