@@ -156,6 +156,16 @@ fn run_network(
                         offset_secs
                     );
                 }
+                NetworkCommand::CreateNote { text } => {
+                    if connected {
+                        if let Err(e) = post_note(&cfg.api_health_url, &text) { log::warn!("API: criar nota falhou: {e:?}"); }
+                    } else { log::warn!("API: criar nota ignorada sem Wi-Fi"); }
+                }
+                NetworkCommand::DeleteNote { id } => {
+                    if connected {
+                        if let Err(e) = delete_note(&cfg.api_health_url, id) { log::warn!("API: apagar nota falhou: {e:?}"); }
+                    }
+                }
                 NetworkCommand::MusicCommand(action) => {
                     if connected {
                         if let Err(e) = post_music_command(&cfg.api_health_url, &action) {
@@ -382,6 +392,7 @@ fn api_time_url(health_url: &str, offset_secs: i32) -> String {
 
 fn fetch_weather(health_url: &str, region_index: u8) -> Result<WeatherInfo> {
     let url = api_weather_url(health_url, region_index);
+    log::info!("Clima: consumindo endpoint real {url}");
     let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let headers = [("accept", "application/json")];
     let request = client.request(Method::Get, &url, &headers)?;
@@ -407,11 +418,15 @@ fn fetch_weather(health_url: &str, region_index: u8) -> Result<WeatherInfo> {
     })
 }
 
-fn api_weather_url(health_url: &str, region_index: u8) -> String {
-    let base = health_url
+fn api_base(health_url: &str) -> String {
+    health_url
         .strip_suffix("/health")
-        .unwrap_or_else(|| health_url.trim_end_matches('/'));
-    format!("{base}/weather?region={}", region_index.min(4))
+        .unwrap_or_else(|| health_url.trim_end_matches('/'))
+        .to_owned()
+}
+
+fn api_weather_url(health_url: &str, region_index: u8) -> String {
+    format!("{}/weather?region={}", api_base(health_url), region_index.min(4))
 }
 
 fn post_music_command(health_url: &str, action: &str) -> Result<()> {
@@ -502,6 +517,28 @@ fn scan_wifi(
     }
 
     Ok(unique)
+}
+
+
+fn post_note(health_url: &str, text: &str) -> Result<()> {
+    let url = api_base(health_url) + "/notes";
+    let body = serde_json::json!({"text": text});
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
+    let mut request = client.request(Method::Post, &url, &[("Content-Type", "application/json")])?;
+    request.write_all(body.to_string().as_bytes())?;
+    let response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) { return Err(anyhow!("POST /notes retornou HTTP {status}")); }
+    Ok(())
+}
+
+fn delete_note(health_url: &str, id: u64) -> Result<()> {
+    let url = format!("{}/notes/{id}", api_base(health_url));
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
+    let response = client.request(Method::Delete, &url, &[])?.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) { return Err(anyhow!("DELETE /notes/{id} retornou HTTP {status}")); }
+    Ok(())
 }
 
 fn music_command_url(health_url: &str) -> String {

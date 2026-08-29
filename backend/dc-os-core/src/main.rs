@@ -35,6 +35,7 @@ struct AppState {
     mopidy_url: String,
     spotify: SpotifyAuth,
     http: reqwest::Client,
+    notes: RwLock<Vec<Note>>,
 }
 
 struct SpotifyAuth {
@@ -52,6 +53,16 @@ struct Health {
     service: &'static str,
     version: &'static str,
 }
+
+#[derive(Clone, Serialize)]
+struct Note {
+    id: u64,
+    text: String,
+    created_at: u64,
+}
+
+#[derive(Deserialize)]
+struct NoteInput { text: String }
 
 #[derive(Deserialize)]
 struct MusicCommand {
@@ -72,6 +83,9 @@ struct MusicTopTracksQuery {
 struct WeatherQuery {
     region: Option<u8>,
 }
+
+#[derive(Deserialize)]
+struct VoiceCommandInput { text: String }
 
 #[derive(Deserialize)]
 struct SpotifyTokenResponse {
@@ -96,6 +110,7 @@ async fn main() -> anyhow::Result<()> {
             runtime_token: RwLock::new(String::new()),
         },
         http: reqwest::Client::new(),
+        notes: RwLock::new(Vec::new()),
     });
 
     let app = Router::new()
@@ -108,6 +123,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/music/top-tracks", get(music_top_tracks))
         .route("/music/command", post(music_command))
         .route("/weather", get(weather))
+        .route("/notes", get(list_notes).post(create_note))
+        .route("/notes/:id", axum::routing::delete(delete_note))
+        .route("/voice/command", post(voice_command))
         .with_state(state)
         .layer(CorsLayer::permissive());
 
@@ -146,6 +164,47 @@ async fn time_now(Query(query): Query<TimeQuery>) -> Json<serde_json::Value> {
         "offset_secs": offset,
         "hhmm": format!("{hour:02}:{minute:02}")
     }))
+}
+
+
+async fn list_notes(State(s): State<Arc<AppState>>) -> Json<Vec<Note>> {
+    Json(s.notes.read().await.clone())
+}
+
+async fn create_note(
+    State(s): State<Arc<AppState>>,
+    Json(input): Json<NoteInput>,
+) -> (StatusCode, Json<Note>) {
+    let mut notes = s.notes.write().await;
+    let note = Note {
+        id: notes.last().map(|n| n.id + 1).unwrap_or(1),
+        text: input.text.trim().to_owned(),
+        created_at: SystemTime::now().duration_since(UNIX_EPOCH).map(|v| v.as_secs()).unwrap_or_default(),
+    };
+    notes.push(note.clone());
+    (StatusCode::CREATED, Json(note))
+}
+
+async fn delete_note(
+    State(s): State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<u64>,
+) -> StatusCode {
+    let mut notes = s.notes.write().await;
+    let old_len = notes.len();
+    notes.retain(|note| note.id != id);
+    if notes.len() == old_len { StatusCode::NOT_FOUND } else { StatusCode::NO_CONTENT }
+}
+
+async fn voice_command(Json(input): Json<VoiceCommandInput>) -> Json<serde_json::Value> {
+    let text = input.text.to_lowercase();
+    let app = if text.contains("nota") { Some(4) }
+        else if text.contains("clima") || text.contains("tempo") { Some(2) }
+        else if text.contains("música") || text.contains("spotify") { Some(1) }
+        else if text.contains("alarme") { Some(5) }
+        else if text.contains("config") || text.contains("defini") { Some(6) }
+        else if text.contains("app") || text.contains("aplic") { Some(0) }
+        else { None };
+    Json(serde_json::json!({"ok": app.is_some(), "app_index": app, "text": input.text}))
 }
 
 async fn weather(

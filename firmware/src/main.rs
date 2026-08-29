@@ -146,7 +146,15 @@ fn main() -> Result<()> {
             }
         });
     }
-    app.on_wake_word_triggered(|| log::info!("UI: wake-word acionada"));
+    app.on_wake_word_triggered(|| log::info!("UI: comando de voz: abrir apps"));
+    {
+        let tx = network_cmd_tx.clone();
+        app.on_note_created(move |text| { let _ = tx.send(NetworkCommand::CreateNote { text: text.to_string() }); });
+    }
+    {
+        let tx = network_cmd_tx.clone();
+        app.on_note_deleted(move |id| { let _ = tx.send(NetworkCommand::DeleteNote { id: (id + 1) as u64 }); });
+    }
     app.on_launch_app(|idx| log::info!("UI: launch_app({})", idx));
     {
         let tx = network_cmd_tx.clone();
@@ -195,7 +203,7 @@ fn main() -> Result<()> {
     }
     app.on_test_alarm_tone(|tone| {
         log::info!("Alarme: testar toque {}", tone.clamp(0, 2));
-        // TODO: quando audio.rs deixar de ser stub, encaminhar esta acao para I2S TX.
+        audio::play_test_tone(tone.clamp(0, 2) as u8);
     });
     {
         let store = config_store.clone();

@@ -83,6 +83,7 @@ export component NotesPanel inherits Rectangle {
     ];
     in-out property <string> draft: "";
     in-out property <int> keyboard-mode: 0;
+    in-out property <bool> keyboard-collapsed: false;
     in-out property <bool> composing: false;
     in-out property <int> note-scroll: 0;
     in-out property <int> edit-index: -1;
@@ -210,19 +211,18 @@ export component NotesPanel inherits Rectangle {
                     }
                 }
             }
-            Image { x: 6px; y: 8px; width: 12px; height: 12px; source: @image-url("assets/icons/delete-left.svg"); image-fit: contain; colorize: del.pressed ? Theme.danger : Theme.text-muted; }
+            Image { x: 6px; y: 8px; width: 12px; height: 12px; source: @image-url("assets/icons/trash-2.svg"); image-fit: contain; colorize: del.pressed ? Theme.danger : Theme.text-muted; }
         }
     }
 
-    // Indicadores de scroll (so aparece quando ha mais notas do que cabem)
-    if root.notes.length > root.max-visible: Rectangle {
-        x: 296px; y: 50px; width: 8px; height: 140px;
-        background: #00000000;
-        Rectangle {
-            x: 2px; y: 0px; width: 4px;
-            height: root.notes.length > 0 ? 140px / (root.notes.length - root.max-visible + 1) : 140px;
-            border-radius: 2px;
-            background: Theme.accent-deep;
+    // Scroll mantido por gesto, sem barra visual.
+    TouchArea {
+        x: 0px; y: 38px; width: 320px; height: 170px;
+        moved => {
+            if (!root.composing && self.pressed) {
+                if (self.pressed-y - self.mouse-y > 18px) { root.note-scroll = min(root.max-scroll, root.note-scroll + 1); }
+                else if (self.mouse-y - self.pressed-y > 18px) { root.note-scroll = max(0, root.note-scroll - 1); }
+            }
         }
     }
 
@@ -275,19 +275,19 @@ export component NotesPanel inherits Rectangle {
                     overflow: elide;
                 }
             }
-            if root.keyboard-mode == 0: Rectangle {
+            if !root.keyboard-collapsed && root.keyboard-mode == 0: Rectangle {
                 x: 12px; y: 68px; width: 280px; height: 88px; background: #00000000;
                 NoteKeyRow { x: 0px; y: 0px; width: 280px; height: 22px; keys: ["a","b","c","d","e","f","g","h"]; text-value <=> root.draft; }
                 NoteKeyRow { x: 0px; y: 26px; width: 280px; height: 22px; keys: ["i","j","k","l","m","n","o","p"]; text-value <=> root.draft; }
                 NoteKeyRow { x: 0px; y: 52px; width: 280px; height: 22px; keys: ["q","r","s","t","u","v"," "," "]; text-value <=> root.draft; }
             }
-            if root.keyboard-mode == 1: Rectangle {
+            if !root.keyboard-collapsed && root.keyboard-mode == 1: Rectangle {
                 x: 12px; y: 68px; width: 280px; height: 88px; background: #00000000;
                 NoteKeyRow { x: 0px; y: 0px; width: 280px; height: 22px; keys: ["A","B","C","D","E","F","G","H"]; text-value <=> root.draft; }
                 NoteKeyRow { x: 0px; y: 26px; width: 280px; height: 22px; keys: ["I","J","K","L","M","N","O","P"]; text-value <=> root.draft; }
                 NoteKeyRow { x: 0px; y: 52px; width: 280px; height: 22px; keys: ["Q","R","S","T","U","V"," "," "]; text-value <=> root.draft; }
             }
-            if root.keyboard-mode == 2: Rectangle {
+            if !root.keyboard-collapsed && root.keyboard-mode == 2: Rectangle {
                 x: 12px; y: 68px; width: 280px; height: 88px; background: #00000000;
                 NoteKeyRow { x: 0px; y: 0px; width: 280px; height: 22px; keys: ["0","1","2","3","4","5","6","7"]; text-value <=> root.draft; }
                 NoteKeyRow { x: 0px; y: 26px; width: 280px; height: 22px; keys: ["8","9",".",",","?","!","-","_"]; text-value <=> root.draft; }
@@ -297,8 +297,8 @@ export component NotesPanel inherits Rectangle {
             // Acoes da composicao
             NoteAction {
                 x: 12px; y: 162px; width: 50px; height: 28px;
-                label: root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc";
-                clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; }
+                label: root.keyboard-collapsed ? "Teclado" : (root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc");
+                clicked => { if (root.keyboard-collapsed) { root.keyboard-collapsed = false; } else { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
             }
             NoteAction {
                 x: 66px; y: 162px; width: 70px; height: 28px;

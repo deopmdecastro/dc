@@ -46,4 +46,6 @@ pub enum NetworkCommand {
         timezone_offset_secs: i32,
     },
     MusicCommand(String),
+    CreateNote { text: String },
+    DeleteNote { id: u64 },
 }

@@ -282,6 +282,7 @@ component WifiPasswordDialog inherits Rectangle {
     in-out property <string> ssid;
     in-out property <string> password;
     in-out property <int> keyboard-mode: 0;
+    in-out property <bool> keyboard-collapsed: false;
     in-out property <int> filled: 0;
     in-out property <string> p0: "";
     in-out property <string> p1: "";
@@ -413,21 +414,21 @@ component WifiPasswordDialog inherits Rectangle {
             }
         }
 
-        if root.keyboard-mode == 0: Rectangle {
+        if !root.keyboard-collapsed && root.keyboard-mode == 0: Rectangle {
             x: 10px; y: 68px; width: 284px; height: 104px; background: #00000000;
             PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["a","b","c","d","e","f","g","h"]; pressed(value) => { root.append-key(value); } }
             PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["i","j","k","l","m","n","o","p"]; pressed(value) => { root.append-key(value); } }
             PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["q","r","s","t","u","v","w","x"]; pressed(value) => { root.append-key(value); } }
             PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: ["y","z","0","1","2","3","4","5"]; pressed(value) => { root.append-key(value); } }
         }
-        if root.keyboard-mode == 1: Rectangle {
+        if !root.keyboard-collapsed && root.keyboard-mode == 1: Rectangle {
             x: 10px; y: 68px; width: 284px; height: 104px; background: #00000000;
             PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["A","B","C","D","E","F","G","H"]; pressed(value) => { root.append-key(value); } }
             PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["I","J","K","L","M","N","O","P"]; pressed(value) => { root.append-key(value); } }
             PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["Q","R","S","T","U","V","W","X"]; pressed(value) => { root.append-key(value); } }
             PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: ["Y","Z","6","7","8","9","-","_"]; pressed(value) => { root.append-key(value); } }
         }
-        if root.keyboard-mode == 2: Rectangle {
+        if !root.keyboard-collapsed && root.keyboard-mode == 2: Rectangle {
             x: 10px; y: 68px; width: 284px; height: 104px; background: #00000000;
             PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["0","1","2","3","4","5","6","7"]; pressed(value) => { root.append-key(value); } }
             PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["8","9","@","#","$","%","&","!"]; pressed(value) => { root.append-key(value); } }
@@ -435,7 +436,8 @@ component WifiPasswordDialog inherits Rectangle {
             PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: [":",";","(",")","[","]","{","}"]; pressed(value) => { root.append-key(value); } }
         }
 
-        PasswordAction { x: 10px; y: 178px; width: 46px; height: 22px; label: root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc"; clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
+        PasswordAction { x: 10px; y: 178px; width: 46px; height: 22px; label: root.keyboard-collapsed ? "Teclado" : "Ocultar"; clicked => { root.keyboard-collapsed = !root.keyboard-collapsed; } }
+        PasswordAction { x: 60px; y: 178px; width: 46px; height: 22px; label: root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc"; visible: !root.keyboard-collapsed; clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
         PasswordAction { x: 60px; y: 178px; width: 42px; height: 22px; label: "Del"; clicked => { root.delete-key(); } }
         PasswordAction { x: 106px; y: 178px; width: 54px; height: 22px; label: "Limpar"; clicked => { root.clear-password(); } }
         PasswordAction { x: 164px; y: 178px; width: 62px; height: 22px; label: "Cancelar"; clicked => { root.cancel(); } }
@@ -709,19 +711,7 @@ export component SettingsPanel inherits Rectangle {
                 if n.connected: Image { x: 270px; y: 7px; width: 14px; height: 14px; source: @image-url("assets/icons/check.svg"); image-fit: contain; colorize: Theme.success; }
             }
         }
-        // Indicador de scroll vertical (quando ha mais redes do que cabem)
-        if root.networks.length > 3: Rectangle {
-            x: 286px; y: 110px; width: 6px; height: 96px;
-            background: #00000000;
-            Rectangle {
-                x: 1px; width: 4px;
-                height: max(12px, 96px / max(1, root.networks.length - 3 + 1));
-                y: root.network-scroll * (96px - max(12px, 96px / max(1, root.networks.length - 3 + 1))) / max(1, root.networks.length - 3);
-                border-radius: 2px;
-                background: Theme.accent-deep;
-                animate y { duration: 120ms; }
-            }
-        }
+        // Scroll por gesto mantido; indicador visual removido.
     }
 
     // ================= PAGINA 2 — SEGURANCA =================

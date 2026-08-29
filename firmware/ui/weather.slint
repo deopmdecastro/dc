@@ -12,7 +12,7 @@ export component WeatherPanel inherits Rectangle {
         root.language-index == 2 ? "Weather" :
         root.language-index == 3 ? "Meteo" :
         root.language-index == 4 ? "Clima" : "Clima";
-    property <string> temp-label: root.temperature + "C";
+    property <string> temp-label: root.temperature + "°C";
 
     width: 320px;
     height: 216px;
