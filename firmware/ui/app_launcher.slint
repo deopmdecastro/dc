@@ -2,16 +2,18 @@ import { Theme } from "theme.slint";
 
 export struct AppEntry { name: string, icon: image, color: color }
 
-// AppLauncher — grelha 4x2 de aplicacoes, design moderno e limpo.
+// AppLauncher — grelha 4x2 de aplicacoes. Cada card tem um "chip" de icone
+// tingido com a cor do app e um anel subtil, dando identidade visual sem
+// carregar o ecra pequeno.
 export component AppLauncher inherits Rectangle {
     in property <[AppEntry]> apps: [
-        { name: "DC Assistant", icon: @image-url("assets/icons/message-circle.svg"), color: Theme.accent-blue },
-        { name: "Spotify",       icon: @image-url("assets/icons/spotify.svg"),        color: Theme.success },
-        { name: "Clima",        icon: @image-url("assets/icons/cloud.svg"),          color: Theme.warning },
-        { name: "Agenda",       icon: @image-url("assets/icons/calendar.svg"),       color: Theme.danger },
-        { name: "Notas",        icon: @image-url("assets/icons/file-text.svg"),      color: Theme.warning },
-        { name: "Alarme",       icon: @image-url("assets/icons/calendar.svg"),       color: Theme.accent-cyan },
-        { name: "Definicoes",   icon: @image-url("assets/icons/settings.svg"),       color: Theme.text-secondary },
+        { name: "Assistente", icon: @image-url("assets/icons/message-circle.svg"), color: Theme.accent-blue },
+        { name: "Spotify",    icon: @image-url("assets/icons/spotify.svg"),        color: Theme.success },
+        { name: "Clima",      icon: @image-url("assets/icons/cloud.svg"),          color: Theme.accent-cyan },
+        { name: "Agenda",     icon: @image-url("assets/icons/calendar.svg"),       color: Theme.accent-violet },
+        { name: "Notas",      icon: @image-url("assets/icons/file-text.svg"),      color: Theme.warning },
+        { name: "Alarme",     icon: @image-url("assets/icons/bell.svg"),           color: Theme.accent-pink },
+        { name: "Definicoes", icon: @image-url("assets/icons/settings.svg"),       color: Theme.text-secondary },
     ];
 
     callback app-clicked(int);
@@ -20,50 +22,70 @@ export component AppLauncher inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // Header
+    // Header com icone de grelha
+    Image {
+        x: 16px; y: 13px; width: 15px; height: 15px;
+        source: @image-url("assets/icons/grid.svg");
+        image-fit: contain;
+        colorize: Theme.accent;
+    }
     Text {
-        x: 16px; y: 10px; width: 200px; height: 18px;
+        x: 38px; y: 10px; width: 200px; height: 20px;
         text: "Aplicacoes";
         color: Theme.text-primary;
-        font-size: Theme.font-md;
+        font-size: Theme.font-lg;
         font-weight: 700;
+        vertical-alignment: center;
+    }
+    // Contador de apps
+    Text {
+        x: 220px; y: 10px; width: 84px; height: 20px;
+        text: "7 apps";
+        color: Theme.text-muted;
+        font-size: Theme.font-xs;
+        horizontal-alignment: right;
+        vertical-alignment: center;
     }
 
-    // Grid 4 columns x 2 rows
+    // Grid 4 colunas x 2 linhas
     for row[index] in [[0,1,2,3],[4,5,6,0]] : HorizontalLayout {
-        x: 12px; y: 36px + index * 84px; width: 296px; height: 76px;
+        x: 12px; y: 40px + index * 86px; width: 296px; height: 80px;
         spacing: 8px;
         for i[row-index] in row : Rectangle {
             visible: !(index == 1 && row-index == 3);
-            width: 68px; height: 76px;
-            border-radius: Theme.radius-s;
-            background: Theme.panel;
+            width: 68px; height: 80px;
+            border-radius: Theme.radius-m;
+            background: t.pressed ? Theme.panel-elevated : Theme.panel;
             border-width: 1px;
-            border-color: Theme.stroke-soft;
+            border-color: t.pressed ? root.apps[i].color : Theme.stroke-soft;
             clip: true;
-            TouchArea { clicked => { root.app-clicked(i); } }
+            animate background { duration: 120ms; }
 
-            // Icon circle
+            t := TouchArea { clicked => { root.app-clicked(i); } }
+
+            // Chip de icone tingido
             Rectangle {
-                x: 19px; y: 10px; width: 30px; height: 30px;
-                border-radius: 15px;
+                x: 20px; y: 12px; width: 28px; height: 28px;
+                border-radius: 9px;
                 background: Theme.panel-elevated;
-                border-width: 1px;
+                border-width: 1.5px;
                 border-color: root.apps[i].color;
-            }
-            Image {
-                x: 22px; y: 13px; width: 24px; height: 24px;
-                source: root.apps[i].icon;
-                image-fit: contain;
+                Image {
+                    x: 5px; y: 5px; width: 18px; height: 18px;
+                    source: root.apps[i].icon;
+                    image-fit: contain;
+                    colorize: root.apps[i].color;
+                }
             }
             Text {
-                x: 4px; y: 48px; width: 60px; height: 18px;
+                x: 2px; y: 48px; width: 64px; height: 26px;
                 text: root.apps[i].name;
-                color: Theme.text-primary;
-                font-size: 8px;
+                color: Theme.text-secondary;
+                font-size: 9px;
                 font-weight: 600;
                 horizontal-alignment: center;
                 vertical-alignment: center;
+                wrap: word-wrap;
                 overflow: elide;
             }
         }

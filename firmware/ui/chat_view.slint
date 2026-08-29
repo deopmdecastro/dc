@@ -31,84 +31,97 @@ export component ChatView inherits Rectangle {
         }
     }
 
-    Text {
-        x: 0px; y: 40px; width: 320px; height: 18px;
-        text: "DC OS";
-        color: Theme.text-secondary;
-        font-size: Theme.font-md;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    // Etiqueta de marca
+    Rectangle {
+        x: 130px; y: 26px; width: 60px; height: 18px;
+        border-radius: 9px;
+        background: Theme.accent-tint;
+        border-width: 1px;
+        border-color: Theme.accent-deep;
+        Text {
+            text: "DC OS";
+            color: Theme.accent;
+            font-size: Theme.font-xs;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            letter-spacing: 1px;
+        }
     }
 
     Text {
-        x: 0px; y: 64px; width: 320px; height: 28px;
+        x: 0px; y: 52px; width: 320px; height: 28px;
         text: "Assistente pessoal";
         color: Theme.text-primary;
-        font-size: 19px;
+        font-size: 20px;
         font-weight: 800;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 
     Text {
-        x: 0px; y: 98px; width: 320px; height: 16px;
-        text: "Como posso ajudar hoje?";
-        color: Theme.text-secondary;
+        x: 0px; y: 84px; width: 320px; height: 16px;
+        text: root.listening ? "A ouvir..." : "Como posso ajudar hoje?";
+        color: root.listening ? Theme.accent : Theme.text-secondary;
         font-size: Theme.font-sm;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 
-    Image {
-        x: 5px; y: 102px; width: 11px; height: 11px;
-        source: @image-url("assets/icons/chevron-left.svg");
-        image-fit: contain;
-        opacity: 0.35;
-    }
-
-    Text {
-        x: 0px; y: 118px; width: 30px; height: 10px;
-        text: "apps";
-        color: Theme.text-dim;
-        font-size: 7px;
-        horizontal-alignment: center;
-    }
-
+    // Visualizador de audio (barras simetricas)
     HorizontalLayout {
-        x: 42px; y: 136px; width: 236px; height: 32px;
+        x: 42px; y: 112px; width: 236px; height: 40px;
         alignment: center;
         spacing: 4px;
         for i in 32 : Rectangle {
             property <int> dist: i < 16 ? 15 - i : i - 16;
             width: 3px;
             height: root.listening
-                ? (dist < 3 ? 22px : dist < 7 ? 18px : dist < 11 ? 14px : 10px)
-                : (dist < 5 ? 12px : dist < 10 ? 9px : 6px);
-            border-radius: 2px;
+                ? (dist < 3 ? 26px : dist < 7 ? 20px : dist < 11 ? 14px : 9px)
+                : (dist < 5 ? 11px : dist < 10 ? 8px : 5px);
+            border-radius: 1.5px;
             y: (parent.height - self.height) / 2;
-            background: root.listening ? Theme.accent : Theme.stroke;
+            background: root.listening
+                ? (dist < 7 ? Theme.accent : Theme.accent-cyan)
+                : Theme.stroke;
+            animate height { duration: 180ms; easing: ease-in-out; }
         }
     }
 
-    Rectangle {
-        x: 134px; y: 174px; width: 52px; height: 38px;
-        border-radius: 19px;
-        background: Theme.panel;
-        border-width: 1px;
-        border-color: root.listening ? Theme.accent-hi : Theme.stroke;
-        TouchArea { clicked => { root.mic-tapped(); } }
-
-        Rectangle {
-            x: 10px; y: 3px; width: 32px; height: 32px;
-            border-radius: 16px;
-            background: root.listening ? Theme.accent-deep : #00000000;
-        }
-
+    // Dica de swipe para apps
+    HorizontalLayout {
+        x: 108px; y: 158px; width: 104px; height: 12px;
+        alignment: center;
+        spacing: 4px;
         Image {
-            x: 16px; y: 9px; width: 20px; height: 20px;
+            width: 10px; height: 10px;
+            y: 1px;
+            source: @image-url("assets/icons/chevron-left.svg");
+            image-fit: contain;
+            colorize: Theme.text-dim;
+        }
+        Text {
+            text: "deslize para apps";
+            color: Theme.text-dim;
+            font-size: 8px;
+            vertical-alignment: center;
+        }
+    }
+
+    // Botao de microfone
+    Rectangle {
+        x: 132px; y: 172px; width: 56px; height: 40px;
+        border-radius: 20px;
+        background: root.listening ? Theme.accent-deep : Theme.panel;
+        border-width: 1.5px;
+        border-color: root.listening ? Theme.accent-hi : Theme.stroke;
+        animate background { duration: 150ms; }
+        tm := TouchArea { clicked => { root.mic-tapped(); } }
+        Image {
+            x: 18px; y: 9px; width: 20px; height: 20px;
             source: @image-url("assets/icons/mic.svg");
             image-fit: contain;
+            colorize: root.listening ? Theme.accent-hi : Theme.text-secondary;
         }
     }
 }

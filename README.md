@@ -16,8 +16,12 @@ hardware **ES3C28P**:
 - Flash usa tabela custom de 16 MB com app `factory` de 4 MB.
 - Display ILI9341V inicializa e recebe frames Slint.
 - Touch FT6336G inicializa em I2C `0x38` e envia eventos para a UI.
-- UI Slint no estilo DC OS escuro, com launcher sem barra lateral, Definições
-  por categorias, Alarme configurável, PIN persistente e região/idioma.
+- UI Slint no estilo DC OS escuro ("Midnight Cyan"), com launcher sem barra
+  lateral, Definições por categorias, Alarme configurável, PIN persistente e
+  região/idioma.
+- Design system centralizado em `ui/theme.slint`: paleta ciano-azul, superfícies
+  em camadas, tokens de raio/espaçamento/tipografia. Ícones em SVG line-icon
+  (estilo Lucide) tingidos por `colorize`, com estados accent/hover.
 - A tela inicial usa gesto de deslizar para a esquerda para abrir o launcher
   de aplicacoes (o botao "Abrir Apps" foi removido).
 - Player de musica consome top tracks reais pelo backend e usa Spotify Web API
@@ -109,14 +113,40 @@ cd C:\DC\dc\firmware
 
 ## Icones
 
-Os icones de marca devem vir da biblioteca Simple Icons via Iconstack:
+O conjunto de UI usa icones line-icon no estilo **Lucide** (stroke 2px,
+cantos arredondados), guardados como SVG locais em
+`firmware/ui/assets/icons/` porque o Slint embarcado precisa embutir os
+assets no binario. Os icones sao monocromaticos e recebem cor em runtime
+via a propriedade `colorize` da `Image` do Slint (accent quando ativo,
+`text-secondary`/`text-muted` quando inativo), evitando manter varias copias
+coloridas do mesmo simbolo.
+
+Icones adicionados nesta iteracao de UI/UX:
+`shield`, `globe`, `sliders`, `cpu`, `zap`, `bell`, `clock`, `battery`,
+`activity`, `grid`, `play`, `pause`. Substituiram os antigos simbolos
+Unicode (`⌁ ◆ 文 ♪ ⚙`) que renderizavam mal no painel pequeno.
+
+Os icones de marca (ex.: Spotify) continuam a vir da biblioteca Simple Icons:
 
 - Biblioteca: https://iconstack.io/library/simple
 - Pacote SVG: https://github.com/simple-icons/simple-icons
 
-No firmware os icones ficam como SVG locais em `firmware/ui/assets/icons/`,
-porque o Slint embarcado precisa embutir os assets no binario. O icone do
-Spotify usa `firmware/ui/assets/icons/spotify.svg`.
+O icone do Spotify usa `firmware/ui/assets/icons/spotify.svg`.
+
+## Tema / Design System
+
+Todas as telas importam `ui/theme.slint`, o unico ponto de verdade de estilo:
+
+- **Fundos** em camadas (`bg-0 → bg-2`) e **paineis** (`panel`,
+  `panel-soft`, `panel-elevated`) para dar profundidade sem sombras (o
+  software renderer nao faz blur).
+- **Accent** ciano-azul (`#38BDF8`) com variacoes `accent-hi`, `accent-deep`,
+  `accent-cyan`, `accent-blue`, `accent-violet`, `accent-pink`.
+- **Superficies tonais** pre-mescladas (`accent-tint`, `success-tint`,
+  `danger-tint`) para chips/badges sem alpha em tempo real.
+- **Tokens**: `radius-xs..xl`, `space-1..4` (grelha 4px), `font-xs..xl`.
+
+Para mudar a identidade visual do DC OS basta editar `theme.slint`.
 
 ## Firmware
 

@@ -1,9 +1,8 @@
 import { Theme } from "theme.slint";
 
-// Barra de estado 320x24 fixa no topo do ecra. As coordenadas dos icones
-// e do relogio sao absolutas e o proprio componente declara width/height
-// explicitos para nao herdar tamanhos "collapsed" quando o pai nao aplica
-// um layout (o que estava a empurrar o relogio para o meio do ecra).
+// Barra de estado 320x24 fixa no topo. Layout: relogio a esquerda, cluster
+// de icones de estado a direita. Os icones sao coloridos via `colorize`
+// (accent quando ativos) para dar vida sem depender de SVGs multi-cor.
 export component StatusBar inherits Rectangle {
     in property <string> current-time: "09:42";
     in property <bool> wifi-on: true;
@@ -12,42 +11,72 @@ export component StatusBar inherits Rectangle {
 
     width: 320px;
     height: 24px;
-    background: Theme.bg-0;
+    background: Theme.bg-1;
 
-    // Linha inferior de separacao
+    // Linha inferior de separacao subtil
     Rectangle {
         x: 0px; y: 23px; width: 320px; height: 1px;
         background: Theme.stroke-soft;
     }
 
-    // Relogio centrado
+    // Relogio a esquerda com um ponto "grip" a marcar o control center
+    Rectangle {
+        x: 14px; y: 9px; width: 5px; height: 5px;
+        border-radius: 2.5px;
+        background: Theme.accent;
+    }
     Text {
-        x: 0px; y: 0px; width: 320px; height: 24px;
+        x: 24px; y: 0px; width: 90px; height: 24px;
         text: root.current-time;
         color: Theme.text-primary;
         font-size: Theme.font-sm;
         font-weight: 700;
-        horizontal-alignment: center;
         vertical-alignment: center;
+        letter-spacing: 0.4px;
     }
 
-    // Icones no canto superior direito
-    Image {
-        x: 248px; y: 5px; width: 14px; height: 14px;
-        source: @image-url("assets/icons/cloud.svg");
-        image-fit: contain;
-        visible: root.api-online;
+    // Titulo central discreto
+    Text {
+        x: 0px; y: 0px; width: 320px; height: 24px;
+        text: "DC OS";
+        color: Theme.text-dim;
+        font-size: 8px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        letter-spacing: 1.5px;
     }
-    Image {
-        x: 272px; y: 5px; width: 14px; height: 14px;
-        source: @image-url("assets/icons/wifi.svg");
-        image-fit: contain;
-        visible: root.wifi-on;
-    }
-    Image {
-        x: 294px; y: 5px; width: 14px; height: 14px;
-        source: @image-url("assets/icons/bluetooth.svg");
-        image-fit: contain;
-        visible: root.bluetooth-on;
+
+    // Cluster de icones a direita
+    HorizontalLayout {
+        x: 250px; y: 0px; width: 60px; height: 24px;
+        spacing: 7px;
+        alignment: end;
+        padding-right: 12px;
+
+        Image {
+            width: 13px; height: 13px;
+            y: (parent.height - self.height) / 2;
+            source: @image-url("assets/icons/activity.svg");
+            image-fit: contain;
+            colorize: Theme.success;
+            visible: root.api-online;
+        }
+        Image {
+            width: 14px; height: 14px;
+            y: (parent.height - self.height) / 2;
+            source: @image-url("assets/icons/bluetooth.svg");
+            image-fit: contain;
+            colorize: root.bluetooth-on ? Theme.accent : Theme.text-dim;
+            visible: root.bluetooth-on;
+        }
+        Image {
+            width: 14px; height: 14px;
+            y: (parent.height - self.height) / 2;
+            source: @image-url("assets/icons/wifi.svg");
+            image-fit: contain;
+            colorize: root.wifi-on ? Theme.accent : Theme.text-dim;
+            visible: root.wifi-on;
+        }
     }
 }

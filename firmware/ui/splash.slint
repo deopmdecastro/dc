@@ -4,50 +4,56 @@ export component SplashScreen inherits Rectangle {
     width: 320px;
     height: 240px;
 
-    // Fundo com degradê radial sutil partindo do centro
-    background: @radial-gradient(circle, Theme.accent-deep 0%, Theme.bg-0 70%);
+    // Fundo com degrade radial subtil partindo do centro
+    background: @radial-gradient(circle, Theme.accent-deep 0%, Theme.bg-0 65%);
 
-    // Layout principal centralizado
     VerticalLayout {
         alignment: center;
-        spacing: 14px;
+        spacing: 16px;
 
         // Logo
         Image {
-            height: 48px;
+            height: 50px;
             source: @image-url("assets/branding/dc-assistant-logo-white.png");
             image-fit: contain;
             horizontal-alignment: center;
         }
 
-        // Nome do Sistema
+        // Nome do sistema
         Text {
             text: "DC OS";
             color: Theme.text-primary;
-            font-size: Theme.font-md;
-            font-weight: 700;
+            font-size: Theme.font-lg;
+            font-weight: 800;
             horizontal-alignment: center;
-            letter-spacing: 2px;
+            letter-spacing: 3px;
         }
 
-        // Barra de progresso centralizada
+        // Subtitulo
+        Text {
+            text: "Assistente pessoal";
+            color: Theme.accent-hi;
+            font-size: Theme.font-xs;
+            horizontal-alignment: center;
+            letter-spacing: 1px;
+        }
+
+        // Barra de progresso indeterminada
         HorizontalLayout {
             alignment: center;
-
             Rectangle {
-                width: 120px;
-                height: 3px;
-                border-radius: 1.5px;
+                width: 140px;
+                height: 4px;
+                border-radius: 2px;
                 background: Theme.bg-2;
                 clip: true;
-
                 Rectangle {
-                    property <length> anim-offset: (animation-tick() / 10ms) * 1px;
-                    x: -60px + mod(self.anim-offset, 180px);
-                    width: 60px;
+                    property <length> anim-offset: (animation-tick() / 8ms) * 1px;
+                    x: -70px + mod(self.anim-offset, 210px);
+                    width: 70px;
                     height: 100%;
-                    border-radius: 1.5px;
-                    background: @linear-gradient(90deg, Theme.accent 0%, Theme.accent-hi 100%);
+                    border-radius: 2px;
+                    background: @linear-gradient(90deg, Theme.bg-2 0%, Theme.accent 50%, Theme.bg-2 100%);
                 }
             }
         }

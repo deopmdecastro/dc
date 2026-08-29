@@ -1,5 +1,6 @@
 import { Theme } from "theme.slint";
 
+// Slider do control center (Volume, Brilho) com pega arredondada.
 component ControlSlider inherits Rectangle {
     in property <string> label;
     in property <image> icon;
@@ -12,37 +13,45 @@ component ControlSlider inherits Rectangle {
     border-width: 1px;
     border-color: Theme.stroke;
 
-    Image { x: 12px; y: 11px; width: 14px; height: 14px; source: root.icon; image-fit: contain; }
+    Rectangle {
+        x: 10px; y: 7px; width: 24px; height: 24px;
+        border-radius: 8px;
+        background: Theme.bg-2;
+        Image { x: 5px; y: 5px; width: 14px; height: 14px; source: root.icon; image-fit: contain; colorize: root.accent-color; }
+    }
     Text {
-        x: 32px; y: 0px; width: 72px; height: 100%;
+        x: 42px; y: 0px; width: 80px; height: 100%;
         text: root.label;
         color: Theme.text-primary;
         font-size: Theme.font-sm;
-        font-weight: 600;
+        font-weight: 700;
         vertical-alignment: center;
     }
     Text {
-        x: 236px; y: 0px; width: 44px; height: 100%;
+        x: 250px; y: 0px; width: 40px; height: 100%;
         text: Math.round(root.value * 100) + "%";
-        color: Theme.text-secondary;
+        color: root.accent-color;
         font-size: Theme.font-sm;
+        font-weight: 700;
         horizontal-alignment: right;
         vertical-alignment: center;
     }
     Rectangle {
-        x: 88px; y: 16px; width: 148px; height: 4px;
-        border-radius: 2px;
+        x: 118px; y: 16px; width: 122px; height: 6px;
+        border-radius: 3px;
         background: Theme.bg-2;
         Rectangle {
-            width: parent.width * root.value; height: 100%;
-            border-radius: 2px;
+            width: max(6px, parent.width * root.value); height: 100%;
+            border-radius: 3px;
             background: root.accent-color;
         }
         Rectangle {
-            x: parent.width * root.value - 5px; y: -3px;
-            width: 10px; height: 10px;
-            border-radius: 5px;
+            x: max(0px, parent.width * root.value - 6px); y: -3px;
+            width: 12px; height: 12px;
+            border-radius: 6px;
             background: Theme.text-primary;
+            border-width: 2px;
+            border-color: root.accent-color;
         }
         TouchArea {
             clicked => {
@@ -75,58 +84,63 @@ export component ControlCenter inherits Rectangle {
 
     width: 320px;
     height: 216px;
-    background: Theme.bg-0;
+    background: Theme.bg-1;
 
+    // Pega de arrastar
     Rectangle {
         x: 137px; y: 8px; width: 46px; height: 4px;
         border-radius: 2px;
-        background: Theme.text-secondary;
+        background: Theme.stroke;
     }
 
+    Text {
+        x: 16px; y: 16px; width: 200px; height: 16px;
+        text: "Centro de Controlo";
+        color: Theme.text-primary;
+        font-size: Theme.font-md;
+        font-weight: 700;
+    }
+
+    // Tiles de toggle rapidos
     for tile[index] in [
         { label: "Wi-Fi", icon: @image-url("assets/icons/wifi.svg"), active: root.wifi-on, color: Theme.accent-blue },
-        { label: "Bluetooth", icon: @image-url("assets/icons/bluetooth.svg"), active: root.bluetooth-on, color: Theme.accent-blue },
-        { label: "Nao perturbe", icon: @image-url("assets/icons/moon.svg"), active: root.dnd-on, color: Theme.accent },
+        { label: "Bluetooth", icon: @image-url("assets/icons/bluetooth.svg"), active: root.bluetooth-on, color: Theme.accent },
+        { label: "Nao perturbe", icon: @image-url("assets/icons/moon.svg"), active: root.dnd-on, color: Theme.accent-violet },
         { label: "Orientacao", icon: @image-url("assets/icons/rotate-cw.svg"), active: root.autorotate, color: Theme.accent-cyan },
     ] : Rectangle {
-        x: 10px + index * 76px; y: 24px; width: 62px; height: 58px;
-        border-radius: 29px;
+        x: 12px + index * 75px; y: 40px; width: 64px; height: 52px;
+        border-radius: Theme.radius-m;
         background: tile.active ? tile.color : Theme.panel-soft;
         border-width: 1px;
         border-color: tile.active ? tile.color : Theme.stroke;
-        TouchArea {
+        animate background { duration: 130ms; }
+        ta := TouchArea {
             clicked => {
-                if (index == 0) {
-                    root.wifi-on = !root.wifi-on;
-                    root.wifi-changed(root.wifi-on);
-                }
-                if (index == 1) {
-                    root.bluetooth-on = !root.bluetooth-on;
-                    root.bluetooth-changed(root.bluetooth-on);
-                }
+                if (index == 0) { root.wifi-on = !root.wifi-on; root.wifi-changed(root.wifi-on); }
+                if (index == 1) { root.bluetooth-on = !root.bluetooth-on; root.bluetooth-changed(root.bluetooth-on); }
                 if (index == 2) { root.dnd-on = !root.dnd-on; }
-                if (index == 3) {
-                    root.autorotate = !root.autorotate;
-                    root.rotation-changed(root.autorotate);
-                }
+                if (index == 3) { root.autorotate = !root.autorotate; root.rotation-changed(root.autorotate); }
             }
         }
-        Image { x: 21px; y: 19px; width: 20px; height: 20px; source: tile.icon; image-fit: contain; }
+        Image {
+            x: 22px; y: 15px; width: 20px; height: 20px;
+            source: tile.icon; image-fit: contain;
+            colorize: tile.active ? Theme.bg-0 : Theme.text-secondary;
+        }
     }
 
-    for label[index] in ["Wi-Fi", "Bluetooth", "Nao perturbe", "Orientacao"] : Text {
-        x: 10px + index * 72px; y: 88px; width: 70px; height: 24px;
+    for label[index] in ["Wi-Fi", "Bluetooth", "N. perturbe", "Orientacao"] : Text {
+        x: 12px + index * 75px; y: 94px; width: 64px; height: 12px;
         text: label;
-        color: Theme.text-primary;
+        color: Theme.text-secondary;
         font-size: 8px;
         font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;
-        wrap: word-wrap;
     }
 
     ControlSlider {
-        x: 14px; y: 118px; width: 292px; height: 36px;
+        x: 12px; y: 118px; width: 296px; height: 36px;
         label: "Volume";
         icon: @image-url("assets/icons/volume-2.svg");
         accent-color: Theme.accent-blue;
@@ -135,10 +149,10 @@ export component ControlCenter inherits Rectangle {
     }
 
     ControlSlider {
-        x: 14px; y: 160px; width: 292px; height: 36px;
+        x: 12px; y: 160px; width: 296px; height: 36px;
         label: "Brilho";
         icon: @image-url("assets/icons/sun.svg");
-        accent-color: Theme.accent;
+        accent-color: Theme.warning;
         value <=> root.brightness;
         changed(v) => { root.brightness-changed(v); }
     }

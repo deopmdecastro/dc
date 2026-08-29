@@ -3,108 +3,172 @@ import { Theme } from "theme.slint";
 export struct WifiNetwork { ssid: string, secured: bool, connected: bool, signal: int }
 export struct BluetoothDevice { address: string, rssi: int }
 
+// =====================================================
+// TOGGLE de definicoes (linha com icone + label + switch)
+// =====================================================
 component SettingsToggle inherits Rectangle {
     in property <string> label;
     in property <image> icon;
     in-out property <bool> checked;
     callback changed(bool);
 
-    border-radius: Theme.radius-s;
-    background: Theme.panel-soft;
+    border-radius: Theme.radius-m;
+    background: t.pressed ? Theme.panel-elevated : Theme.panel-soft;
     border-width: 1px;
-    border-color: Theme.stroke-soft;
-    TouchArea {
+    border-color: root.checked ? Theme.accent-deep : Theme.stroke-soft;
+    animate background { duration: 120ms; }
+
+    t := TouchArea {
         clicked => {
             root.checked = !root.checked;
             root.changed(root.checked);
         }
     }
-    Image { x: 12px; y: 9px; width: 16px; height: 16px; source: root.icon; image-fit: contain; }
+
+    // Chip de icone
+    Rectangle {
+        x: 8px; y: 7px; width: 26px; height: 26px;
+        border-radius: 8px;
+        background: root.checked ? Theme.accent-deep : Theme.bg-2;
+        Image {
+            x: 6px; y: 6px; width: 14px; height: 14px;
+            source: root.icon; image-fit: contain;
+            colorize: root.checked ? Theme.accent-hi : Theme.text-secondary;
+        }
+    }
     Text {
-        x: 40px; y: 0px; width: 150px; height: 100%;
+        x: 44px; y: 0px; width: 150px; height: 100%;
         text: root.label;
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
         vertical-alignment: center;
     }
+    // Switch
     Rectangle {
-        x: 230px; y: 5px; width: 48px; height: 24px;
+        x: 246px; y: 8px; width: 46px; height: 24px;
         border-radius: 12px;
-        background: root.checked ? Theme.accent : Theme.panel-elevated;
+        background: root.checked ? Theme.accent : Theme.bg-2;
+        border-width: 1px;
+        border-color: root.checked ? Theme.accent-hi : Theme.stroke;
+        animate background { duration: 150ms; }
         Rectangle {
-            x: root.checked ? 25px : 3px; y: 3px; width: 18px; height: 18px;
+            x: root.checked ? 24px : 3px; y: 3px; width: 18px; height: 18px;
             border-radius: 9px;
-            background: Theme.text-primary;
+            background: root.checked ? Theme.bg-0 : Theme.text-secondary;
+            animate x { duration: 150ms; easing: ease-out; }
         }
     }
 }
 
+// =====================================================
+// Linha de regiao / idioma (label pequeno + valor + chevron)
+// =====================================================
 component LocaleRow inherits Rectangle {
     in property <string> label;
     in property <string> value;
+    in property <image> icon;
     callback clicked();
 
-    border-radius: Theme.radius-s;
-    background: Theme.panel-soft;
+    border-radius: Theme.radius-m;
+    background: t.pressed ? Theme.panel-elevated : Theme.panel-soft;
     border-width: 1px;
     border-color: Theme.stroke-soft;
-    TouchArea { clicked => { root.clicked(); } }
-    Text {
-        x: 12px; y: 6px; width: 120px; height: 12px;
-        text: root.label;
-        color: Theme.text-secondary;
-        font-size: Theme.font-xs;
+    animate background { duration: 120ms; }
+    t := TouchArea { clicked => { root.clicked(); } }
+
+    Rectangle {
+        x: 8px; y: 9px; width: 26px; height: 26px;
+        border-radius: 8px;
+        background: Theme.bg-2;
+        Image {
+            x: 6px; y: 6px; width: 14px; height: 14px;
+            source: root.icon; image-fit: contain;
+            colorize: Theme.accent;
+        }
     }
     Text {
-        x: 12px; y: 20px; width: 220px; height: 16px;
+        x: 44px; y: 7px; width: 200px; height: 12px;
+        text: root.label;
+        color: Theme.text-muted;
+        font-size: Theme.font-xs;
+        font-weight: 600;
+    }
+    Text {
+        x: 44px; y: 21px; width: 210px; height: 16px;
         text: root.value;
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
+        overflow: elide;
     }
-    Image { x: 264px; y: 14px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-right.svg"); image-fit: contain; }
+    Text {
+        x: 268px; y: 0px; width: 20px; height: 100%;
+        text: ">";
+        color: Theme.text-muted;
+        font-size: Theme.font-md;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
 }
 
+// =====================================================
+// Linha de stepper/slider (Volume, Brilho)
+// =====================================================
 component StepperRow inherits Rectangle {
     in property <string> label;
     in property <image> icon;
     in-out property <float> value;
     callback changed(float);
 
-    border-radius: Theme.radius-s;
+    border-radius: Theme.radius-m;
     background: Theme.panel-soft;
     border-width: 1px;
     border-color: Theme.stroke-soft;
-    Image { x: 12px; y: 14px; width: 16px; height: 16px; source: root.icon; image-fit: contain; }
+
+    Rectangle {
+        x: 10px; y: 15px; width: 26px; height: 26px;
+        border-radius: 8px;
+        background: Theme.bg-2;
+        Image {
+            x: 6px; y: 6px; width: 14px; height: 14px;
+            source: root.icon; image-fit: contain;
+            colorize: Theme.accent;
+        }
+    }
     Text {
-        x: 38px; y: 6px; width: 90px; height: 12px;
+        x: 44px; y: 9px; width: 120px; height: 14px;
         text: root.label;
         color: Theme.text-primary;
-        font-size: Theme.font-sm;
+        font-size: Theme.font-md;
         font-weight: 700;
     }
     Text {
-        x: 232px; y: 6px; width: 44px; height: 12px;
+        x: 196px; y: 9px; width: 40px; height: 14px;
         text: Math.round(root.value * 100) + "%";
-        color: Theme.text-secondary;
-        font-size: Theme.font-xs;
+        color: Theme.accent;
+        font-size: Theme.font-sm;
+        font-weight: 700;
         horizontal-alignment: right;
     }
+
+    // Trilha do slider
     Rectangle {
-        x: 38px; y: 26px; width: 148px; height: 4px;
-        border-radius: 2px;
+        x: 44px; y: 32px; width: 148px; height: 6px;
+        border-radius: 3px;
         background: Theme.bg-2;
         Rectangle {
-            width: parent.width * root.value; height: 100%;
-            border-radius: 2px;
-            background: Theme.accent-blue;
+            width: max(6px, parent.width * root.value); height: 100%;
+            border-radius: 3px;
+            background: Theme.accent;
         }
         Rectangle {
-            x: parent.width * root.value - 5px; y: -3px;
-            width: 10px; height: 10px;
-            border-radius: 5px;
+            x: max(0px, parent.width * root.value - 6px); y: -3px;
+            width: 12px; height: 12px;
+            border-radius: 6px;
             background: Theme.text-primary;
+            border-width: 2px;
+            border-color: Theme.accent;
         }
         TouchArea {
             clicked => {
@@ -119,46 +183,54 @@ component StepperRow inherits Rectangle {
             }
         }
     }
+
+    // Botao menos
     Rectangle {
-        x: 200px; y: 15px; width: 34px; height: 24px;
+        x: 200px; y: 14px; width: 34px; height: 28px;
         border-radius: Theme.radius-s;
-        background: Theme.panel-elevated;
-        TouchArea {
+        background: tm.pressed ? Theme.panel-elevated : Theme.bg-2;
+        border-width: 1px;
+        border-color: Theme.stroke-soft;
+        tm := TouchArea {
             clicked => {
                 root.value = max(0.0, root.value - 0.10);
                 root.changed(root.value);
             }
         }
-        Text { text: "-"; color: Theme.text-primary; font-size: Theme.font-lg; horizontal-alignment: center; vertical-alignment: center; }
+        Text { text: "-"; color: Theme.text-primary; font-size: Theme.font-lg; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
     }
+    // Botao mais
     Rectangle {
-        x: 242px; y: 15px; width: 34px; height: 24px;
+        x: 242px; y: 14px; width: 34px; height: 28px;
         border-radius: Theme.radius-s;
-        background: Theme.accent;
-        TouchArea {
+        background: tp.pressed ? Theme.accent-deep : Theme.accent;
+        tp := TouchArea {
             clicked => {
                 root.value = min(1.0, root.value + 0.10);
                 root.changed(root.value);
             }
         }
-        Text { text: "+"; color: Theme.text-primary; font-size: Theme.font-lg; horizontal-alignment: center; vertical-alignment: center; }
+        Text { text: "+"; color: Theme.bg-0; font-size: Theme.font-lg; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
     }
 }
 
+// =====================================================
+// Teclado Wi-Fi — tecla individual
+// =====================================================
 component PasswordKey inherits Rectangle {
     in property <string> label;
     in-out property <string> password;
 
-    border-radius: Theme.radius-s;
-    background: Theme.panel-soft;
+    border-radius: Theme.radius-xs;
+    background: t.pressed ? Theme.accent : Theme.panel-elevated;
     border-width: 1px;
-    border-color: Theme.stroke-soft;
-    TouchArea { clicked => { root.password = root.password + root.label; } }
+    border-color: t.pressed ? Theme.accent-hi : Theme.stroke-soft;
+    t := TouchArea { clicked => { root.password = root.password + root.label; } }
     Text {
         text: root.label;
-        color: Theme.text-primary;
-        font-size: Theme.font-xs;
-        font-weight: 700;
+        color: t.pressed ? Theme.bg-0 : Theme.text-primary;
+        font-size: Theme.font-sm;
+        font-weight: 600;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -167,7 +239,6 @@ component PasswordKey inherits Rectangle {
 component PasswordKeyRow inherits HorizontalLayout {
     in property <[string]> keys;
     in-out property <string> password;
-
     spacing: 4px;
     for key in root.keys : PasswordKey {
         width: 32px;
@@ -183,13 +254,13 @@ component PasswordAction inherits Rectangle {
     callback clicked();
 
     border-radius: Theme.radius-s;
-    background: root.primary ? Theme.accent : Theme.panel-elevated;
+    background: t.pressed ? Theme.accent-hi : (root.primary ? Theme.accent : Theme.panel-elevated);
     border-width: 1px;
     border-color: root.primary ? Theme.accent-hi : Theme.stroke-soft;
-    TouchArea { clicked => { root.clicked(); } }
+    t := TouchArea { clicked => { root.clicked(); } }
     Text {
         text: root.label;
-        color: Theme.text-primary;
+        color: root.primary ? Theme.bg-0 : Theme.text-primary;
         font-size: 9px;
         font-weight: 700;
         horizontal-alignment: center;
@@ -197,6 +268,9 @@ component PasswordAction inherits Rectangle {
     }
 }
 
+// =====================================================
+// Dialog de senha Wi-Fi
+// =====================================================
 component WifiPasswordDialog inherits Rectangle {
     in-out property <string> ssid;
     in-out property <string> password;
@@ -204,76 +278,90 @@ component WifiPasswordDialog inherits Rectangle {
     callback connect(string, string);
     callback cancel();
 
-    background: #03050EDD;
+    background: #04070EE0;
 
     Rectangle {
-        x: 8px; y: 8px; width: 304px; height: 200px;
+        x: 8px; y: 6px; width: 304px; height: 204px;
         border-radius: Theme.radius-m;
         background: Theme.bg-1;
         border-width: 1px;
         border-color: Theme.stroke;
 
+        // Cabecalho
+        Rectangle {
+            x: 10px; y: 8px; width: 22px; height: 22px;
+            border-radius: 7px;
+            background: Theme.accent-deep;
+            Image {
+                x: 4px; y: 4px; width: 14px; height: 14px;
+                source: @image-url("assets/icons/wifi.svg"); image-fit: contain;
+                colorize: Theme.accent-hi;
+            }
+        }
         Text {
-            x: 14px; y: 10px; width: 276px; height: 16px;
+            x: 40px; y: 8px; width: 254px; height: 12px;
             text: "Senha Wi-Fi";
             color: Theme.text-primary;
-            font-size: Theme.font-md;
+            font-size: Theme.font-sm;
             font-weight: 700;
-            horizontal-alignment: center;
         }
         Text {
-            x: 14px; y: 28px; width: 276px; height: 12px;
+            x: 40px; y: 20px; width: 254px; height: 12px;
             text: root.ssid;
-            color: Theme.text-secondary;
+            color: Theme.accent;
             font-size: Theme.font-xs;
-            horizontal-alignment: center;
             overflow: elide;
         }
+
+        // Campo password
         Rectangle {
-            x: 14px; y: 45px; width: 276px; height: 24px;
+            x: 10px; y: 36px; width: 284px; height: 26px;
             border-radius: Theme.radius-s;
-            background: Theme.panel-soft;
+            background: Theme.bg-0;
             border-width: 1px;
-            border-color: Theme.stroke-soft;
+            border-color: root.password == "" ? Theme.stroke-soft : Theme.accent-deep;
             Text {
-                x: 10px; y: 0px; width: 256px; height: 100%;
-                text: root.password == "" ? "Inserir senha" : root.password;
-                color: root.password == "" ? Theme.text-muted : Theme.text-primary;
-                font-size: Theme.font-xs;
+                x: 10px; y: 0px; width: 264px; height: 100%;
+                text: root.password == "" ? "Digite a senha..." : root.password;
+                color: root.password == "" ? Theme.text-muted : Theme.accent-cyan;
+                font-size: Theme.font-sm;
                 vertical-alignment: center;
                 overflow: elide;
             }
         }
 
         if root.keyboard-mode == 0: Rectangle {
-            x: 10px; y: 76px; width: 284px; height: 100px; background: #00000000;
+            x: 10px; y: 68px; width: 284px; height: 104px; background: #00000000;
             PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["a","b","c","d","e","f","g","h"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 26px; width: 284px; height: 24px; keys: ["i","j","k","l","m","n","o","p"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 52px; width: 284px; height: 24px; keys: ["q","r","s","t","u","v","w","x"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 78px; width: 284px; height: 24px; keys: ["y","z","0","1","2","3","4","5"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["i","j","k","l","m","n","o","p"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["q","r","s","t","u","v","w","x"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: ["y","z","0","1","2","3","4","5"]; password <=> root.password; }
         }
         if root.keyboard-mode == 1: Rectangle {
-            x: 10px; y: 76px; width: 284px; height: 100px; background: #00000000;
+            x: 10px; y: 68px; width: 284px; height: 104px; background: #00000000;
             PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["A","B","C","D","E","F","G","H"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 26px; width: 284px; height: 24px; keys: ["I","J","K","L","M","N","O","P"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 52px; width: 284px; height: 24px; keys: ["Q","R","S","T","U","V","W","X"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 78px; width: 284px; height: 24px; keys: ["Y","Z","6","7","8","9","-","_"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["I","J","K","L","M","N","O","P"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["Q","R","S","T","U","V","W","X"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: ["Y","Z","6","7","8","9","-","_"]; password <=> root.password; }
         }
         if root.keyboard-mode == 2: Rectangle {
-            x: 10px; y: 76px; width: 284px; height: 100px; background: #00000000;
+            x: 10px; y: 68px; width: 284px; height: 104px; background: #00000000;
             PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["0","1","2","3","4","5","6","7"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 26px; width: 284px; height: 24px; keys: ["8","9","@","#","$","%","&","!"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 52px; width: 284px; height: 24px; keys: ["?","-","_","+",".","/","*","="]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 78px; width: 284px; height: 24px; keys: [":",";","(",")","[","]","{","}"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["8","9","@","#","$","%","&","!"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["?","-","_","+",".","/","*","="]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: [":",";","(",")","[","]","{","}"]; password <=> root.password; }
         }
 
-        PasswordAction { x: 14px; y: 176px; width: 50px; height: 18px; label: root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc"; clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
-        PasswordAction { x: 70px; y: 176px; width: 54px; height: 18px; label: "Limpar"; clicked => { root.password = ""; } }
-        PasswordAction { x: 130px; y: 176px; width: 70px; height: 18px; label: "Cancelar"; clicked => { root.cancel(); } }
-        PasswordAction { x: 206px; y: 176px; width: 84px; height: 18px; label: "Ligar"; primary: root.password != ""; clicked => { if (root.password != "") { root.connect(root.ssid, root.password); } } }
+        PasswordAction { x: 10px; y: 178px; width: 52px; height: 22px; label: root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc"; clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
+        PasswordAction { x: 66px; y: 178px; width: 56px; height: 22px; label: "Limpar"; clicked => { root.password = ""; } }
+        PasswordAction { x: 126px; y: 178px; width: 72px; height: 22px; label: "Cancelar"; clicked => { root.cancel(); } }
+        PasswordAction { x: 202px; y: 178px; width: 92px; height: 22px; label: "Ligar"; primary: root.password != ""; clicked => { if (root.password != "") { root.connect(root.ssid, root.password); } } }
     }
 }
 
+// =====================================================
+// PAINEL PRINCIPAL
+// =====================================================
 export component SettingsPanel inherits Rectangle {
     in-out property <int> page: 0;
     in-out property <bool> wifi-on: true;
@@ -348,20 +436,26 @@ export component SettingsPanel inherits Rectangle {
         }
     }
 
+    // ---------------- HEADER ----------------
     Rectangle {
-        x: 0px; y: 0px; width: 46px; height: 36px;
-        background: #00000000;
-        TouchArea {
+        x: 0px; y: 0px; width: 320px; height: 34px;
+        background: Theme.bg-1;
+        Rectangle { x: 0px; y: 33px; width: 320px; height: 1px; background: Theme.stroke-soft; }
+    }
+    Rectangle {
+        x: 6px; y: 4px; width: 28px; height: 26px;
+        border-radius: Theme.radius-s;
+        background: bt.pressed ? Theme.panel-elevated : #00000000;
+        bt := TouchArea {
             clicked => {
                 if (root.page == 0) { root.back(); }
                 else { root.page = 0; }
             }
         }
-        Image { x: 14px; y: 10px; width: 16px; height: 16px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; }
+        Image { x: 7px; y: 6px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; colorize: Theme.accent; }
     }
-
     Text {
-        x: 0px; y: 10px; width: 100%; height: 18px;
+        x: 0px; y: 0px; width: 320px; height: 34px;
         text: root.page == 0 ? "Definicoes" :
               root.page == 1 ? "Conexoes" :
               root.page == 2 ? "Seguranca" :
@@ -373,65 +467,84 @@ export component SettingsPanel inherits Rectangle {
         horizontal-alignment: center;
         vertical-alignment: center;
     }
-
-    if root.page == 0: Rectangle {
-        x: 14px; y: 42px; width: 292px; height: 162px;
-        background: #00000000;
-        for item[index] in [
-            { title: "Conexoes", detail: root.wifi-on ? "Wi-Fi ligado" : "Wi-Fi desligado", icon: @image-url("assets/icons/wifi.svg") },
-            { title: "Seguranca", detail: "PIN e protecao", icon: @image-url("assets/icons/lock.svg") },
-            { title: "Idioma e Regiao", detail: root.region-label, icon: @image-url("assets/icons/message-circle.svg") },
-            { title: "Som e Ecra", detail: "Volume e brilho", icon: @image-url("assets/icons/sun.svg") },
-            { title: "Sistema", detail: "Estado do DC OS", icon: @image-url("assets/icons/settings.svg") },
-        ] : Rectangle {
-            x: 0px; y: index * 32px; width: 292px; height: 28px;
-            border-radius: Theme.radius-s;
-            background: Theme.panel-soft;
-            border-width: 1px;
-            border-color: Theme.stroke-soft;
-            TouchArea {
-                clicked => {
-                    root.open-page(index + 1);
-                }
-            }
-            Image { x: 10px; y: 7px; width: 14px; height: 14px; source: item.icon; image-fit: contain; }
-            Text { x: 34px; y: 3px; width: 150px; height: 11px; text: item.title; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 700; }
-            Text { x: 34px; y: 15px; width: 170px; height: 10px; text: item.detail; color: Theme.text-secondary; font-size: 8px; }
-            Image { x: 268px; y: 7px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-right.svg"); image-fit: contain; }
+    // Indicador de paginas (pontos)
+    HorizontalLayout {
+        x: 130px; y: 40px; width: 60px; height: 6px;
+        spacing: 5px;
+        alignment: center;
+        for i in 6 : Rectangle {
+            width: i == root.page ? 14px : 5px;
+            height: 5px;
+            border-radius: 2.5px;
+            background: i == root.page ? Theme.accent : Theme.stroke;
+            animate width { duration: 150ms; }
         }
     }
 
+    // ================= PAGINA 0 — DEFINICOES =================
+    if root.page == 0: Rectangle {
+        x: 14px; y: 50px; width: 292px; height: 160px;
+        background: #00000000;
+        for item[index] in [
+            { title: "Conexoes", detail: root.wifi-on ? "Wi-Fi ligado" : "Wi-Fi desligado", icon: @image-url("assets/icons/wifi.svg"), tint: Theme.accent-blue },
+            { title: "Seguranca", detail: "PIN e protecao", icon: @image-url("assets/icons/shield.svg"), tint: Theme.success },
+            { title: "Idioma e Regiao", detail: root.region-label, icon: @image-url("assets/icons/globe.svg"), tint: Theme.accent-cyan },
+            { title: "Som e Ecra", detail: "Volume e brilho", icon: @image-url("assets/icons/sliders.svg"), tint: Theme.warning },
+            { title: "Sistema", detail: "Estado do DC OS", icon: @image-url("assets/icons/cpu.svg"), tint: Theme.accent-violet },
+        ] : Rectangle {
+            x: 0px; y: index * 31px; width: 292px; height: 28px;
+            border-radius: Theme.radius-s;
+            background: ti.pressed ? Theme.panel-elevated : Theme.panel-soft;
+            border-width: 1px;
+            border-color: ti.pressed ? item.tint : Theme.stroke-soft;
+            animate background { duration: 100ms; }
+            ti := TouchArea { clicked => { root.open-page(index + 1); } }
+
+            Rectangle {
+                x: 6px; y: 4px; width: 20px; height: 20px;
+                border-radius: 6px;
+                background: Theme.bg-2;
+                Image { x: 4px; y: 4px; width: 12px; height: 12px; source: item.icon; image-fit: contain; colorize: item.tint; }
+            }
+            Text { x: 34px; y: 3px; width: 200px; height: 12px; text: item.title; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 700; }
+            Text { x: 34px; y: 15px; width: 210px; height: 10px; text: item.detail; color: Theme.text-muted; font-size: 8px; }
+            Text { x: 272px; y: 0px; width: 16px; height: 28px; text: ">"; color: Theme.text-muted; font-size: Theme.font-sm; horizontal-alignment: center; vertical-alignment: center; }
+        }
+    }
+
+    // ================= PAGINA 1 — CONEXOES =================
     if root.page == 1: Rectangle {
-        x: 14px; y: 42px; width: 292px; height: 162px;
+        x: 14px; y: 50px; width: 292px; height: 160px;
         background: #00000000;
         SettingsToggle {
-            x: 0px; y: 0px; width: 292px; height: 32px;
+            x: 0px; y: 0px; width: 292px; height: 38px;
             label: "Wi-Fi"; icon: @image-url("assets/icons/wifi.svg"); checked <=> root.wifi-on;
             changed(on) => {
                 root.wifi-changed(on);
                 if (on) { root.scan-wifi-networks(); }
             }
         }
-        SettingsToggle { x: 0px; y: 36px; width: 292px; height: 32px; label: "Bluetooth"; icon: @image-url("assets/icons/bluetooth.svg"); checked <=> root.bluetooth-on; changed(on) => { root.bluetooth-changed(on); } }
-        Text { x: 0px; y: 76px; width: 130px; height: 12px; text: "Redes disponiveis"; color: Theme.text-secondary; font-size: Theme.font-xs; }
+        SettingsToggle { x: 0px; y: 42px; width: 292px; height: 38px; label: "Bluetooth"; icon: @image-url("assets/icons/bluetooth.svg"); checked <=> root.bluetooth-on; changed(on) => { root.bluetooth-changed(on); } }
+        Text { x: 2px; y: 84px; width: 150px; height: 12px; text: "Redes disponiveis"; color: Theme.text-secondary; font-size: Theme.font-xs; font-weight: 600; vertical-alignment: center; }
         Text {
-            x: 138px; y: 76px; width: 104px; height: 12px;
+            x: 152px; y: 84px; width: 90px; height: 12px;
             text: root.bluetooth-on ? "BLE ligado" : "BLE desligado";
             color: root.bluetooth-on ? Theme.accent-cyan : Theme.text-muted;
             font-size: Theme.font-xs;
             horizontal-alignment: right;
+            vertical-alignment: center;
         }
         Rectangle {
-            x: 252px; y: 72px; width: 40px; height: 22px;
+            x: 254px; y: 82px; width: 38px; height: 20px;
             border-radius: Theme.radius-s;
-            background: Theme.panel-soft;
+            background: tr.pressed ? Theme.panel-elevated : Theme.panel-soft;
             border-width: 1px;
             border-color: Theme.stroke-soft;
-            TouchArea { clicked => { root.scan-wifi-networks(); } }
-            Image { x: 12px; y: 3px; width: 16px; height: 16px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; }
+            tr := TouchArea { clicked => { root.scan-wifi-networks(); } }
+            Image { x: 12px; y: 3px; width: 14px; height: 14px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; colorize: Theme.accent; }
         }
         if !root.wifi-on: Text {
-            x: 0px; y: 108px; width: 292px; height: 28px;
+            x: 0px; y: 112px; width: 292px; height: 40px;
             text: "Wi-Fi desligado";
             color: Theme.text-muted;
             font-size: Theme.font-sm;
@@ -439,7 +552,7 @@ export component SettingsPanel inherits Rectangle {
             vertical-alignment: center;
         }
         if root.wifi-on && root.networks.length == 0: Text {
-            x: 0px; y: 108px; width: 292px; height: 28px;
+            x: 0px; y: 112px; width: 292px; height: 40px;
             text: "A procurar redes...";
             color: Theme.text-muted;
             font-size: Theme.font-sm;
@@ -447,12 +560,12 @@ export component SettingsPanel inherits Rectangle {
             vertical-alignment: center;
         }
         for n[index] in root.networks : Rectangle {
-            x: 0px; y: 98px + index * 26px; width: 292px; height: 24px;
+            x: 0px; y: 104px + index * 27px; width: 292px; height: 25px;
             border-radius: Theme.radius-s;
-            background: Theme.panel-soft;
+            background: tn.pressed ? Theme.panel-elevated : Theme.panel-soft;
             border-width: 1px;
-            border-color: Theme.stroke-soft;
-            TouchArea {
+            border-color: n.connected ? Theme.success : Theme.stroke-soft;
+            tn := TouchArea {
                 clicked => {
                     root.wifi-on = true;
                     if (n.secured) {
@@ -465,58 +578,75 @@ export component SettingsPanel inherits Rectangle {
                     }
                 }
             }
-            Image { x: 10px; y: 5px; width: 14px; height: 14px; source: @image-url("assets/icons/wifi.svg"); image-fit: contain; }
-            Text { x: 34px; y: 3px; width: 158px; height: 11px; text: n.ssid; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 600; }
-            Text { x: 34px; y: 14px; width: 80px; height: 9px; text: n.connected ? "Conectado" : ""; color: Theme.accent-cyan; font-size: 8px; }
-            Text { x: 200px; y: 7px; width: 48px; height: 10px; text: n.signal + " dBm"; color: Theme.text-muted; font-size: 8px; horizontal-alignment: right; }
-            if n.secured: Image { x: 262px; y: 5px; width: 14px; height: 14px; source: @image-url("assets/icons/lock.svg"); image-fit: contain; }
+            Image { x: 9px; y: 6px; width: 14px; height: 14px; source: @image-url("assets/icons/wifi.svg"); image-fit: contain; colorize: n.connected ? Theme.success : Theme.text-secondary; }
+            Text { x: 30px; y: 3px; width: 158px; height: 11px; text: n.ssid; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 600; overflow: elide; }
+            Text { x: 30px; y: 14px; width: 90px; height: 9px; text: n.connected ? "Conectado" : (n.secured ? "Protegida" : "Aberta"); color: n.connected ? Theme.success : Theme.text-muted; font-size: 8px; }
+            Text { x: 196px; y: 8px; width: 48px; height: 10px; text: n.signal + " dBm"; color: Theme.text-muted; font-size: 8px; horizontal-alignment: right; }
+            if n.secured: Image { x: 262px; y: 6px; width: 13px; height: 13px; source: @image-url("assets/icons/lock.svg"); image-fit: contain; colorize: Theme.text-muted; }
         }
     }
 
+    // ================= PAGINA 2 — SEGURANCA =================
     if root.page == 2: Rectangle {
-        x: 14px; y: 46px; width: 292px; height: 80px;
-        border-radius: Theme.radius-s;
-        background: Theme.panel-soft;
+        x: 14px; y: 54px; width: 292px; height: 84px;
+        border-radius: Theme.radius-m;
+        background: ts.pressed ? Theme.panel-elevated : Theme.panel-soft;
         border-width: 1px;
-        border-color: Theme.stroke-soft;
-        TouchArea { clicked => { root.change-passcode(); } }
-        Image { x: 12px; y: 14px; width: 18px; height: 18px; source: @image-url("assets/icons/lock.svg"); image-fit: contain; }
-        Text { x: 42px; y: 12px; width: 170px; height: 14px; text: "Alterar PIN"; color: Theme.text-primary; font-size: Theme.font-md; font-weight: 700; }
-        Text { x: 42px; y: 32px; width: 210px; height: 28px; text: "Define uma nova senha de 5 digitos para proteger o assistente."; color: Theme.text-secondary; font-size: Theme.font-xs; wrap: word-wrap; }
-        Image { x: 264px; y: 32px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-right.svg"); image-fit: contain; }
+        border-color: ts.pressed ? Theme.success : Theme.stroke-soft;
+        animate background { duration: 120ms; }
+        ts := TouchArea { clicked => { root.change-passcode(); } }
+        Rectangle {
+            x: 12px; y: 14px; width: 34px; height: 34px;
+            border-radius: 10px;
+            background: Theme.success-tint;
+            Image { x: 8px; y: 8px; width: 18px; height: 18px; source: @image-url("assets/icons/shield.svg"); image-fit: contain; colorize: Theme.success; }
+        }
+        Text { x: 54px; y: 14px; width: 200px; height: 16px; text: "Alterar PIN"; color: Theme.text-primary; font-size: Theme.font-md; font-weight: 700; }
+        Text { x: 54px; y: 33px; width: 210px; height: 34px; text: "Define uma nova senha de 5 digitos para proteger o assistente."; color: Theme.text-secondary; font-size: Theme.font-xs; wrap: word-wrap; }
+        Text { x: 268px; y: 24px; width: 20px; height: 34px; text: ">"; color: Theme.text-muted; font-size: Theme.font-md; horizontal-alignment: center; }
     }
 
+    // ================= PAGINA 3 — IDIOMA E REGIAO =================
     if root.page == 3: Rectangle {
-        x: 14px; y: 44px; width: 292px; height: 136px;
+        x: 14px; y: 52px; width: 292px; height: 150px;
         background: #00000000;
         LocaleRow {
-            x: 0px; y: 0px; width: 292px; height: 42px;
-            label: "Regiao"; value: root.region-label;
+            x: 0px; y: 0px; width: 292px; height: 46px;
+            label: "Regiao"; value: root.region-label; icon: @image-url("assets/icons/globe.svg");
             clicked => { root.region-index = root.region-index == 4 ? 0 : root.region-index + 1; root.locale-changed(root.region-index, root.language-index); }
         }
         LocaleRow {
-            x: 0px; y: 52px; width: 292px; height: 42px;
-            label: "Idioma"; value: root.language-label;
+            x: 0px; y: 54px; width: 292px; height: 46px;
+            label: "Idioma"; value: root.language-label; icon: @image-url("assets/icons/message-circle.svg");
             clicked => { root.language-index = root.language-index == 4 ? 0 : root.language-index + 1; root.locale-changed(root.region-index, root.language-index); }
         }
-        Text { x: 4px; y: 108px; width: 284px; height: 24px; text: "Toque em cada linha para percorrer 5 opcoes."; color: Theme.text-muted; font-size: Theme.font-xs; horizontal-alignment: center; vertical-alignment: center; }
+        Text { x: 4px; y: 108px; width: 284px; height: 20px; text: "Toque em cada linha para percorrer 5 opcoes."; color: Theme.text-muted; font-size: Theme.font-xs; horizontal-alignment: center; vertical-alignment: center; }
     }
 
+    // ================= PAGINA 4 — SOM E ECRA =================
     if root.page == 4: Rectangle {
-        x: 14px; y: 44px; width: 292px; height: 116px;
+        x: 14px; y: 52px; width: 292px; height: 130px;
         background: #00000000;
-        StepperRow { x: 0px; y: 0px; width: 292px; height: 44px; label: "Volume"; icon: @image-url("assets/icons/volume-2.svg"); value <=> root.volume; changed(v) => { root.volume-changed(v); } }
-        StepperRow { x: 0px; y: 58px; width: 292px; height: 44px; label: "Brilho"; icon: @image-url("assets/icons/sun.svg"); value <=> root.brightness; changed(v) => { root.brightness-changed(v); } }
+        StepperRow { x: 0px; y: 0px; width: 292px; height: 56px; label: "Volume"; icon: @image-url("assets/icons/volume-2.svg"); value <=> root.volume; changed(v) => { root.volume-changed(v); } }
+        StepperRow { x: 0px; y: 64px; width: 292px; height: 56px; label: "Brilho"; icon: @image-url("assets/icons/sun.svg"); value <=> root.brightness; changed(v) => { root.brightness-changed(v); } }
     }
 
+    // ================= PAGINA 5 — SISTEMA =================
     if root.page == 5: Rectangle {
-        x: 14px; y: 52px; width: 292px; height: 86px;
-        border-radius: Theme.radius-s;
+        x: 14px; y: 54px; width: 292px; height: 108px;
+        border-radius: Theme.radius-m;
         background: Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke-soft;
-        Text { x: 14px; y: 12px; width: 260px; height: 16px; text: "DC OS"; color: Theme.text-primary; font-size: Theme.font-md; font-weight: 700; }
-        Text { x: 14px; y: 34px; width: 260px; height: 38px; text: "Firmware ESP32-S3 com Slint, Wi-Fi, SNTP, NVS e API local."; color: Theme.text-secondary; font-size: Theme.font-xs; wrap: word-wrap; }
+        Rectangle {
+            x: 14px; y: 14px; width: 34px; height: 34px;
+            border-radius: 10px;
+            background: Theme.accent-tint;
+            Image { x: 8px; y: 8px; width: 18px; height: 18px; source: @image-url("assets/icons/cpu.svg"); image-fit: contain; colorize: Theme.accent; }
+        }
+        Text { x: 56px; y: 14px; width: 220px; height: 16px; text: "DC OS Embedded"; color: Theme.accent; font-size: Theme.font-md; font-weight: 700; }
+        Text { x: 56px; y: 32px; width: 220px; height: 12px; text: "Versao 2.0"; color: Theme.text-muted; font-size: Theme.font-xs; }
+        Text { x: 14px; y: 58px; width: 264px; height: 38px; text: "Firmware ESP32-S3 com Slint UI, Wi-Fi, SNTP, NVS e API local."; color: Theme.text-secondary; font-size: Theme.font-xs; wrap: word-wrap; }
     }
 
     if root.wifi-password-open: WifiPasswordDialog {
@@ -535,6 +665,9 @@ export component SettingsPanel inherits Rectangle {
     }
 }
 
+// =====================================================
+// ALTERAR PIN
+// =====================================================
 export component ChangePasscode inherits Rectangle {
     in-out property <string> d0: "";
     in-out property <string> d1: "";
@@ -551,32 +684,39 @@ export component ChangePasscode inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    Rectangle { x: 0px; y: 0px; width: 46px; height: 36px; background: #00000000; TouchArea { clicked => { root.back(); } } Image { x: 14px; y: 10px; width: 16px; height: 16px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; } }
-    Text { x: 0px; y: 10px; width: 100%; height: 18px; text: "Alterar PIN"; color: Theme.text-primary; font-size: Theme.font-md; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
-    Text { x: 58px; y: 36px; width: 204px; height: 16px; text: "Novo PIN de 5 digitos"; color: Theme.text-secondary; font-size: Theme.font-xs; horizontal-alignment: center; vertical-alignment: center; }
+    Rectangle { x: 0px; y: 0px; width: 320px; height: 34px; background: Theme.bg-1; Rectangle { x: 0px; y: 33px; width: 320px; height: 1px; background: Theme.stroke-soft; } }
+    Rectangle {
+        x: 6px; y: 4px; width: 28px; height: 26px;
+        border-radius: Theme.radius-s;
+        background: bk.pressed ? Theme.panel-elevated : #00000000;
+        bk := TouchArea { clicked => { root.back(); } }
+        Image { x: 7px; y: 6px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; colorize: Theme.accent; }
+    }
+    Text { x: 0px; y: 0px; width: 320px; height: 34px; text: "Alterar PIN"; color: Theme.text-primary; font-size: Theme.font-md; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+    Text { x: 0px; y: 40px; width: 320px; height: 14px; text: "Novo PIN de 5 digitos"; color: Theme.text-secondary; font-size: Theme.font-xs; horizontal-alignment: center; vertical-alignment: center; }
 
     HorizontalLayout {
-        x: 124px; y: 58px; width: 72px; height: 10px;
-        spacing: 7px;
+        x: 120px; y: 60px; width: 80px; height: 12px;
+        spacing: 8px;
         for i in root.pin-length: Rectangle {
-            width: 10px; height: 10px;
-            border-radius: 5px;
+            width: 11px; height: 11px;
+            border-radius: 5.5px;
             background: i < root.filled ? Theme.accent : #00000000;
-            border-width: 1px;
+            border-width: 1.5px;
             border-color: i < root.filled ? Theme.accent-hi : Theme.text-muted;
         }
     }
 
     for row[index] in [[ "1","2","3","4","5" ], [ "6","7","8","9","0" ]] : HorizontalLayout {
-        x: 58px; y: 80px + index * 42px; width: 234px; height: 34px;
+        x: 56px; y: 80px + index * 42px; width: 210px; height: 34px;
         spacing: 6px;
         for k in row : Rectangle {
-            width: 42px; height: 34px;
+            width: 38px; height: 34px;
             border-radius: Theme.radius-s;
-            background: Theme.panel-soft;
+            background: tk.pressed ? Theme.accent-deep : Theme.panel-soft;
             border-width: 1px;
-            border-color: Theme.stroke;
-            TouchArea {
+            border-color: tk.pressed ? Theme.accent : Theme.stroke;
+            tk := TouchArea {
                 clicked => {
                     if (root.filled < root.pin-length) {
                         if      (root.filled == 0) { root.d0 = k; }
@@ -593,12 +733,12 @@ export component ChangePasscode inherits Rectangle {
     }
 
     Rectangle {
-        x: 58px; y: 166px; width: 58px; height: 34px;
+        x: 56px; y: 168px; width: 56px; height: 34px;
         border-radius: Theme.radius-s;
         background: root.filled > 0 ? Theme.panel-elevated : Theme.panel-soft;
         border-width: 1px;
         border-color: root.filled > 0 ? Theme.stroke : Theme.text-dim;
-        TouchArea {
+        tdel := TouchArea {
             clicked => {
                 if (root.filled > 0) {
                     root.filled = root.filled - 1;
@@ -610,16 +750,16 @@ export component ChangePasscode inherits Rectangle {
                 }
             }
         }
-        Image { x: 19px; y: 9px; width: 20px; height: 16px; source: @image-url("assets/icons/delete-left.svg"); image-fit: contain; }
+        Image { x: 18px; y: 9px; width: 20px; height: 16px; source: @image-url("assets/icons/delete-left.svg"); image-fit: contain; colorize: Theme.text-secondary; }
     }
 
     Rectangle {
-        x: 126px; y: 166px; width: 166px; height: 34px;
+        x: 120px; y: 168px; width: 144px; height: 34px;
         border-radius: Theme.radius-s;
         background: root.filled == root.pin-length ? Theme.accent : Theme.accent-deep;
         border-width: 1px;
         border-color: root.filled == root.pin-length ? Theme.accent-hi : Theme.stroke;
-        TouchArea { clicked => { if (root.filled == root.pin-length) { root.save(root.passcode-str); } } }
-        Text { text: "Guardar PIN"; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+        tsave := TouchArea { clicked => { if (root.filled == root.pin-length) { root.save(root.passcode-str); } } }
+        Text { text: "Guardar PIN"; color: root.filled == root.pin-length ? Theme.bg-0 : Theme.text-secondary; font-size: Theme.font-sm; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
     }
 }
