@@ -292,6 +292,7 @@ export component AppWindow inherits Window {
                 wifi-on <=> root.wifi-on;
                 bluetooth-on <=> root.bluetooth-on;
                 autorotate <=> root.autorotate;
+                current-time: root.current-time;
                 brightness-changed(v) => {
                     root.brightness = v;
                     root.set-brightness(v);

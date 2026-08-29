@@ -75,6 +75,7 @@ export component ControlCenter inherits Rectangle {
     in-out property <bool> bluetooth-on: true;
     in-out property <bool> dnd-on: false;
     in-out property <bool> autorotate: true;
+    in property <string> current-time: "--:--";
 
     callback brightness-changed(float);
     callback volume-changed(float);
@@ -99,6 +100,17 @@ export component ControlCenter inherits Rectangle {
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
+    }
+
+    // Relogio no canto superior direito do Control Center, em destaque
+    Text {
+        x: 232px; y: 16px; width: 76px; height: 16px;
+        text: root.current-time;
+        color: Theme.accent;
+        font-size: Theme.font-md;
+        font-weight: 800;
+        horizontal-alignment: right;
+        vertical-alignment: center;
     }
 
     // Tiles de toggle rapidos

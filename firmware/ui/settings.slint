@@ -494,8 +494,13 @@ export component SettingsPanel inherits Rectangle {
     function open-page(next-page: int) {
         root.page = max(0, min(5, next-page));
         if (root.page != 1) { root.network-scroll = 0; }
-        if (root.page == 1) { root.scan-wifi-networks(); }
+        if (root.page == 1) {
+            root.network-scroll = 0;
+            root.scan-wifi-networks();
+        }
     }
+    // Propriedade derivada para o swipe handler
+    property <bool> networks: root.networks.length > 3;
 
     swipe-lock-timer := Timer {
         interval: 260ms;
@@ -510,14 +515,19 @@ export component SettingsPanel inherits Rectangle {
         x: 0px; y: 36px; width: 320px; height: 180px;
         moved => {
             if (!root.wifi-password-open && !root.swipe-locked) {
-                if (root.page == 1 && self.pressed-y > 96px && self.pressed-y - self.mouse-y > 28px) {
-                    root.network-scroll = min(max(0, root.networks.length - 4), root.network-scroll + 1);
-                    root.swipe-locked = true;
-                    swipe-lock-timer.running = true;
-                } else if (root.page == 1 && self.pressed-y > 96px && self.mouse-y - self.pressed-y > 28px) {
-                    root.network-scroll = max(0, root.network-scroll - 1);
-                    root.swipe-locked = true;
-                    swipe-lock-timer.running = true;
+                // Scroll vertical da lista de redes (qualquer posicao na pagina 1)
+                if (root.page == 1 && self.networks && self.pressed-y - self.mouse-y > 22px) {
+                    if (root.network-scroll < max(0, root.networks.length - 3)) {
+                        root.network-scroll = root.network-scroll + 1;
+                        root.swipe-locked = true;
+                        swipe-lock-timer.running = true;
+                    }
+                } else if (root.page == 1 && self.mouse-y - self.pressed-y > 22px) {
+                    if (root.network-scroll > 0) {
+                        root.network-scroll = root.network-scroll - 1;
+                        root.swipe-locked = true;
+                        swipe-lock-timer.running = true;
+                    }
                 } else if (self.mouse-x - self.pressed-x > 64px) {
                     if (root.page > 0) { root.open-page(root.page - 1); }
                     root.swipe-locked = true;
@@ -656,8 +666,8 @@ export component SettingsPanel inherits Rectangle {
         }
         if root.wifi-on && root.networks.length > 0: Rectangle {
             for n[index] in root.networks : Rectangle {
-                visible: index >= root.network-scroll && index < root.network-scroll + 4;
-                x: 0px; y: (index - root.network-scroll) * 28px; width: 292px; height: 25px;
+                visible: index >= root.network-scroll && index < root.network-scroll + 3;
+                x: 0px; y: (index - root.network-scroll) * 32px; width: 292px; height: 28px;
                 border-radius: Theme.radius-s;
                 background: tn.pressed ? Theme.panel-elevated : Theme.panel-soft;
                 border-width: 1px;
@@ -675,11 +685,41 @@ export component SettingsPanel inherits Rectangle {
                         }
                     }
                 }
-                Image { x: 9px; y: 8px; width: 14px; height: 14px; source: @image-url("assets/icons/wifi.svg"); image-fit: contain; colorize: n.connected ? Theme.success : Theme.text-secondary; }
-                Text { x: 30px; y: 5px; width: 158px; height: 11px; text: n.ssid; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 600; overflow: elide; }
-                Text { x: 30px; y: 16px; width: 90px; height: 9px; text: n.connected ? "Conectado" : (n.secured ? "Protegida" : "Aberta"); color: n.connected ? Theme.success : Theme.text-muted; font-size: 8px; }
-                Text { x: 196px; y: 10px; width: 48px; height: 10px; text: n.signal + " dBm"; color: Theme.text-muted; font-size: 8px; horizontal-alignment: right; }
-                if n.secured: Image { x: 262px; y: 8px; width: 13px; height: 13px; source: @image-url("assets/icons/lock.svg"); image-fit: contain; colorize: Theme.text-muted; }
+                // Chip icone (alinhado verticalmente)
+                Rectangle {
+                    x: 8px; y: 7px; width: 14px; height: 14px;
+                    border-radius: 4px;
+                    background: n.connected ? Theme.success-tint : Theme.bg-2;
+                    Image { x: 0px; y: 0px; width: 14px; height: 14px; source: @image-url("assets/icons/wifi.svg"); image-fit: contain; colorize: n.connected ? Theme.success : Theme.accent-blue; }
+                }
+                Text { x: 28px; y: 4px; width: 168px; height: 12px; text: n.ssid; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 700; overflow: elide; }
+                // Linha de sinal com barras proporcionais + dBm discreto
+                Text { x: 28px; y: 16px; width: 100px; height: 10px; text: n.connected ? "Conectado" : (n.secured ? "Protegida" : "Aberta"); color: n.connected ? Theme.success : Theme.text-muted; font-size: 8px; }
+                // dBm mais a esquerda para nao colidir com o cadeado
+                Text { x: 188px; y: 8px; width: 56px; height: 12px; text: n.signal + " dBm"; color: Theme.text-muted; font-size: 8px; horizontal-alignment: right; vertical-alignment: center; }
+                // Mini barras de sinal (RSSI -30..-90) para densidade visual
+                for bar[k] in [0,1,2,3] : Rectangle {
+                    visible: !n.connected;
+                    x: 188px + k * 4px; y: 21px; width: 3px;
+                    height: k == 0 ? 4px : k == 1 ? 6px : k == 2 ? 8px : 10px;
+                    border-radius: 1px;
+                    background: n.signal >= -55 + (k as int * -10) ? Theme.accent : Theme.stroke;
+                }
+                if n.secured: Image { x: 270px; y: 7px; width: 14px; height: 14px; source: @image-url("assets/icons/lock.svg"); image-fit: contain; colorize: Theme.warning; }
+                if n.connected: Image { x: 270px; y: 7px; width: 14px; height: 14px; source: @image-url("assets/icons/check.svg"); image-fit: contain; colorize: Theme.success; }
+            }
+        }
+        // Indicador de scroll vertical (quando ha mais redes do que cabem)
+        if root.networks.length > 3: Rectangle {
+            x: 286px; y: 110px; width: 6px; height: 96px;
+            background: #00000000;
+            Rectangle {
+                x: 1px; y: 0px; width: 4px;
+                height: max(12px, 96px / max(1, root.networks.length - 3 + 1));
+                y: root.network-scroll * (96px - max(12px, 96px / max(1, root.networks.length - 3 + 1))) / max(1, root.networks.length - 3);
+                border-radius: 2px;
+                background: Theme.accent-deep;
+                animate y { duration: 120ms; }
             }
         }
     }

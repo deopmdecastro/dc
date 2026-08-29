@@ -23,16 +23,17 @@ export component StatusBar inherits Rectangle {
     Rectangle {
         x: 14px; y: 9px; width: 5px; height: 5px;
         border-radius: 2.5px;
-        background: Theme.accent;
+        background: root.current-time == "--:--" ? Theme.text-dim : Theme.accent;
     }
     Text {
         x: 24px; y: 0px; width: 90px; height: 24px;
-        text: root.current-time;
-        color: Theme.text-primary;
+        text: root.current-time == "--:--" ? "--:--  ..." : root.current-time;
+        color: root.current-time == "--:--" ? Theme.text-secondary : Theme.text-primary;
         font-size: Theme.font-sm;
         font-weight: 700;
         vertical-alignment: center;
         letter-spacing: 0.4px;
+        animate color { duration: 200ms; }
     }
 
     // Titulo central discreto
