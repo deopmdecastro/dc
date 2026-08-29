@@ -305,6 +305,11 @@ fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {
                     app.set_spotify_albums(slint::ModelRc::from(albums.as_slice()));
                     log::info!("UI: {} faixas Spotify carregadas", tracks.len());
                 }
+                SystemEvent::WeatherChanged(weather) => {
+                    app.set_weather_city(weather.city.into());
+                    app.set_weather_temp(weather.temperature_c);
+                    app.set_weather_summary(weather.summary.into());
+                }
             }
         });
         WINDOW.with(|w| {

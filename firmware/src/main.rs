@@ -87,6 +87,7 @@ fn main() -> Result<()> {
             password: app_config.wifi_password.clone(),
             bluetooth_enabled: app_config.bluetooth_enabled,
             api_health_url: app_config.api_health_url.clone(),
+            region_index: app_config.region_index,
             timezone_offset_secs: timezone_offset_secs(app_config.region_index),
         },
         network_cmd_rx,
@@ -105,6 +106,8 @@ fn main() -> Result<()> {
     app.set_alarm_enabled(app_config.alarm_enabled);
     app.set_alarm_hour(app_config.alarm_hour as i32);
     app.set_alarm_minute(app_config.alarm_minute as i32);
+    app.set_alarm_day_mode(app_config.alarm_day_mode as i32);
+    app.set_alarm_tone(app_config.alarm_tone as i32);
     app.set_current_time("--:--".into());
     slint_platform::set_app_window(&app);
     // Boot animation → home. 2200ms deixa o fade-in + hold do logo completos
@@ -160,28 +163,40 @@ fn main() -> Result<()> {
             if let Err(e) = store.borrow().save_locale(region, language) {
                 log::warn!("NVS: falha ao guardar idioma/regiao: {e:?}");
             }
-            let _ = tx.send(NetworkCommand::SetTimezoneOffset(timezone_offset_secs(
-                region,
-            )));
+            let _ = tx.send(NetworkCommand::SetLocale {
+                region_index: region,
+                timezone_offset_secs: timezone_offset_secs(region),
+            });
         });
     }
     {
         let store = config_store.clone();
-        app.on_alarm_changed(move |enabled, hour, minute| {
+        app.on_alarm_changed(move |enabled, hour, minute, day_mode, tone| {
             let hour = hour.clamp(0, 23) as u8;
             let minute = minute.clamp(0, 59) as u8;
-            if let Err(e) = store.borrow().save_alarm(enabled, hour, minute) {
+            let day_mode = day_mode.clamp(0, 3) as u8;
+            let tone = tone.clamp(0, 2) as u8;
+            if let Err(e) = store
+                .borrow()
+                .save_alarm(enabled, hour, minute, day_mode, tone)
+            {
                 log::warn!("NVS: falha ao guardar alarme: {e:?}");
             } else {
                 log::info!(
-                    "Alarme: {} {:02}:{:02}",
+                    "Alarme: {} {:02}:{:02} dias={} toque={}",
                     if enabled { "ligado" } else { "desligado" },
                     hour,
-                    minute
+                    minute,
+                    day_mode,
+                    tone
                 );
             }
         });
     }
+    app.on_test_alarm_tone(|tone| {
+        log::info!("Alarme: testar toque {}", tone.clamp(0, 2));
+        // TODO: quando audio.rs deixar de ser stub, encaminhar esta acao para I2S TX.
+    });
     {
         let store = config_store.clone();
         app.on_passcode_created(move |pass| {

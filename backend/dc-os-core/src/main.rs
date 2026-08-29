@@ -8,6 +8,7 @@
 //!   GET  /music/devices       dispositivos Spotify disponiveis
 //!   GET  /music/top-tracks    top tracks reais via Spotify Web API
 //!   POST /music/command       play/pause/next/prev (proxy Mopidy JSON-RPC)
+//!   GET  /weather             clima atual por regiao via Open-Meteo
 
 use axum::{
     extract::{
@@ -68,6 +69,11 @@ struct MusicTopTracksQuery {
 }
 
 #[derive(Deserialize)]
+struct WeatherQuery {
+    region: Option<u8>,
+}
+
+#[derive(Deserialize)]
 struct SpotifyTokenResponse {
     access_token: String,
 }
@@ -101,6 +107,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/music/devices", get(music_devices))
         .route("/music/top-tracks", get(music_top_tracks))
         .route("/music/command", post(music_command))
+        .route("/weather", get(weather))
         .with_state(state)
         .layer(CorsLayer::permissive());
 
@@ -139,6 +146,55 @@ async fn time_now(Query(query): Query<TimeQuery>) -> Json<serde_json::Value> {
         "offset_secs": offset,
         "hhmm": format!("{hour:02}:{minute:02}")
     }))
+}
+
+async fn weather(
+    Query(query): Query<WeatherQuery>,
+    State(s): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    let region = weather_region(query.region.unwrap_or(0));
+    let url = format!(
+        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code&timezone=auto",
+        region.latitude, region.longitude
+    );
+
+    match s.http.get(url).send().await {
+        Ok(response) => {
+            let status = response.status();
+            let body = response
+                .json::<serde_json::Value>()
+                .await
+                .unwrap_or_default();
+            let temp = body
+                .get("current")
+                .and_then(|current| current.get("temperature_2m"))
+                .and_then(|value| value.as_f64())
+                .unwrap_or_default()
+                .round() as i64;
+            let code = body
+                .get("current")
+                .and_then(|current| current.get("weather_code"))
+                .and_then(|value| value.as_i64())
+                .unwrap_or_default();
+
+            Json(serde_json::json!({
+                "ok": status.is_success(),
+                "provider": "open-meteo",
+                "city": region.city,
+                "temperature_c": temp,
+                "summary": weather_summary(code),
+                "status": status.as_u16()
+            }))
+        }
+        Err(e) => Json(serde_json::json!({
+            "ok": false,
+            "provider": "open-meteo",
+            "city": region.city,
+            "temperature_c": 0,
+            "summary": "Indisponivel",
+            "error": e.to_string()
+        })),
+    }
 }
 
 async fn ws_upgrade(ws: WebSocketUpgrade, State(_s): State<Arc<AppState>>) -> impl IntoResponse {
@@ -348,6 +404,55 @@ impl MusicTopTracksQuery {
             .as_deref()
             .map(|value| matches!(value, "1" | "true" | "yes" | "sim"))
             .unwrap_or(false)
+    }
+}
+
+struct WeatherRegion {
+    city: &'static str,
+    latitude: f64,
+    longitude: f64,
+}
+
+fn weather_region(region: u8) -> WeatherRegion {
+    match region.min(4) {
+        0 => WeatherRegion {
+            city: "Brasilia",
+            latitude: -15.7939,
+            longitude: -47.8828,
+        },
+        1 => WeatherRegion {
+            city: "Lisboa",
+            latitude: 38.7223,
+            longitude: -9.1393,
+        },
+        2 => WeatherRegion {
+            city: "Luanda",
+            latitude: -8.8390,
+            longitude: 13.2894,
+        },
+        3 => WeatherRegion {
+            city: "Maputo",
+            latitude: -25.9692,
+            longitude: 32.5732,
+        },
+        _ => WeatherRegion {
+            city: "New York",
+            latitude: 40.7128,
+            longitude: -74.0060,
+        },
+    }
+}
+
+fn weather_summary(code: i64) -> &'static str {
+    match code {
+        0 => "Limpo",
+        1..=3 => "Parcial",
+        45 | 48 => "Nevoeiro",
+        51..=67 => "Chuvisco",
+        71..=77 => "Neve",
+        80..=82 => "Chuva",
+        95..=99 => "Trovoada",
+        _ => "Nublado",
     }
 }
 

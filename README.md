@@ -28,6 +28,10 @@ hardware **ES3C28P**:
   para `play`, `pause`, `next` e `prev` quando o OAuth Spotify esta configurado.
 - Wi-Fi liga de verdade, sincroniza hora por SNTP e tambem consome `/time` da
   API real por HTTP.
+- Clima consome `/weather` no backend, que consulta Open-Meteo por regiao e
+  envia cidade, temperatura e resumo compacto para o ESP32.
+- Launcher abre telas reais de Spotify, Clima, Recursos, Notas, Alarme e
+  Definicoes.
 - Brilho ajusta o PWM do backlight; volume fica persistido para integração de
   áudio.
 - Bluetooth fica configurado em modo BLE/NimBLE no `sdkconfig.defaults`, sem
@@ -72,6 +76,7 @@ docker compose up -d --build
 docker compose ps
 curl.exe -s http://localhost:8081/health
 curl.exe -s "http://localhost:8081/time?offset_secs=3600"
+curl.exe -s "http://localhost:8081/weather?region=1"
 curl.exe -s http://localhost:8081/music/devices
 ```
 
@@ -191,7 +196,7 @@ Depois do flash, o monitor deve mostrar algo nesta linha:
 
 ```text
 Flash size:        16MB
-App/part. size:    .../4,194,304 bytes
+App/part. size:    .../6,291,456 bytes
 Display: ILI9341V bring-up (320x240)
 Display: ILI9341V pronto
 Display OK - 320x240
@@ -342,6 +347,25 @@ A rotação agora é manual entre paisagem normal e paisagem invertida. Este mó
 não tem acelerómetro mapeado no pinout atual, portanto ainda não existe
 auto-rotação real por posição física.
 
+## Clima, Notas e Alarmes
+
+O backend expoe `GET /weather?region=<0..4>`, usando Open-Meteo para clima
+atual sem chave de API. O firmware chama esse endpoint quando o Wi-Fi conecta e
+sempre que a regiao muda.
+
+Mapeamento de regioes usado por hora e clima:
+
+- `0`: Brasilia
+- `1`: Lisboa
+- `2`: Luanda
+- `3`: Maputo
+- `4`: New York
+
+A tela de Notas permite criar notas locais da sessao pelo teclado compacto. O
+Alarme guarda ligado/desligado, hora, minuto, perfil de dias e tipo de toque em
+NVS. O botao `Testar` ja emite callback para o firmware; a reproducao real fica
+dependente da implementacao I2S em `audio.rs`, que ainda e stub.
+
 ## Limpeza / Rebuild Completo
 
 Usa quando mudares `sdkconfig.defaults`, partições ou metadata do
@@ -395,5 +419,9 @@ Ver [docs/PINOUT.md](docs/PINOUT.md) para a tabela completa.
   `user-top-read`, `user-read-playback-state`, `user-modify-playback-state` e
   `user-read-currently-playing`; confirma tambem `SPOTIFY_REFRESH_TOKEN`,
   `SPOTIFY_CLIENT_ID` e `SPOTIFY_CLIENT_SECRET` no `backend/.env`.
+- Spotify funciona no PC mas no ESP mostra indisponivel: confirma que o build
+  foi feito com `$env:DC_CORE_HTTP = "http://<IP-do-PC>:8081/health"`. Nao uses
+  `localhost` nem `127.0.0.1`, porque no ESP esses enderecos apontam para o
+  proprio ESP, nao para o computador.
 
 Guia detalhado: [docs/BUILD_AND_FLASH.md](docs/BUILD_AND_FLASH.md).

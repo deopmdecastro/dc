@@ -1,0 +1,168 @@
+import { Theme } from "theme.slint";
+
+component NoteKey inherits Rectangle {
+    in property <string> label;
+    in-out property <string> text-value;
+
+    border-radius: Theme.radius-xs;
+    background: t.pressed ? Theme.accent : Theme.panel-elevated;
+    border-width: 1px;
+    border-color: t.pressed ? Theme.accent-hi : Theme.stroke-soft;
+    t := TouchArea { clicked => { root.text-value = root.text-value + root.label; } }
+    Text {
+        text: root.label;
+        color: t.pressed ? Theme.bg-0 : Theme.text-primary;
+        font-size: 9px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component NoteKeyRow inherits HorizontalLayout {
+    in property <[string]> keys;
+    in-out property <string> text-value;
+    spacing: 4px;
+    for key in root.keys : NoteKey {
+        width: 32px;
+        height: 22px;
+        label: key;
+        text-value <=> root.text-value;
+    }
+}
+
+component NoteAction inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    callback clicked();
+
+    border-radius: Theme.radius-s;
+    background: t.pressed ? Theme.accent-hi : (root.primary ? Theme.accent : Theme.panel-elevated);
+    border-width: 1px;
+    border-color: root.primary ? Theme.accent-hi : Theme.stroke-soft;
+    t := TouchArea { clicked => { root.clicked(); } }
+    Text {
+        text: root.label;
+        color: root.primary ? Theme.bg-0 : Theme.text-primary;
+        font-size: 9px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+export component NotesPanel inherits Rectangle {
+    in-out property <string> draft: "";
+    in-out property <string> note-1: "Toque em Nova para escrever";
+    in-out property <string> note-2: "As notas ficam nesta sessao";
+    in-out property <string> note-3: "Sincronizacao vem no backend";
+    in-out property <int> keyboard-mode: 0;
+    in-out property <bool> composing: false;
+    in property <int> language-index: 0;
+    callback back();
+
+    property <string> title:
+        root.language-index == 2 ? "Notes" :
+        root.language-index == 3 ? "Notes" :
+        root.language-index == 4 ? "Notas" : "Notas";
+
+    width: 320px;
+    height: 216px;
+    background: Theme.bg-0;
+
+    Rectangle { x: 0px; y: 0px; width: 320px; height: 34px; background: Theme.bg-1; Rectangle { x: 0px; y: 33px; width: 320px; height: 1px; background: Theme.stroke-soft; } }
+    Rectangle {
+        x: 6px; y: 4px; width: 34px; height: 28px;
+        border-radius: Theme.radius-s;
+        background: bk.pressed ? Theme.panel-elevated : #00000000;
+        bk := TouchArea { clicked => { root.back(); } }
+        Image { x: 9px; y: 7px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; colorize: Theme.accent; }
+    }
+    Text {
+        x: 0px; y: 0px; width: 320px; height: 34px;
+        text: root.title;
+        color: Theme.text-primary;
+        font-size: Theme.font-md;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    Rectangle {
+        x: 248px; y: 6px; width: 60px; height: 24px;
+        border-radius: Theme.radius-s;
+        background: add.pressed ? Theme.accent-hi : Theme.accent;
+        add := TouchArea { clicked => { root.composing = true; root.draft = ""; } }
+        Text { text: "Nova"; color: Theme.bg-0; font-size: 9px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
+    }
+
+    for item[index] in [
+        { text: root.note-1, tint: Theme.accent-cyan },
+        { text: root.note-2, tint: Theme.warning },
+        { text: root.note-3, tint: Theme.accent-violet },
+    ] : Rectangle {
+        x: 16px; y: 46px + index * 48px; width: 288px; height: 40px;
+        border-radius: Theme.radius-s;
+        background: Theme.panel-soft;
+        border-width: 1px;
+        border-color: Theme.stroke-soft;
+        Rectangle { x: 8px; y: 10px; width: 20px; height: 20px; border-radius: 6px; background: Theme.bg-2; }
+        Image { x: 12px; y: 14px; width: 12px; height: 12px; source: @image-url("assets/icons/file-text.svg"); image-fit: contain; colorize: item.tint; }
+        Text { x: 38px; y: 6px; width: 236px; height: 28px; text: item.text; color: Theme.text-secondary; font-size: Theme.font-sm; wrap: word-wrap; overflow: elide; }
+    }
+
+    if root.composing: Rectangle {
+        x: 0px; y: 0px; width: 320px; height: 216px;
+        background: #03050ECC;
+        TouchArea { clicked => { } }
+        Rectangle {
+            x: 8px; y: 8px; width: 304px; height: 200px;
+            border-radius: Theme.radius-m;
+            background: Theme.bg-1;
+            border-width: 1px;
+            border-color: Theme.stroke;
+            Text { x: 14px; y: 10px; width: 220px; height: 16px; text: "Nova nota"; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 800; }
+            Rectangle {
+                x: 14px; y: 32px; width: 276px; height: 30px;
+                border-radius: Theme.radius-s;
+                background: Theme.bg-0;
+                border-width: 1px;
+                border-color: root.draft == "" ? Theme.stroke-soft : Theme.accent-deep;
+                Text { x: 8px; y: 0px; width: 260px; height: 30px; text: root.draft == "" ? "Escrever..." : root.draft; color: root.draft == "" ? Theme.text-muted : Theme.text-primary; font-size: Theme.font-sm; vertical-alignment: center; overflow: elide; }
+            }
+            if root.keyboard-mode == 0: Rectangle {
+                x: 14px; y: 70px; width: 276px; height: 76px; background: #00000000;
+                NoteKeyRow { x: 0px; y: 0px; width: 276px; height: 22px; keys: ["a","b","c","d","e","f","g","h"]; text-value <=> root.draft; }
+                NoteKeyRow { x: 0px; y: 26px; width: 276px; height: 22px; keys: ["i","j","k","l","m","n","o","p"]; text-value <=> root.draft; }
+                NoteKeyRow { x: 0px; y: 52px; width: 276px; height: 22px; keys: ["q","r","s","t","u","v"," "]; text-value <=> root.draft; }
+            }
+            if root.keyboard-mode == 1: Rectangle {
+                x: 14px; y: 70px; width: 276px; height: 76px; background: #00000000;
+                NoteKeyRow { x: 0px; y: 0px; width: 276px; height: 22px; keys: ["A","B","C","D","E","F","G","H"]; text-value <=> root.draft; }
+                NoteKeyRow { x: 0px; y: 26px; width: 276px; height: 22px; keys: ["I","J","K","L","M","N","O","P"]; text-value <=> root.draft; }
+                NoteKeyRow { x: 0px; y: 52px; width: 276px; height: 22px; keys: ["Q","R","S","T","U","V"," "]; text-value <=> root.draft; }
+            }
+            if root.keyboard-mode == 2: Rectangle {
+                x: 14px; y: 70px; width: 276px; height: 76px; background: #00000000;
+                NoteKeyRow { x: 0px; y: 0px; width: 276px; height: 22px; keys: ["0","1","2","3","4","5","6","7"]; text-value <=> root.draft; }
+                NoteKeyRow { x: 0px; y: 26px; width: 276px; height: 22px; keys: ["8","9",".",",","?","!","-","_"]; text-value <=> root.draft; }
+                NoteKeyRow { x: 0px; y: 52px; width: 276px; height: 22px; keys: ["@","#","/",";",":","+"," "]; text-value <=> root.draft; }
+            }
+            NoteAction { x: 14px; y: 166px; width: 48px; height: 24px; label: root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc"; clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
+            NoteAction { x: 66px; y: 166px; width: 54px; height: 24px; label: "Limpar"; clicked => { root.draft = ""; } }
+            NoteAction { x: 124px; y: 166px; width: 70px; height: 24px; label: "Cancelar"; clicked => { root.composing = false; } }
+            NoteAction {
+                x: 198px; y: 166px; width: 92px; height: 24px;
+                label: "Guardar";
+                primary: root.draft != "";
+                clicked => {
+                    if (root.draft != "") {
+                        root.note-3 = root.note-2;
+                        root.note-2 = root.note-1;
+                        root.note-1 = root.draft;
+                        root.composing = false;
+                    }
+                }
+            }
+        }
+    }
+}

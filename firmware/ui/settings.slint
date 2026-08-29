@@ -144,7 +144,7 @@ component StepperRow inherits Rectangle {
         font-weight: 700;
     }
     Text {
-        x: 196px; y: 9px; width: 40px; height: 14px;
+        x: 236px; y: 9px; width: 40px; height: 14px;
         text: Math.round(root.value * 100) + "%";
         color: Theme.accent;
         font-size: Theme.font-sm;
@@ -154,7 +154,7 @@ component StepperRow inherits Rectangle {
 
     // Trilha do slider
     Rectangle {
-        x: 44px; y: 32px; width: 148px; height: 6px;
+        x: 44px; y: 32px; width: 136px; height: 6px;
         border-radius: 3px;
         background: Theme.bg-2;
         Rectangle {
@@ -186,7 +186,7 @@ component StepperRow inherits Rectangle {
 
     // Botao menos
     Rectangle {
-        x: 200px; y: 14px; width: 34px; height: 28px;
+        x: 194px; y: 24px; width: 34px; height: 24px;
         border-radius: Theme.radius-s;
         background: tm.pressed ? Theme.panel-elevated : Theme.bg-2;
         border-width: 1px;
@@ -201,7 +201,7 @@ component StepperRow inherits Rectangle {
     }
     // Botao mais
     Rectangle {
-        x: 242px; y: 14px; width: 34px; height: 28px;
+        x: 238px; y: 24px; width: 34px; height: 24px;
         border-radius: Theme.radius-s;
         background: tp.pressed ? Theme.accent-deep : Theme.accent;
         tp := TouchArea {
@@ -219,13 +219,13 @@ component StepperRow inherits Rectangle {
 // =====================================================
 component PasswordKey inherits Rectangle {
     in property <string> label;
-    in-out property <string> password;
+    callback pressed(string);
 
     border-radius: Theme.radius-xs;
     background: t.pressed ? Theme.accent : Theme.panel-elevated;
     border-width: 1px;
     border-color: t.pressed ? Theme.accent-hi : Theme.stroke-soft;
-    t := TouchArea { clicked => { root.password = root.password + root.label; } }
+    t := TouchArea { clicked => { root.pressed(root.label); } }
     Text {
         text: root.label;
         color: t.pressed ? Theme.bg-0 : Theme.text-primary;
@@ -238,13 +238,13 @@ component PasswordKey inherits Rectangle {
 
 component PasswordKeyRow inherits HorizontalLayout {
     in property <[string]> keys;
-    in-out property <string> password;
+    callback pressed(string);
     spacing: 4px;
     for key in root.keys : PasswordKey {
         width: 32px;
         height: 24px;
         label: key;
-        password <=> root.password;
+        pressed(value) => { root.pressed(value); }
     }
 }
 
@@ -282,18 +282,86 @@ component WifiPasswordDialog inherits Rectangle {
     in-out property <string> ssid;
     in-out property <string> password;
     in-out property <int> keyboard-mode: 0;
+    in-out property <int> filled: 0;
+    in-out property <string> p0: "";
+    in-out property <string> p1: "";
+    in-out property <string> p2: "";
+    in-out property <string> p3: "";
+    in-out property <string> p4: "";
+    in-out property <string> p5: "";
+    in-out property <string> p6: "";
+    in-out property <string> p7: "";
+    in-out property <string> p8: "";
+    in-out property <string> p9: "";
+    in-out property <string> p10: "";
+    in-out property <string> p11: "";
+    in-out property <string> p12: "";
+    in-out property <string> p13: "";
+    in-out property <string> p14: "";
+    in-out property <string> p15: "";
+    property <string> password-str: root.p0 + root.p1 + root.p2 + root.p3 + root.p4 + root.p5 + root.p6 + root.p7 + root.p8 + root.p9 + root.p10 + root.p11 + root.p12 + root.p13 + root.p14 + root.p15;
     callback connect(string, string);
     callback cancel();
     callback backspace();
 
     background: #04070EE0;
 
-    // Bloqueador de toque: absorve qualquer clique na area do dialog
-    // (incluindo margens/espacos entre teclas) para que nada por tras
-    // do teclado (botao voltar, redes, swipe de paginas) seja acionado
-    // sem querer. Fica declarado primeiro para nao tapar visualmente
-    // os elementos reais do teclado, que sao desenhados por cima.
-    TouchArea { x: 0px; y: 0px; width: 100%; height: 100%; clicked => {} }
+    TouchArea { x: 0px; y: 0px; width: 100%; height: 100%; clicked => { } }
+
+    function append-key(value: string) {
+        if (root.filled < 16) {
+            if      (root.filled == 0) { root.p0 = value; }
+            else if (root.filled == 1) { root.p1 = value; }
+            else if (root.filled == 2) { root.p2 = value; }
+            else if (root.filled == 3) { root.p3 = value; }
+            else if (root.filled == 4) { root.p4 = value; }
+            else if (root.filled == 5) { root.p5 = value; }
+            else if (root.filled == 6) { root.p6 = value; }
+            else if (root.filled == 7) { root.p7 = value; }
+            else if (root.filled == 8) { root.p8 = value; }
+            else if (root.filled == 9) { root.p9 = value; }
+            else if (root.filled == 10) { root.p10 = value; }
+            else if (root.filled == 11) { root.p11 = value; }
+            else if (root.filled == 12) { root.p12 = value; }
+            else if (root.filled == 13) { root.p13 = value; }
+            else if (root.filled == 14) { root.p14 = value; }
+            else if (root.filled == 15) { root.p15 = value; }
+            root.filled = root.filled + 1;
+            root.password = root.password-str;
+        }
+    }
+
+    function clear-password() {
+        root.p0 = ""; root.p1 = ""; root.p2 = ""; root.p3 = "";
+        root.p4 = ""; root.p5 = ""; root.p6 = ""; root.p7 = "";
+        root.p8 = ""; root.p9 = ""; root.p10 = ""; root.p11 = "";
+        root.p12 = ""; root.p13 = ""; root.p14 = ""; root.p15 = "";
+        root.filled = 0;
+        root.password = "";
+    }
+
+    function delete-key() {
+        if (root.filled > 0) {
+            if      (root.filled == 1) { root.p0 = ""; }
+            else if (root.filled == 2) { root.p1 = ""; }
+            else if (root.filled == 3) { root.p2 = ""; }
+            else if (root.filled == 4) { root.p3 = ""; }
+            else if (root.filled == 5) { root.p4 = ""; }
+            else if (root.filled == 6) { root.p5 = ""; }
+            else if (root.filled == 7) { root.p6 = ""; }
+            else if (root.filled == 8) { root.p7 = ""; }
+            else if (root.filled == 9) { root.p8 = ""; }
+            else if (root.filled == 10) { root.p9 = ""; }
+            else if (root.filled == 11) { root.p10 = ""; }
+            else if (root.filled == 12) { root.p11 = ""; }
+            else if (root.filled == 13) { root.p12 = ""; }
+            else if (root.filled == 14) { root.p13 = ""; }
+            else if (root.filled == 15) { root.p14 = ""; }
+            else if (root.filled == 16) { root.p15 = ""; }
+            root.filled = root.filled - 1;
+            root.password = root.password-str;
+        }
+    }
 
     Rectangle {
         x: 8px; y: 6px; width: 304px; height: 204px;
@@ -334,11 +402,11 @@ component WifiPasswordDialog inherits Rectangle {
             border-radius: Theme.radius-s;
             background: Theme.bg-0;
             border-width: 1px;
-            border-color: root.password == "" ? Theme.stroke-soft : Theme.accent-deep;
+            border-color: root.password-str == "" ? Theme.stroke-soft : Theme.accent-deep;
             Text {
                 x: 10px; y: 0px; width: 264px; height: 100%;
-                text: root.password == "" ? "Digite a senha..." : root.password;
-                color: root.password == "" ? Theme.text-muted : Theme.accent-cyan;
+                text: root.password-str == "" ? "Digite a senha..." : root.password-str;
+                color: root.password-str == "" ? Theme.text-muted : Theme.accent-cyan;
                 font-size: Theme.font-sm;
                 vertical-alignment: center;
                 overflow: elide;
@@ -347,31 +415,31 @@ component WifiPasswordDialog inherits Rectangle {
 
         if root.keyboard-mode == 0: Rectangle {
             x: 10px; y: 68px; width: 284px; height: 104px; background: #00000000;
-            PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["a","b","c","d","e","f","g","h"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["i","j","k","l","m","n","o","p"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["q","r","s","t","u","v","w","x"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: ["y","z","0","1","2","3","4","5"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["a","b","c","d","e","f","g","h"]; pressed(value) => { root.append-key(value); } }
+            PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["i","j","k","l","m","n","o","p"]; pressed(value) => { root.append-key(value); } }
+            PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["q","r","s","t","u","v","w","x"]; pressed(value) => { root.append-key(value); } }
+            PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: ["y","z","0","1","2","3","4","5"]; pressed(value) => { root.append-key(value); } }
         }
         if root.keyboard-mode == 1: Rectangle {
             x: 10px; y: 68px; width: 284px; height: 104px; background: #00000000;
-            PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["A","B","C","D","E","F","G","H"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["I","J","K","L","M","N","O","P"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["Q","R","S","T","U","V","W","X"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: ["Y","Z","6","7","8","9","-","_"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["A","B","C","D","E","F","G","H"]; pressed(value) => { root.append-key(value); } }
+            PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["I","J","K","L","M","N","O","P"]; pressed(value) => { root.append-key(value); } }
+            PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["Q","R","S","T","U","V","W","X"]; pressed(value) => { root.append-key(value); } }
+            PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: ["Y","Z","6","7","8","9","-","_"]; pressed(value) => { root.append-key(value); } }
         }
         if root.keyboard-mode == 2: Rectangle {
             x: 10px; y: 68px; width: 284px; height: 104px; background: #00000000;
-            PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["0","1","2","3","4","5","6","7"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["8","9","@","#","$","%","&","!"]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["?","-","_","+",".","/","*","="]; password <=> root.password; }
-            PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: [":",";","(",")","[","]","{","}"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["0","1","2","3","4","5","6","7"]; pressed(value) => { root.append-key(value); } }
+            PasswordKeyRow { x: 0px; y: 27px; width: 284px; height: 24px; keys: ["8","9","@","#","$","%","&","!"]; pressed(value) => { root.append-key(value); } }
+            PasswordKeyRow { x: 0px; y: 54px; width: 284px; height: 24px; keys: ["?","-","_","+",".","/","*","="]; pressed(value) => { root.append-key(value); } }
+            PasswordKeyRow { x: 0px; y: 81px; width: 284px; height: 24px; keys: [":",";","(",")","[","]","{","}"]; pressed(value) => { root.append-key(value); } }
         }
 
-        PasswordAction { x: 10px; y: 178px; width: 42px; height: 22px; label: root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc"; clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
-        PasswordAction { x: 56px; y: 178px; width: 40px; height: 22px; icon: @image-url("assets/icons/delete-left.svg"); clicked => { root.backspace(); } }
-        PasswordAction { x: 100px; y: 178px; width: 50px; height: 22px; label: "Limpar"; clicked => { root.password = ""; } }
-        PasswordAction { x: 154px; y: 178px; width: 64px; height: 22px; label: "Cancelar"; clicked => { root.cancel(); } }
-        PasswordAction { x: 222px; y: 178px; width: 72px; height: 22px; label: "Ligar"; primary: root.password != ""; clicked => { if (root.password != "") { root.connect(root.ssid, root.password); } } }
+        PasswordAction { x: 10px; y: 178px; width: 46px; height: 22px; label: root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc"; clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
+        PasswordAction { x: 60px; y: 178px; width: 42px; height: 22px; label: "Del"; clicked => { root.delete-key(); } }
+        PasswordAction { x: 106px; y: 178px; width: 54px; height: 22px; label: "Limpar"; clicked => { root.clear-password(); } }
+        PasswordAction { x: 164px; y: 178px; width: 62px; height: 22px; label: "Cancelar"; clicked => { root.cancel(); } }
+        PasswordAction { x: 230px; y: 178px; width: 64px; height: 22px; label: "Ligar"; primary: root.password-str != ""; clicked => { if (root.password-str != "") { root.connect(root.ssid, root.password-str); } } }
     }
 }
 
@@ -391,6 +459,7 @@ export component SettingsPanel inherits Rectangle {
     in-out property <string> wifi-password: "";
     in-out property <int> wifi-keyboard-mode: 0;
     in-out property <bool> swipe-locked: false;
+    in-out property <int> network-scroll: 0;
 
     property <string> region-label:
         root.region-index == 0 ? "Brasil" :
@@ -424,6 +493,7 @@ export component SettingsPanel inherits Rectangle {
 
     function open-page(next-page: int) {
         root.page = max(0, min(5, next-page));
+        if (root.page != 1) { root.network-scroll = 0; }
         if (root.page == 1) { root.scan-wifi-networks(); }
     }
 
@@ -440,7 +510,15 @@ export component SettingsPanel inherits Rectangle {
         x: 0px; y: 36px; width: 320px; height: 180px;
         moved => {
             if (!root.wifi-password-open && !root.swipe-locked) {
-                if (self.mouse-x - self.pressed-x > 64px) {
+                if (root.page == 1 && self.pressed-y > 96px && self.pressed-y - self.mouse-y > 28px) {
+                    root.network-scroll = min(max(0, root.networks.length - 4), root.network-scroll + 1);
+                    root.swipe-locked = true;
+                    swipe-lock-timer.running = true;
+                } else if (root.page == 1 && self.pressed-y > 96px && self.mouse-y - self.pressed-y > 28px) {
+                    root.network-scroll = max(0, root.network-scroll - 1);
+                    root.swipe-locked = true;
+                    swipe-lock-timer.running = true;
+                } else if (self.mouse-x - self.pressed-x > 64px) {
                     if (root.page > 0) { root.open-page(root.page - 1); }
                     root.swipe-locked = true;
                     swipe-lock-timer.running = true;
@@ -537,6 +615,7 @@ export component SettingsPanel inherits Rectangle {
             label: "Wi-Fi"; icon: @image-url("assets/icons/wifi.svg"); checked <=> root.wifi-on;
             changed(on) => {
                 root.wifi-changed(on);
+                root.network-scroll = 0;
                 if (on) { root.scan-wifi-networks(); }
             }
         }
@@ -556,7 +635,7 @@ export component SettingsPanel inherits Rectangle {
             background: tr.pressed ? Theme.panel-elevated : Theme.panel-soft;
             border-width: 1px;
             border-color: Theme.stroke-soft;
-            tr := TouchArea { clicked => { root.scan-wifi-networks(); } }
+            tr := TouchArea { clicked => { root.network-scroll = 0; root.scan-wifi-networks(); } }
             Image { x: 12px; y: 3px; width: 14px; height: 14px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; colorize: Theme.accent; }
         }
         if !root.wifi-on: Text {
@@ -575,15 +654,10 @@ export component SettingsPanel inherits Rectangle {
             horizontal-alignment: center;
             vertical-alignment: center;
         }
-        // Lista arrastavel: mais redes do que cabe no ecra ficam
-        // acessiveis arrastando para cima/baixo, com um respiro maior
-        // entre os cartoes (34px de passo para cartoes de 30px).
-        if root.wifi-on && root.networks.length > 0: Flickable {
-            x: 0px; y: 104px; width: 292px; height: 54px;
-            viewport-width: 292px;
-            viewport-height: max(54px, root.networks.length * 34px);
+        if root.wifi-on && root.networks.length > 0: Rectangle {
             for n[index] in root.networks : Rectangle {
-                x: 0px; y: index * 34px; width: 292px; height: 30px;
+                visible: index >= root.network-scroll && index < root.network-scroll + 4;
+                x: 0px; y: (index - root.network-scroll) * 28px; width: 292px; height: 25px;
                 border-radius: Theme.radius-s;
                 background: tn.pressed ? Theme.panel-elevated : Theme.panel-soft;
                 border-width: 1px;

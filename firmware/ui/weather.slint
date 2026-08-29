@@ -1,0 +1,94 @@
+import { Theme } from "theme.slint";
+
+export component WeatherPanel inherits Rectangle {
+    in property <string> city: "A carregar";
+    in property <int> temperature: 0;
+    in property <string> summary: "A obter clima";
+    in property <int> language-index: 0;
+    callback back();
+    callback refresh();
+
+    property <string> title:
+        root.language-index == 2 ? "Weather" :
+        root.language-index == 3 ? "Meteo" :
+        root.language-index == 4 ? "Clima" : "Clima";
+    property <string> temp-label: root.temperature + "C";
+
+    width: 320px;
+    height: 216px;
+    background: Theme.bg-0;
+
+    Rectangle { x: 0px; y: 0px; width: 320px; height: 34px; background: Theme.bg-1; Rectangle { x: 0px; y: 33px; width: 320px; height: 1px; background: Theme.stroke-soft; } }
+    Rectangle {
+        x: 6px; y: 4px; width: 34px; height: 28px;
+        border-radius: Theme.radius-s;
+        background: bk.pressed ? Theme.panel-elevated : #00000000;
+        bk := TouchArea { clicked => { root.back(); } }
+        Image { x: 9px; y: 7px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; colorize: Theme.accent; }
+    }
+    Text {
+        x: 0px; y: 0px; width: 320px; height: 34px;
+        text: root.title;
+        color: Theme.text-primary;
+        font-size: Theme.font-md;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    Rectangle {
+        x: 278px; y: 6px; width: 30px; height: 24px;
+        border-radius: Theme.radius-s;
+        background: rf.pressed ? Theme.panel-elevated : Theme.panel-soft;
+        border-width: 1px;
+        border-color: Theme.stroke-soft;
+        rf := TouchArea { clicked => { root.refresh(); } }
+        Image { x: 8px; y: 5px; width: 14px; height: 14px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; colorize: Theme.accent; }
+    }
+
+    Rectangle {
+        x: 18px; y: 48px; width: 284px; height: 126px;
+        border-radius: Theme.radius-m;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.stroke-soft;
+        Rectangle {
+            x: 18px; y: 18px; width: 54px; height: 54px;
+            border-radius: 16px;
+            background: Theme.accent-tint;
+            Image { x: 13px; y: 13px; width: 28px; height: 28px; source: @image-url("assets/icons/cloud.svg"); image-fit: contain; colorize: Theme.accent-hi; }
+        }
+        Text {
+            x: 88px; y: 20px; width: 170px; height: 22px;
+            text: root.city;
+            color: Theme.text-primary;
+            font-size: Theme.font-lg;
+            font-weight: 800;
+            overflow: elide;
+        }
+        Text {
+            x: 88px; y: 47px; width: 170px; height: 38px;
+            text: root.temp-label;
+            color: Theme.accent-hi;
+            font-size: 34px;
+            font-weight: 800;
+            vertical-alignment: center;
+        }
+        Text {
+            x: 88px; y: 88px; width: 170px; height: 16px;
+            text: root.summary;
+            color: Theme.text-secondary;
+            font-size: Theme.font-md;
+            font-weight: 700;
+            overflow: elide;
+        }
+    }
+
+    Text {
+        x: 18px; y: 184px; width: 284px; height: 18px;
+        text: "Open-Meteo";
+        color: Theme.text-muted;
+        font-size: Theme.font-xs;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}

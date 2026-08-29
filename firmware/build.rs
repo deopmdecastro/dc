@@ -19,6 +19,9 @@ fn main() {
     println!("cargo:rerun-if-changed=ui/settings.slint");
     println!("cargo:rerun-if-changed=ui/control_center.slint");
     println!("cargo:rerun-if-changed=ui/alarm.slint");
+    println!("cargo:rerun-if-changed=ui/weather.slint");
+    println!("cargo:rerun-if-changed=ui/notes.slint");
+    println!("cargo:rerun-if-changed=ui/features.slint");
     println!("cargo:rerun-if-changed=ui/assets/branding/dc-assistant-logo-white.png");
     println!("cargo:rerun-if-changed=ui/assets/icons");
 

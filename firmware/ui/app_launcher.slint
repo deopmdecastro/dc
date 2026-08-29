@@ -6,11 +6,12 @@ export struct AppEntry { name: string, icon: image, color: color }
 // tingido com a cor do app e um anel subtil, dando identidade visual sem
 // carregar o ecra pequeno.
 export component AppLauncher inherits Rectangle {
+    in property <int> language-index: 0;
     in property <[AppEntry]> apps: [
         { name: "Assistente", icon: @image-url("assets/icons/message-circle.svg"), color: Theme.accent-blue },
         { name: "Spotify",    icon: @image-url("assets/icons/spotify.svg"),        color: Theme.success },
         { name: "Clima",      icon: @image-url("assets/icons/cloud.svg"),          color: Theme.accent-cyan },
-        { name: "Agenda",     icon: @image-url("assets/icons/calendar.svg"),       color: Theme.accent-violet },
+        { name: "Recursos",   icon: @image-url("assets/icons/zap.svg"),            color: Theme.accent-violet },
         { name: "Notas",      icon: @image-url("assets/icons/file-text.svg"),      color: Theme.warning },
         { name: "Alarme",     icon: @image-url("assets/icons/bell.svg"),           color: Theme.accent-pink },
         { name: "Definicoes", icon: @image-url("assets/icons/settings.svg"),       color: Theme.text-secondary },
@@ -31,7 +32,9 @@ export component AppLauncher inherits Rectangle {
     }
     Text {
         x: 38px; y: 10px; width: 200px; height: 20px;
-        text: "Aplicacoes";
+        text: root.language-index == 2 ? "Apps" :
+              root.language-index == 3 ? "Applications" :
+              root.language-index == 4 ? "Aplicaciones" : "Aplicacoes";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
         font-weight: 700;
@@ -79,7 +82,14 @@ export component AppLauncher inherits Rectangle {
             }
             Text {
                 x: 2px; y: 48px; width: 64px; height: 26px;
-                text: root.apps[i].name;
+                text:
+                    root.language-index == 2 ?
+                        (i == 0 ? "Assistant" : i == 1 ? "Spotify" : i == 2 ? "Weather" : i == 3 ? "Features" : i == 4 ? "Notes" : i == 5 ? "Alarm" : "Settings") :
+                    root.language-index == 3 ?
+                        (i == 0 ? "Assistant" : i == 1 ? "Spotify" : i == 2 ? "Meteo" : i == 3 ? "Fonctions" : i == 4 ? "Notes" : i == 5 ? "Alarme" : "Reglages") :
+                    root.language-index == 4 ?
+                        (i == 0 ? "Asistente" : i == 1 ? "Spotify" : i == 2 ? "Clima" : i == 3 ? "Funciones" : i == 4 ? "Notas" : i == 5 ? "Alarma" : "Ajustes") :
+                    root.apps[i].name;
                 color: Theme.text-secondary;
                 font-size: 9px;
                 font-weight: 600;

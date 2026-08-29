@@ -9,6 +9,7 @@ use embedded_svc::http::client::{Client as HttpClient, Method};
 use embedded_svc::utils::io;
 use esp_idf_svc::http::client::EspHttpConnection;
 use std::sync::mpsc::Sender;
+use std::time::Duration;
 
 include!(concat!(env!("OUT_DIR"), "/spotify_token.rs"));
 
@@ -45,7 +46,7 @@ fn fetch_top_tracks_inner(api_health_url: &str, token: &str) -> Result<Vec<Spoti
 
 fn fetch_top_tracks_from_core(api_health_url: &str) -> Result<Vec<SpotifyTrack>> {
     let url = core_top_tracks_url(api_health_url);
-    let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default())?);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let headers = [("accept", "application/json")];
     let request = client.request(Method::Get, &url, &headers)?;
     let mut response = request.submit()?;
@@ -71,7 +72,7 @@ fn fetch_top_tracks_from_core(api_health_url: &str) -> Result<Vec<SpotifyTrack>>
 }
 
 fn fetch_top_tracks_from_spotify(token: &str) -> Result<Vec<SpotifyTrack>> {
-    let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default())?);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let headers = [
         ("accept", "application/json"),
         ("authorization", &format!("Bearer {token}")),
@@ -120,6 +121,13 @@ fn core_top_tracks_url(api_health_url: &str) -> String {
         .strip_suffix("/health")
         .unwrap_or_else(|| api_health_url.trim_end_matches('/'));
     format!("{base}/music/top-tracks?compact=true")
+}
+
+fn http_config() -> esp_idf_svc::http::client::Configuration {
+    esp_idf_svc::http::client::Configuration {
+        timeout: Some(Duration::from_secs(6)),
+        ..Default::default()
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

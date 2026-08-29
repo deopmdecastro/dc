@@ -22,12 +22,14 @@ Ambiente local do DC Assistant, orquestrado com Docker Compose.
 | GET | `/music/devices` | Dispositivos Spotify disponiveis |
 | GET | `/music/top-tracks` | Top tracks reais via Spotify Web API |
 | POST | `/music/command` | `{ "action": "play|pause|next|prev" }` |
+| GET | `/weather?region=0..4` | Clima atual via Open-Meteo |
 
 ## Subir Localmente
 
 ```bash
 docker compose up -d --build
 curl http://localhost:8081/health
+curl "http://localhost:8081/weather?region=1"
 ```
 
 ## Variaveis

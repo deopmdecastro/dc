@@ -1,6 +1,6 @@
 //! Task de rede: Wi-Fi station + SNTP + probe HTTP do dc-os-core.
 
-use crate::system::{NetworkCommand, SystemEvent, WifiNetworkInfo};
+use crate::system::{NetworkCommand, SystemEvent, WeatherInfo, WifiNetworkInfo};
 use anyhow::{anyhow, Result};
 use core::convert::TryInto;
 use embedded_svc::{
@@ -26,6 +26,7 @@ pub struct NetConfig {
     pub password: String,
     pub bluetooth_enabled: bool,
     pub api_health_url: String,
+    pub region_index: u8,
     pub timezone_offset_secs: i32,
 }
 
@@ -35,7 +36,8 @@ const CLOCK_INTERVAL_SECS: u64 = 1;
 const API_TIME_INTERVAL_SECS: u64 = 30;
 const WIFI_SCAN_INTERVAL_SECS: u64 = 45;
 const SPOTIFY_RETRY_INTERVAL_SECS: u64 = 60;
-const MAX_WIFI_NETWORKS: usize = 4;
+const WEATHER_INTERVAL_SECS: u64 = 600;
+const MAX_WIFI_NETWORKS: usize = 10;
 
 pub fn spawn_network_task(
     modem: Modem<'static>,
@@ -72,6 +74,7 @@ fn run_network(
     let mut desired_wifi = cfg.enabled;
     let mut ssid = cfg.ssid;
     let mut password = cfg.password;
+    let mut region_index = cfg.region_index.min(4);
     let mut timezone_offset_secs = cfg.timezone_offset_secs;
     let mut connected = false;
     let mut sntp: Option<EspSntp<'static>> = None;
@@ -80,6 +83,7 @@ fn run_network(
     let mut next_api_time_in = 0_u64;
     let mut next_scan_in = 0_u64;
     let mut next_spotify_in = 0_u64;
+    let mut next_weather_in = 0_u64;
     let mut last_api_time = "--:--".to_owned();
 
     log::info!(
@@ -137,11 +141,20 @@ fn run_network(
                     );
                     let _ = event_tx.send(SystemEvent::BluetoothDevicesChanged(Vec::new()));
                 }
-                NetworkCommand::SetTimezoneOffset(offset_secs) => {
+                NetworkCommand::SetLocale {
+                    region_index: next_region,
+                    timezone_offset_secs: offset_secs,
+                } => {
+                    region_index = next_region.min(4);
                     timezone_offset_secs = offset_secs;
+                    next_weather_in = 0;
                     let _ =
                         event_tx.send(SystemEvent::TimeChanged(current_hhmm(timezone_offset_secs)));
-                    log::info!("SNTP: timezone offset={}s", offset_secs);
+                    log::info!(
+                        "SNTP: region={} timezone offset={}s",
+                        region_index,
+                        offset_secs
+                    );
                 }
                 NetworkCommand::MusicCommand(action) => {
                     if connected {
@@ -190,6 +203,7 @@ fn run_network(
                     next_clock_in = 0;
                     next_api_time_in = 0;
                     next_spotify_in = 0;
+                    next_weather_in = 0;
                 }
                 Err(e) => {
                     log::warn!("Wi-Fi: falha ao conectar: {e:?}");
@@ -236,7 +250,10 @@ fn run_network(
 
             if next_probe_in == 0 {
                 let ok = probe_api(&cfg.api_health_url).unwrap_or_else(|e| {
-                    log::warn!("API: health falhou: {e:?}");
+                    log::warn!(
+                        "API: health falhou em '{}': {e:?}; confirma DC_CORE_HTTP com o IP do PC na mesma rede",
+                        cfg.api_health_url
+                    );
                     false
                 });
                 let _ = event_tx.send(SystemEvent::ApiHealthChanged(ok));
@@ -247,11 +264,29 @@ fn run_network(
 
             if next_spotify_in == 0 {
                 let spotify_token = crate::spotify::SPOTIFY_TOKEN;
-                log::info!("Spotify: a pedir top tracks");
+                log::info!("Spotify: a pedir top tracks via {}", cfg.api_health_url);
                 crate::spotify::fetch_top_tracks(&cfg.api_health_url, spotify_token, &event_tx);
                 next_spotify_in = SPOTIFY_RETRY_INTERVAL_SECS;
             } else {
                 next_spotify_in = next_spotify_in.saturating_sub(1);
+            }
+
+            if next_weather_in == 0 {
+                match fetch_weather(&cfg.api_health_url, region_index) {
+                    Ok(weather) => {
+                        log::info!(
+                            "Clima: {} {}C {}",
+                            weather.city,
+                            weather.temperature_c,
+                            weather.summary
+                        );
+                        let _ = event_tx.send(SystemEvent::WeatherChanged(weather));
+                    }
+                    Err(e) => log::warn!("Clima: falha ao obter clima real: {e:?}"),
+                }
+                next_weather_in = WEATHER_INTERVAL_SECS;
+            } else {
+                next_weather_in = next_weather_in.saturating_sub(1);
             }
         }
 
@@ -301,7 +336,7 @@ fn connect_wifi(
 }
 
 fn probe_api(url: &str) -> Result<bool> {
-    let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default())?);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let headers = [("accept", "application/json")];
     let request = client.request(Method::Get, url, &headers)?;
     log::info!("API: GET {url}");
@@ -316,7 +351,7 @@ fn probe_api(url: &str) -> Result<bool> {
 
 fn fetch_api_time(health_url: &str, offset_secs: i32) -> Result<String> {
     let url = api_time_url(health_url, offset_secs);
-    let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default())?);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let headers = [("accept", "application/json")];
     let request = client.request(Method::Get, &url, &headers)?;
     log::info!("API: GET {url}");
@@ -345,6 +380,40 @@ fn api_time_url(health_url: &str, offset_secs: i32) -> String {
     format!("{base}/time?offset_secs={offset_secs}")
 }
 
+fn fetch_weather(health_url: &str, region_index: u8) -> Result<WeatherInfo> {
+    let url = api_weather_url(health_url, region_index);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, &url, &headers)?;
+    log::info!("API: GET {url}");
+    let mut response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("API /weather retornou HTTP {status}"));
+    }
+
+    let mut buf = [0_u8; 512];
+    let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0)?;
+    let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
+    let value: WeatherApiResponse = serde_json::from_str(body)?;
+    if !value.ok {
+        return Err(anyhow!("API /weather respondeu ok=false"));
+    }
+
+    Ok(WeatherInfo {
+        city: value.city,
+        temperature_c: value.temperature_c,
+        summary: value.summary,
+    })
+}
+
+fn api_weather_url(health_url: &str, region_index: u8) -> String {
+    let base = health_url
+        .strip_suffix("/health")
+        .unwrap_or_else(|| health_url.trim_end_matches('/'));
+    format!("{base}/weather?region={}", region_index.min(4))
+}
+
 fn post_music_command(health_url: &str, action: &str) -> Result<()> {
     let url = music_command_url(health_url);
     let payload = format!("{{\"action\":\"{}\"}}", action);
@@ -354,7 +423,7 @@ fn post_music_command(health_url: &str, action: &str) -> Result<()> {
         ("content-length", content_length.as_str()),
     ];
 
-    let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default())?);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let mut request = client.request(Method::Post, &url, &headers)?;
     request.write_all(payload.as_bytes())?;
     request.flush()?;
@@ -440,6 +509,21 @@ fn music_command_url(health_url: &str) -> String {
         format!("{base}/music/command")
     } else {
         format!("{}/music/command", health_url.trim_end_matches('/'))
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct WeatherApiResponse {
+    ok: bool,
+    city: String,
+    temperature_c: i32,
+    summary: String,
+}
+
+fn http_config() -> esp_idf_svc::http::client::Configuration {
+    esp_idf_svc::http::client::Configuration {
+        timeout: Some(Duration::from_secs(6)),
+        ..Default::default()
     }
 }
 

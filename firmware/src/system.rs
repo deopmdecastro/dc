@@ -7,6 +7,7 @@ pub enum SystemEvent {
     ApiHealthChanged(bool),
     TimeChanged(String),
     SpotifyTracksLoaded(Vec<crate::spotify::SpotifyTrack>),
+    WeatherChanged(WeatherInfo),
 }
 
 #[derive(Debug, Clone)]
@@ -24,12 +25,25 @@ pub struct BluetoothDeviceInfo {
 }
 
 #[derive(Debug, Clone)]
+pub struct WeatherInfo {
+    pub city: String,
+    pub temperature_c: i32,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone)]
 pub enum NetworkCommand {
     SetWifiEnabled(bool),
     ScanWifi,
-    SetWifiCredentials { ssid: String, password: String },
+    SetWifiCredentials {
+        ssid: String,
+        password: String,
+    },
     SetBluetoothEnabled(bool),
     ScanBluetooth,
-    SetTimezoneOffset(i32),
+    SetLocale {
+        region_index: u8,
+        timezone_offset_secs: i32,
+    },
     MusicCommand(String),
 }

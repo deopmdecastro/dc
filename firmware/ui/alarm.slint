@@ -52,12 +52,27 @@ export component AlarmPanel inherits Rectangle {
     in-out property <bool> enabled: false;
     in-out property <int> hour: 7;
     in-out property <int> minute: 0;
+    in-out property <int> day-mode: 0;
+    in-out property <int> tone-index: 0;
+    in property <int> language-index: 0;
 
     property <string> hour-label: root.hour < 10 ? "0" + root.hour : "" + root.hour;
     property <string> minute-label: root.minute < 10 ? "0" + root.minute : "" + root.minute;
+    property <string> day-label:
+        root.day-mode == 0 ? "Todos os dias" :
+        root.day-mode == 1 ? "Dias uteis" :
+        root.day-mode == 2 ? "Fim de semana" : "Uma vez";
+    property <string> tone-label:
+        root.tone-index == 0 ? "Suave" :
+        root.tone-index == 1 ? "Digital" : "Pulso";
+    property <string> title:
+        root.language-index == 2 ? "Alarm" :
+        root.language-index == 3 ? "Alarme" :
+        root.language-index == 4 ? "Alarma" : "Alarme";
 
     callback back();
-    callback alarm-changed(bool, int, int);
+    callback alarm-changed(bool, int, int, int, int);
+    callback test-tone(int);
 
     width: 320px;
     height: 216px;
@@ -74,7 +89,7 @@ export component AlarmPanel inherits Rectangle {
     }
     Text {
         x: 0px; y: 0px; width: 320px; height: 34px;
-        text: "Alarme";
+        text: root.title;
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
@@ -84,23 +99,23 @@ export component AlarmPanel inherits Rectangle {
 
     // Display da hora
     Rectangle {
-        x: 24px; y: 44px; width: 272px; height: 64px;
+        x: 18px; y: 42px; width: 284px; height: 54px;
         border-radius: Theme.radius-m;
         background: root.enabled ? Theme.accent-tint : Theme.panel-soft;
         border-width: 1px;
         border-color: root.enabled ? Theme.accent-deep : Theme.stroke-soft;
         animate background { duration: 150ms; }
         Text {
-            x: 0px; y: 8px; width: 100%; height: 38px;
+            x: 0px; y: 5px; width: 100%; height: 32px;
             text: root.hour-label + ":" + root.minute-label;
             color: root.enabled ? Theme.accent-hi : Theme.text-primary;
-            font-size: 34px;
+            font-size: 30px;
             font-weight: 800;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
         Text {
-            x: 0px; y: 46px; width: 100%; height: 12px;
+            x: 0px; y: 38px; width: 100%; height: 12px;
             text: root.enabled ? "Alarme ativo" : "Desligado";
             color: root.enabled ? Theme.success : Theme.text-muted;
             font-size: Theme.font-xs;
@@ -110,12 +125,12 @@ export component AlarmPanel inherits Rectangle {
     }
 
     AlarmToggle {
-        x: 24px; y: 116px; width: 272px; height: 40px;
+        x: 18px; y: 102px; width: 284px; height: 38px;
         label: "Ativar alarme";
         checked <=> root.enabled;
         changed(on) => {
             root.enabled = on;
-            root.alarm-changed(root.enabled, root.hour, root.minute);
+            root.alarm-changed(root.enabled, root.hour, root.minute, root.day-mode, root.tone-index);
         }
     }
 
@@ -126,7 +141,7 @@ export component AlarmPanel inherits Rectangle {
         { label: "M -", kind: 2, primary: false },
         { label: "M +", kind: 3, primary: true },
     ] : Rectangle {
-        x: 24px + index * 70px; y: 164px; width: 62px; height: 42px;
+        x: 18px + index * 73px; y: 146px; width: 64px; height: 28px;
         border-radius: Theme.radius-m;
         background: it.pressed ? Theme.accent-hi : (item.primary ? Theme.accent-deep : Theme.panel-elevated);
         border-width: 1px;
@@ -137,7 +152,7 @@ export component AlarmPanel inherits Rectangle {
                 if (item.kind == 1) { root.hour = root.hour == 23 ? 0 : root.hour + 1; }
                 if (item.kind == 2) { root.minute = root.minute == 0 ? 55 : root.minute - 5; }
                 if (item.kind == 3) { root.minute = root.minute == 55 ? 0 : root.minute + 5; }
-                root.alarm-changed(root.enabled, root.hour, root.minute);
+                root.alarm-changed(root.enabled, root.hour, root.minute, root.day-mode, root.tone-index);
             }
         }
         Text {
@@ -148,5 +163,47 @@ export component AlarmPanel inherits Rectangle {
             horizontal-alignment: center;
             vertical-alignment: center;
         }
+    }
+
+    Rectangle {
+        x: 18px; y: 180px; width: 132px; height: 28px;
+        border-radius: Theme.radius-s;
+        background: days.pressed ? Theme.panel-elevated : Theme.panel-soft;
+        border-width: 1px;
+        border-color: Theme.stroke-soft;
+        days := TouchArea {
+            clicked => {
+                root.day-mode = root.day-mode == 3 ? 0 : root.day-mode + 1;
+                root.alarm-changed(root.enabled, root.hour, root.minute, root.day-mode, root.tone-index);
+            }
+        }
+        Text { x: 8px; y: 3px; width: 116px; height: 10px; text: "Dias"; color: Theme.text-muted; font-size: 8px; }
+        Text { x: 8px; y: 13px; width: 116px; height: 12px; text: root.day-label; color: Theme.text-primary; font-size: 9px; font-weight: 700; overflow: elide; }
+    }
+
+    Rectangle {
+        x: 156px; y: 180px; width: 90px; height: 28px;
+        border-radius: Theme.radius-s;
+        background: tone.pressed ? Theme.panel-elevated : Theme.panel-soft;
+        border-width: 1px;
+        border-color: Theme.stroke-soft;
+        tone := TouchArea {
+            clicked => {
+                root.tone-index = root.tone-index == 2 ? 0 : root.tone-index + 1;
+                root.alarm-changed(root.enabled, root.hour, root.minute, root.day-mode, root.tone-index);
+            }
+        }
+        Text { x: 7px; y: 3px; width: 74px; height: 10px; text: "Toque"; color: Theme.text-muted; font-size: 8px; }
+        Text { x: 7px; y: 13px; width: 74px; height: 12px; text: root.tone-label; color: Theme.text-primary; font-size: 9px; font-weight: 700; overflow: elide; }
+    }
+
+    Rectangle {
+        x: 252px; y: 180px; width: 50px; height: 28px;
+        border-radius: Theme.radius-s;
+        background: test.pressed ? Theme.accent-hi : Theme.accent-deep;
+        border-width: 1px;
+        border-color: Theme.accent;
+        test := TouchArea { clicked => { root.test-tone(root.tone-index); } }
+        Text { text: "Testar"; color: Theme.accent-hi; font-size: 9px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
     }
 }
