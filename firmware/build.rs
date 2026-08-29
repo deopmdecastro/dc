@@ -6,6 +6,7 @@ fn main() {
     println!("cargo:rerun-if-changed=partitions.csv");
     println!("cargo:rerun-if-changed=sdkconfig.defaults");
     println!("cargo:rerun-if-env-changed=SPOTIFY_TOKEN");
+    println!("cargo:rerun-if-env-changed=FISH_AUDIO_API_KEY");
     println!("cargo:rerun-if-changed=.env");
     println!("cargo:rerun-if-changed=.env.local");
     println!("cargo:rerun-if-changed=ui/main.slint");
@@ -26,6 +27,7 @@ fn main() {
     println!("cargo:rerun-if-changed=ui/assets/icons");
 
     write_generated_spotify_token();
+    write_generated_fish_audio_key();
 
     slint_build::compile_with_config(
         "ui/main.slint",
@@ -51,6 +53,22 @@ fn write_generated_spotify_token() {
     );
 
     fs::write(out_dir.join("spotify_token.rs"), contents).expect("falha ao gerar spotify_token.rs");
+}
+
+fn write_generated_fish_audio_key() {
+    let token = env::var("FISH_AUDIO_API_KEY")
+        .ok()
+        .or_else(|| read_env_value(".env.local", "FISH_AUDIO_API_KEY"))
+        .or_else(|| read_env_value(".env", "FISH_AUDIO_API_KEY"))
+        .unwrap_or_default();
+
+    let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR nao definido"));
+    let contents = format!(
+        "pub const FISH_AUDIO_API_KEY: &str = {};\n",
+        rust_string_literal(token.trim())
+    );
+    fs::write(out_dir.join("fish_audio_key.rs"), contents)
+        .expect("falha ao gerar fish_audio_key.rs");
 }
 
 fn read_env_value(path: &str, key: &str) -> Option<String> {

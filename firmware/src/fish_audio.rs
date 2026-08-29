@@ -13,7 +13,8 @@ use std::io::Write;
 use std::path::Path;
 
 const API_BASE: &str = "https://api.fish.audio";
-const API_KEY: &str = "sk-fish-BLy-c3digkIFmP_Ydd9nswnnlhbNUQK23M6Q3lCA83E";
+mod generated { include!(concat!(env!("OUT_DIR"), "/fish_audio_key.rs")); }
+const API_KEY: &str = generated::FISH_AUDIO_API_KEY;
 const SOUND_DIR: &str = "sound";
 
 fn http_config() -> esp_idf_svc::http::client::Configuration {
@@ -90,13 +91,13 @@ pub fn tts(text: &str, voice_id: Option<&str>) -> Result<String> {
     }
     let voice = voice_id.unwrap_or("7f2844ae83a14f5682cf382304f1a7fc");
     let url = format!("{}/v1/tts", API_BASE);
-    let payload = format!(r#"{{"text":"{}","reference_id":"{}"}}"#, text.replace('"', "\\\""), voice);
+    let payload = format!(r#"{{"text":{},"reference_id":{},"model":"s2.1-pro-free","format":"wav","sample_rate":16000}}"#, serde_json::to_string(text)?, serde_json::to_string(voice)?);
     log::info!("Fish Audio TTS: {} caracteres", text.len());
 
     let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let content_length = payload.len().to_string();
     let headers = [
-        ("accept", "audio/mpeg"),
+        ("accept", "audio/wav"),
         ("content-type", "application/json"),
         ("content-length", content_length.as_str()),
         ("authorization", &format!("Bearer {}", API_KEY)),
@@ -112,7 +113,7 @@ pub fn tts(text: &str, voice_id: Option<&str>) -> Result<String> {
         return Err(anyhow!("Fish Audio TTS retornou HTTP {status}"));
     }
 
-    let filename = format!("{}.mp3", generate_id());
+    let filename = format!("{}.wav", generate_id());
     let path = format!("{}/{}", SOUND_DIR, filename);
     ensure_sound_dir()?;
 
@@ -126,6 +127,8 @@ pub fn tts(text: &str, voice_id: Option<&str>) -> Result<String> {
         let data = &buf[..bytes_read];
         let mut file = std::fs::OpenOptions::new()
             .create(true)
+            .write(true)
+            .truncate(total_bytes == 0)
             .append(true)
             .open(&path)?;
         file.write_all(data)?;
@@ -188,7 +191,8 @@ pub fn download_sound_effect(effect_id: &str, name: Option<&str>) -> Result<Stri
         return Err(anyhow!("Fish Audio download retornou HTTP {status}"));
     }
 
-    let filename = format!("{}.mp3", name.unwrap_or(effect_id));
+    let raw_name = name.unwrap_or(effect_id);
+    let filename = format!("{}.mp3", raw_name.replace('/', "_").replace('\\', "_"));
     let path = format!("{}/{}", SOUND_DIR, filename);
     ensure_sound_dir()?;
 
@@ -202,6 +206,8 @@ pub fn download_sound_effect(effect_id: &str, name: Option<&str>) -> Result<Stri
         let data = &buf[..bytes_read];
         let mut file = std::fs::OpenOptions::new()
             .create(true)
+            .write(true)
+            .truncate(total_bytes == 0)
             .append(true)
             .open(&path)?;
         file.write_all(data)?;

@@ -55,12 +55,12 @@ export component AppWindow inherits Window {
     in-out property <bool> listening: false;
     in-out property <bool> speaking: false;
     in-out property <float> screen-opacity: 1.0;
-    in-out property <string> weather-city: "A carregar";
+    in-out property <string> weather-city: "Loading";
     in-out property <int> weather-temp: 0;
-    in-out property <string> weather-summary: "A obter clima";
+    in-out property <string> weather-summary: "Loading weather";
 
     // Spotify track data (preenchido pelo Rust)
-    in-out property <[string]> spotify-titles: ["A carregar..."];
+    in-out property <[string]> spotify-titles: ["Loading..."];
     in-out property <[string]> spotify-artists: [""];
     in-out property <[string]> spotify-albums: [""];
     in-out property <[WifiNetwork]> wifi-networks: [];

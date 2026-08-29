@@ -418,7 +418,7 @@ fn fetch_weather(_health_url: &str, region_index: u8) -> Result<WeatherInfo> {
     if !(200..300).contains(&status) {
         return Err(anyhow!("Open-Meteo retornou HTTP {status}"));
     }
-    let mut buf = [0_u8; 1024];
+    let mut buf = [0_u8; 4096];
     let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0)?;
     let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
     let value: OpenMeteoResponse = serde_json::from_str(body)?;
@@ -627,7 +627,7 @@ fn music_command_url(health_url: &str) -> String {
 
 fn http_config() -> esp_idf_svc::http::client::Configuration {
     esp_idf_svc::http::client::Configuration {
-        timeout: Some(Duration::from_secs(6)),
+        timeout: Some(Duration::from_secs(20)),
         ..Default::default()
     }
 }

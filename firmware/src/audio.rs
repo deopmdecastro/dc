@@ -168,11 +168,12 @@ where L: Fn(f32) + Send + 'static {
 pub fn play_file(path: &str) -> Result<()> {
     use std::fs;
     let data = fs::read(path)?;
-    if data.len() < 44 {
-        return Err(anyhow!("Ficheiro audio muito pequeno"));
-    }
-    let samples = bytes_to_pcm(&data[44..]);
-    write_samples(samples)
+    let pcm = if data.len() >= 44 && &data[0..4] == b"RIFF" && &data[8..12] == b"WAVE" {
+        &data[44..]
+    } else {
+        return Err(anyhow!("Formato nao suportado: use WAV PCM 16-bit mono"));
+    };
+    write_samples(bytes_to_pcm(pcm))
 }
 
 fn bytes_to_pcm(data: &[u8]) -> Vec<i16> {
@@ -188,8 +189,8 @@ fn write_samples(samples: Vec<i16>) -> Result<()> {
     std::thread::spawn(move || {
         unsafe {
             let port = esp_idf_sys::i2s_port_t_I2S_NUM_0;
-            if !I2S_INITIALIZED.load(Ordering::SeqCst) {
-                log::warn!("I2S nao inicializado");
+            if let Err(e) = init_i2s_tx() {
+                log::warn!("I2S TX nao inicializado: {e:?}");
                 return;
             }
             let mut written = 0usize;

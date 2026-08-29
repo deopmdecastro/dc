@@ -645,8 +645,10 @@ export component SettingsPanel inherits Rectangle {
         Text {
             x: 8px; y: 40px; width: 284px; height: 10px;
             text: root.wifi-on
-                ? (root.wifi-connected ? "Conectado" : "Desconectado")
-                : "Desligado";
+                ? (root.wifi-connected
+                    ? (root.language-index == 2 ? "Connected" : root.language-index == 3 ? "Connecte" : root.language-index == 4 ? "Conectado" : "Conectado")
+                    : (root.language-index == 2 ? "Disconnected" : root.language-index == 3 ? "Deconnecte" : root.language-index == 4 ? "Desconectado" : "Desconectado"))
+                : (root.language-index == 2 ? "Off" : root.language-index == 3 ? "Desactive" : root.language-index == 4 ? "Apagado" : "Desligado");
             color: root.wifi-on
                 ? (root.wifi-connected ? Theme.success : Theme.warning)
                 : Theme.text-muted;
@@ -654,7 +656,7 @@ export component SettingsPanel inherits Rectangle {
             font-weight: 600;
         }
         SettingsToggle { x: 0px; y: 42px; width: 292px; height: 38px; label: "Bluetooth"; icon: @image-url("assets/icons/bluetooth.svg"); checked <=> root.bluetooth-on; changed(on) => { root.bluetooth-changed(on); } }
-        Text { x: 2px; y: 84px; width: 150px; height: 12px; text: "Redes disponiveis"; color: Theme.text-secondary; font-size: Theme.font-xs; font-weight: 600; vertical-alignment: center; }
+        Text { x: 2px; y: 84px; width: 150px; height: 12px; text: root.language-index == 2 ? "Available networks" : root.language-index == 3 ? "Reseaux disponibles" : root.language-index == 4 ? "Redes disponibles" : "Redes disponiveis"; color: Theme.text-secondary; font-size: Theme.font-xs; font-weight: 600; vertical-alignment: center; }
         Rectangle {
             x: 240px; y: 82px; width: 50px; height: 22px;
             border-radius: Theme.radius-s;
@@ -667,7 +669,7 @@ export component SettingsPanel inherits Rectangle {
         }
         if !root.wifi-on: Text {
             x: 0px; y: 112px; width: 292px; height: 40px;
-            text: "Wi-Fi desligado";
+            text: root.language-index == 2 ? "Wi-Fi off" : root.language-index == 3 ? "Wi-Fi desactive" : root.language-index == 4 ? "Wi-Fi apagado" : "Wi-Fi desligado";
             color: Theme.text-muted;
             font-size: Theme.font-sm;
             horizontal-alignment: center;
@@ -675,7 +677,7 @@ export component SettingsPanel inherits Rectangle {
         }
         if root.wifi-on && root.networks.length == 0: Text {
             x: 0px; y: 112px; width: 292px; height: 40px;
-            text: "A procurar redes...";
+            text: root.language-index == 2 ? "Searching networks..." : root.language-index == 3 ? "Recherche de reseaux..." : root.language-index == 4 ? "Buscando redes..." : "A procurar redes...";
             color: Theme.text-muted;
             font-size: Theme.font-sm;
             horizontal-alignment: center;
@@ -716,7 +718,7 @@ export component SettingsPanel inherits Rectangle {
                 // Nome da rede (SSID)
                 Text { x: 32px; y: 3px; width: 150px; height: 13px; text: n.ssid; color: n.connected ? Theme.success : Theme.text-primary; font-size: Theme.font-sm; font-weight: 700; overflow: elide; }
                 // Status: Conectado/Protegida/Aberta
-                Text { x: 32px; y: 17px; width: 150px; height: 10px; text: n.connected ? "Conectado" : (n.secured ? "Protegida" : "Aberta"); color: n.connected ? Theme.success : Theme.text-muted; font-size: 8px; font-weight: 600; }
+                Text { x: 32px; y: 17px; width: 150px; height: 10px; text: n.connected ? (root.language-index == 2 ? "Connected" : root.language-index == 3 ? "Connecte" : "Conectado") : (n.secured ? (root.language-index == 2 ? "Secured" : root.language-index == 3 ? "Protegee" : root.language-index == 4 ? "Protegida" : "Protegida") : (root.language-index == 2 ? "Open" : root.language-index == 3 ? "Ouverte" : root.language-index == 4 ? "Abierta" : "Aberta")); color: n.connected ? Theme.success : Theme.text-muted; font-size: 8px; font-weight: 600; }
                 // Indicador de sinal (barras) - movido para a direita
                 for bar[k] in [0,1,2,3] : Rectangle {
                     x: 190px + k * 6px; width: 4px;

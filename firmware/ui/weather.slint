@@ -1,9 +1,9 @@
 import { Theme } from "theme.slint";
 
 export component WeatherPanel inherits Rectangle {
-    in property <string> city: "A carregar";
+    in property <string> city: "Loading";
     in property <int> temperature: 0;
-    in property <string> summary: "A obter clima";
+    in property <string> summary: "Loading weather";
     in property <int> language-index: 0;
     callback back();
     callback refresh();

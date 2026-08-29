@@ -7,10 +7,11 @@ export component MusicPlayer inherits Rectangle {
     in-out property <float> progress: 0.0;
     in-out property <bool> playing: false;
 
-    in property <[string]> track-titles: ["A carregar..."];
+    in property <[string]> track-titles: ["Loading..."];
     in property <[string]> track-artists: [""];
     in property <[string]> track-albums: [""];
     in property <int> language-index: 0;
+    property <length> bottom-safe: 6px;
 
     property <int> track-count: max(1, root.track-titles.length);
     property <string> track-title:
@@ -135,7 +136,7 @@ export component MusicPlayer inherits Rectangle {
 
     // Controlos
     HorizontalLayout {
-        x: 18px; y: 174px; width: 284px; height: 42px;
+        x: 18px; y: 216px - root.bottom-safe - 42px; width: 284px; height: 42px;
         alignment: space-between;
         Image { width: 15px; height: 15px; source: @image-url("assets/icons/shuffle.svg"); image-fit: contain; colorize: Theme.text-muted; }
         Rectangle {

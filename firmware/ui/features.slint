@@ -36,8 +36,8 @@ export component FeaturesPanel inherits Rectangle {
 
     for item[index] in [
         { title: "Spotify", detail: root.api-online ? "API pronta" : "Aguardando API", icon: @image-url("assets/icons/spotify.svg"), tint: Theme.success },
-        { title: "Wi-Fi", detail: root.wifi-on ? "Scan e senha ativos" : "Desligado", icon: @image-url("assets/icons/wifi.svg"), tint: Theme.accent-blue },
-        { title: "Clima", detail: "Open-Meteo por regiao", icon: @image-url("assets/icons/cloud.svg"), tint: Theme.accent-cyan },
+        { title: "Wi-Fi", detail: root.wifi-on ? (root.language-index == 2 ? "Scan and password ready" : root.language-index == 3 ? "Scan et mot de passe actifs" : root.language-index == 4 ? "Escaneo y clave activos" : "Scan e senha ativos") : (root.language-index == 2 ? "Off" : root.language-index == 3 ? "Desactive" : root.language-index == 4 ? "Apagado" : "Desligado"), icon: @image-url("assets/icons/wifi.svg"), tint: Theme.accent-blue },
+        { title: "Clima", detail: root.language-index == 2 ? "Open-Meteo by region" : root.language-index == 3 ? "Open-Meteo par region" : root.language-index == 4 ? "Open-Meteo por region" : "Open-Meteo por regiao", icon: @image-url("assets/icons/cloud.svg"), tint: Theme.accent-cyan },
         { title: "Bluetooth", detail: root.bluetooth-on ? "BLE ligado" : "BLE desligado", icon: @image-url("assets/icons/bluetooth.svg"), tint: Theme.accent-violet },
     ] : Rectangle {
         x: index == 0 || index == 2 ? 16px : 162px;

@@ -116,7 +116,7 @@ export component AlarmPanel inherits Rectangle {
         }
         Text {
             x: 0px; y: 38px; width: 100%; height: 12px;
-            text: root.enabled ? "Alarme ativo" : "Desligado";
+            text: root.enabled ? (root.language-index == 2 ? "Alarm on" : root.language-index == 3 ? "Alarme actif" : root.language-index == 4 ? "Alarma activa" : "Alarme ativo") : (root.language-index == 2 ? "Off" : root.language-index == 3 ? "Desactive" : root.language-index == 4 ? "Apagada" : "Desligado");
             color: root.enabled ? Theme.success : Theme.text-muted;
             font-size: Theme.font-xs;
             font-weight: 600;
@@ -177,7 +177,7 @@ export component AlarmPanel inherits Rectangle {
                 root.alarm-changed(root.enabled, root.hour, root.minute, root.day-mode, root.tone-index);
             }
         }
-        Text { x: 8px; y: 3px; width: 116px; height: 10px; text: "Dias"; color: Theme.text-muted; font-size: 8px; }
+        Text { x: 8px; y: 3px; width: 116px; height: 10px; text: root.language-index == 2 ? "Days" : root.language-index == 3 ? "Jours" : root.language-index == 4 ? "Dias" : "Dias"; color: Theme.text-muted; font-size: 8px; }
         Text { x: 8px; y: 13px; width: 116px; height: 12px; text: root.day-label; color: Theme.text-primary; font-size: 9px; font-weight: 700; overflow: elide; }
     }
 
@@ -193,7 +193,7 @@ export component AlarmPanel inherits Rectangle {
                 root.alarm-changed(root.enabled, root.hour, root.minute, root.day-mode, root.tone-index);
             }
         }
-        Text { x: 7px; y: 3px; width: 74px; height: 10px; text: "Toque"; color: Theme.text-muted; font-size: 8px; }
+        Text { x: 7px; y: 3px; width: 74px; height: 10px; text: root.language-index == 2 ? "Tone" : root.language-index == 3 ? "Sonnerie" : root.language-index == 4 ? "Tono" : "Toque"; color: Theme.text-muted; font-size: 8px; }
         Text { x: 7px; y: 13px; width: 74px; height: 12px; text: root.tone-label; color: Theme.text-primary; font-size: 9px; font-weight: 700; overflow: elide; }
     }
 

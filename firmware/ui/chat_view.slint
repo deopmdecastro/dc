@@ -12,6 +12,7 @@ export component ChatView inherits Rectangle {
     property <bool> swiping: false;
     property <float> anim-phase: 0;
     property <int> state: 0; // 0=idle, 1=listening, 2=thinking, 3=speaking
+    property <length> bottom-safe: 6px;
 
     width: 320px;
     height: 216px;
@@ -122,7 +123,7 @@ export component ChatView inherits Rectangle {
 
     // Dica de swipe para apps
     HorizontalLayout {
-        x: 108px; y: 158px; width: 104px; height: 12px;
+        x: 108px; y: 154px; width: 104px; height: 12px;
         alignment: center;
         spacing: 4px;
         visible: !root.listening && !root.speaking;
@@ -143,7 +144,7 @@ export component ChatView inherits Rectangle {
 
     // Botao de microfone - melhorado com animacao
     Rectangle {
-        x: 122px; y: 172px; width: 76px; height: 44px;
+        x: 122px; y: 216px - root.bottom-safe - 44px; width: 76px; height: 44px;
         border-radius: 22px;
         background: root.listening ? Theme.accent-deep : root.speaking ? Theme.success : Theme.panel;
         border-width: 2px;
