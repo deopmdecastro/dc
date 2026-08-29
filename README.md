@@ -104,6 +104,17 @@ cd C:\DC\dc\firmware
 & "$env:USERPROFILE\.cargo\bin\slint-viewer.exe" ui\main.slint
 ```
 
+## Icones
+
+Os icones de marca devem vir da biblioteca Simple Icons via Iconstack:
+
+- Biblioteca: https://iconstack.io/library/simple
+- Pacote SVG: https://github.com/simple-icons/simple-icons
+
+No firmware os icones ficam como SVG locais em `firmware/ui/assets/icons/`,
+porque o Slint embarcado precisa embutir os assets no binario. O icone do
+Spotify usa `firmware/ui/assets/icons/spotify.svg`.
+
 ## Firmware
 
 Sempre corre os comandos a partir de `firmware/`.
@@ -169,8 +180,25 @@ O player de musica agora integra a Spotify Web API. Apos ligar o Wi-Fi,
 o firmware pede as 5 faixas mais ouvidas (`v1/me/top/tracks?time_range=long_term`).
 Os titulos e artistas reais aparecem no ecrã do music player.
 
-Para incluir o token OAuth do Spotify no firmware, define a variavel de
-ambiente antes de compilar:
+Para incluir o token OAuth do Spotify no firmware, usa uma destas opcoes antes
+de compilar.
+
+Opcao recomendada: criar um ficheiro local ignorado pelo Git:
+
+```powershell
+cd C:\DC\dc\firmware
+Copy-Item .env.example .env.local
+notepad .env.local
+cargo build --release --locked
+```
+
+Dentro de `.env.local`:
+
+```text
+SPOTIFY_TOKEN="BQ..."
+```
+
+Tambem podes usar variavel de ambiente so nessa sessao:
 
 ```powershell
 cd C:\DC\dc\firmware
@@ -178,8 +206,9 @@ $env:SPOTIFY_TOKEN = "BQ..."
 cargo build --release --locked
 ```
 
-O token e incorporado no binario em build-time via `option_env!("SPOTIFY_TOKEN")`.
-Sem token, o player mostra "A carregar..." e funciona em modo offline.
+O token e incorporado no binario em build-time. Sempre que trocares o token,
+recompila e faz flash novamente. Sem token, o player mostra "A carregar..." e
+funciona em modo offline.
 
 ## Configuração Wi-Fi
 

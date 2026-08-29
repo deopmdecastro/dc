@@ -9,7 +9,7 @@ export component ChatView inherits Rectangle {
     callback menu-tapped();
 
     // Swipe gesture state
-    property <float> swipe-x: 0px;
+    property <length> swipe-x: 0px;
     property <bool> swiping: false;
 
     width: 320px;
@@ -20,8 +20,6 @@ export component ChatView inherits Rectangle {
     TouchArea {
         width: 100%;
         height: 100%;
-        mouse-x => { self.pressed ? root.swiping = true : {}; }
-        mouse-y => { self.pressed ? {} : {}; }
         moved => {
             if (self.pressed) {
                 root.swiping = true;

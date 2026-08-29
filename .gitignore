@@ -9,6 +9,8 @@ firmware/sdkconfig
 firmware/sdkconfig.*
 !firmware/sdkconfig.defaults
 firmware/dependencies.lock
+firmware/.env
+firmware/.env.local
 
 # Rust backend
 backend/dc-os-core/target/

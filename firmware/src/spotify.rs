@@ -1,6 +1,6 @@
 //! Spotify Web API integration — fetches the user's top tracks.
 //!
-//! Uses the hardcoded OAuth token provided at build time. The ESP32-S3
+//! Uses the OAuth token provided at build time. The ESP32-S3
 //! makes an HTTPS GET to `api.spotify.com/v1/me/top/tracks`, parses the
 //! JSON response with serde_json, and emits `SystemEvent::SpotifyTracksLoaded`
 //! so the Slint UI can display real track data in the music player.
@@ -10,6 +10,8 @@ use anyhow::{anyhow, Result};
 use embedded_svc::http::client::{Client as HttpClient, Method};
 use esp_idf_svc::http::client::EspHttpConnection;
 use std::sync::mpsc::Sender;
+
+include!(concat!(env!("OUT_DIR"), "/spotify_token.rs"));
 
 const SPOTIFY_API_BASE: &str = "https://api.spotify.com/v1/me/top/tracks?time_range=long_term&limit=5";
 

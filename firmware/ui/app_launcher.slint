@@ -6,7 +6,7 @@ export struct AppEntry { name: string, icon: image, color: color }
 export component AppLauncher inherits Rectangle {
     in property <[AppEntry]> apps: [
         { name: "DC Assistant", icon: @image-url("assets/icons/message-circle.svg"), color: Theme.accent-blue },
-        { name: "Spotify",       icon: @image-url("assets/icons/music.svg"),          color: Theme.accent-pink },
+        { name: "Spotify",       icon: @image-url("assets/icons/spotify.svg"),        color: Theme.success },
         { name: "Clima",        icon: @image-url("assets/icons/cloud.svg"),          color: Theme.warning },
         { name: "Agenda",       icon: @image-url("assets/icons/calendar.svg"),       color: Theme.danger },
         { name: "Notas",        icon: @image-url("assets/icons/file-text.svg"),      color: Theme.warning },
