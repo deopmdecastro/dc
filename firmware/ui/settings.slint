@@ -473,11 +473,10 @@ export component SettingsPanel inherits Rectangle {
         spacing: 5px;
         alignment: center;
         for i in 6 : Rectangle {
-            width: i == root.page ? 14px : 5px;
+            width: 7px;
             height: 5px;
             border-radius: 2.5px;
             background: i == root.page ? Theme.accent : Theme.stroke;
-            animate width { duration: 150ms; }
         }
     }
 

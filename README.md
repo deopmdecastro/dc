@@ -13,7 +13,7 @@ hardware **ES3C28P**:
 ## Estado Atual
 
 - Firmware Rust/ESP-IDF compila em `release`.
-- Flash usa tabela custom de 16 MB com app `factory` de 4 MB.
+- Flash usa tabela custom de 16 MB com app `factory` de 6 MB.
 - Display ILI9341V inicializa e recebe frames Slint.
 - Touch FT6336G inicializa em I2C `0x38` e envia eventos para a UI.
 - UI Slint no estilo DC OS escuro ("Midnight Cyan"), com launcher sem barra
@@ -40,7 +40,7 @@ dc/
 ├── firmware/                 # Firmware Rust para ESP32-S3
 │   ├── .cargo/config.toml     # target Xtensa e target-dir ../../t
 │   ├── Cargo.toml
-│   ├── partitions.csv         # tabela 16 MB, factory app 4 MB
+│   ├── partitions.csv         # tabela 16 MB, factory app 6 MB
 │   ├── sdkconfig.defaults     # flash, PSRAM, stacks, Wi-Fi e BLE
 │   ├── src/                   # display, touch, audio, network, Slint platform
 │   └── ui/                    # telas Slint 320x240
@@ -383,7 +383,7 @@ Ver [docs/PINOUT.md](docs/PINOUT.md) para a tabela completa.
 ## Troubleshooting Rápido
 
 - `slint-viewer` não reconhecido: instala com `cargo install slint-viewer --version 1.17.1 --locked` e abre um PowerShell novo.
-- `image_too_big`: confirma que estás em `firmware/` e que o comando inclui `--partition-table partitions.csv --flash-size 16mb`.
+- `image_too_big`: confirma que estás em `firmware/` e que o comando inclui `--partition-table partitions.csv --flash-size 16mb`. A tabela atual usa app `factory` de 6 MB; se ainda aparecer 4 MB no erro, estás a flashar com uma tabela antiga.
 - `linker 'xtensa-esp32s3-elf-gcc' not found`: corre `. $HOME/export-esp.ps1`.
 - Flash não conecta: mantém `BOOT` premido, toca em `RESET`, solta `BOOT` e repete o flash.
 - Ecrã branco/sem UI: confirma os logs `Display OK` e o pinout em `docs/PINOUT.md`.
