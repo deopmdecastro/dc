@@ -253,8 +253,8 @@ fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {
 
             match event {
                 SystemEvent::WifiChanged(on) => {
-                    app.set_wifi_on(on);
-                    log::info!("UI: wifi_on={on}");
+                    app.set_wifi_connected(on);
+                    log::info!("UI: wifi_connected={on}");
                 }
                 SystemEvent::WifiNetworksChanged(networks) => {
                     let ui_networks: Vec<crate::WifiNetwork> = networks

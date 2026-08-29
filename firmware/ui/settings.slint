@@ -451,6 +451,7 @@ component WifiPasswordDialog inherits Rectangle {
 export component SettingsPanel inherits Rectangle {
     in-out property <int> page: 0;
     in-out property <bool> wifi-on: true;
+    in-out property <bool> wifi-connected: false;
     in-out property <bool> bluetooth-on: false;
     in-out property <float> volume: 0.75;
     in-out property <float> brightness: 0.60;
@@ -503,12 +504,22 @@ export component SettingsPanel inherits Rectangle {
     }
     // Propriedade derivada para o swipe handler
     property <bool> has-more-networks: root.networks.length > 3;
+    property <bool> save-feedback: false;
 
     swipe-lock-timer := Timer {
         interval: 260ms;
         running: false;
         triggered() => {
             root.swipe-locked = false;
+            self.running = false;
+        }
+    }
+
+    save-feedback-timer := Timer {
+        interval: 1500ms;
+        running: false;
+        triggered() => {
+            root.save-feedback = false;
             self.running = false;
         }
     }
@@ -631,24 +642,28 @@ export component SettingsPanel inherits Rectangle {
                 if (on) { root.scan-wifi-networks(); }
             }
         }
+        Text {
+            x: 8px; y: 40px; width: 284px; height: 10px;
+            text: root.wifi-on
+                ? (root.wifi-connected ? "Conectado" : "Desconectado")
+                : "Desligado";
+            color: root.wifi-on
+                ? (root.wifi-connected ? Theme.success : Theme.warning)
+                : Theme.text-muted;
+            font-size: 8px;
+            font-weight: 600;
+        }
         SettingsToggle { x: 0px; y: 42px; width: 292px; height: 38px; label: "Bluetooth"; icon: @image-url("assets/icons/bluetooth.svg"); checked <=> root.bluetooth-on; changed(on) => { root.bluetooth-changed(on); } }
         Text { x: 2px; y: 84px; width: 150px; height: 12px; text: "Redes disponiveis"; color: Theme.text-secondary; font-size: Theme.font-xs; font-weight: 600; vertical-alignment: center; }
-        Text {
-            x: 152px; y: 84px; width: 90px; height: 12px;
-            text: root.bluetooth-on ? "BLE ligado" : "BLE desligado";
-            color: root.bluetooth-on ? Theme.accent-cyan : Theme.text-muted;
-            font-size: Theme.font-xs;
-            horizontal-alignment: right;
-            vertical-alignment: center;
-        }
         Rectangle {
-            x: 254px; y: 82px; width: 38px; height: 20px;
+            x: 240px; y: 82px; width: 50px; height: 22px;
             border-radius: Theme.radius-s;
             background: tr.pressed ? Theme.panel-elevated : Theme.panel-soft;
             border-width: 1px;
             border-color: Theme.stroke-soft;
             tr := TouchArea { clicked => { root.network-scroll = 0; root.scan-wifi-networks(); } }
-            Image { x: 12px; y: 3px; width: 14px; height: 14px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; colorize: Theme.accent; }
+            Image { x: 8px; y: 4px; width: 14px; height: 14px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; colorize: Theme.accent; }
+            Text { x: 24px; y: 0px; width: 22px; height: 22px; text: "Upd"; color: Theme.accent; font-size: 7px; font-weight: 700; vertical-alignment: center; }
         }
         if !root.wifi-on: Text {
             x: 0px; y: 112px; width: 292px; height: 40px;
@@ -667,13 +682,17 @@ export component SettingsPanel inherits Rectangle {
             vertical-alignment: center;
         }
         if root.wifi-on && root.networks.length > 0: Rectangle {
+            x: 0px; y: 104px; width: 292px; height: 99px;
+            background: #00000000;
+            clip: true;
             for n[index] in root.networks : Rectangle {
                 visible: index >= root.network-scroll && index < root.network-scroll + 3;
-                x: 0px; y: (index - root.network-scroll) * 32px; width: 292px; height: 28px;
+                x: 0px; y: (index - root.network-scroll) * 33px; width: 292px; height: 31px;
                 border-radius: Theme.radius-s;
                 background: tn.pressed ? Theme.panel-elevated : Theme.panel-soft;
                 border-width: 1px;
                 border-color: n.connected ? Theme.success : Theme.stroke-soft;
+                animate background { duration: 120ms; }
                 tn := TouchArea {
                     clicked => {
                         root.wifi-on = true;
@@ -687,28 +706,30 @@ export component SettingsPanel inherits Rectangle {
                         }
                     }
                 }
-                // Chip icone (alinhado verticalmente)
+                // Icone Wi-Fi com fundo
                 Rectangle {
-                    x: 8px; y: 7px; width: 14px; height: 14px;
-                    border-radius: 4px;
+                    x: 6px; y: 6px; width: 20px; height: 20px;
+                    border-radius: 6px;
                     background: n.connected ? Theme.success-tint : Theme.bg-2;
-                    Image { x: 0px; y: 0px; width: 14px; height: 14px; source: @image-url("assets/icons/wifi.svg"); image-fit: contain; colorize: n.connected ? Theme.success : Theme.accent-blue; }
+                    Image { x: 3px; y: 3px; width: 14px; height: 14px; source: @image-url("assets/icons/wifi.svg"); image-fit: contain; colorize: n.connected ? Theme.success : Theme.accent-blue; }
                 }
-                Text { x: 28px; y: 4px; width: 168px; height: 12px; text: n.ssid; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 700; overflow: elide; }
-                // Linha de sinal com barras proporcionais + dBm discreto
-                Text { x: 28px; y: 16px; width: 100px; height: 10px; text: n.connected ? "Conectado" : (n.secured ? "Protegida" : "Aberta"); color: n.connected ? Theme.success : Theme.text-muted; font-size: 8px; }
-                // dBm mais a esquerda para nao colidir com o cadeado
-                Text { x: 188px; y: 8px; width: 56px; height: 12px; text: n.signal + " dBm"; color: Theme.text-muted; font-size: 8px; horizontal-alignment: right; vertical-alignment: center; }
-                // Mini barras de sinal (RSSI -30..-90) para densidade visual
+                // Nome da rede (SSID)
+                Text { x: 32px; y: 3px; width: 150px; height: 13px; text: n.ssid; color: n.connected ? Theme.success : Theme.text-primary; font-size: Theme.font-sm; font-weight: 700; overflow: elide; }
+                // Status: Conectado/Protegida/Aberta
+                Text { x: 32px; y: 17px; width: 150px; height: 10px; text: n.connected ? "Conectado" : (n.secured ? "Protegida" : "Aberta"); color: n.connected ? Theme.success : Theme.text-muted; font-size: 8px; font-weight: 600; }
+                // Indicador de sinal (barras) - movido para a direita
                 for bar[k] in [0,1,2,3] : Rectangle {
-                    visible: !n.connected;
-                    x: 188px + k * 4px; y: 21px; width: 3px;
-                    height: k == 0 ? 4px : k == 1 ? 6px : k == 2 ? 8px : 10px;
+                    x: 190px + k * 6px; width: 4px;
+                    height: k == 0 ? 6px : k == 1 ? 10px : k == 2 ? 14px : 18px;
                     border-radius: 1px;
-                    background: n.signal >= -55 + (k * -10) ? Theme.accent : Theme.stroke;
+                    background: n.signal >= -55 + (k * -10) ? (n.connected ? Theme.success : Theme.accent) : Theme.stroke;
+                    y: 22px - (k == 0 ? 3px : k == 1 ? 5px : k == 2 ? 7px : 9px);
                 }
-                if n.secured: Image { x: 270px; y: 7px; width: 14px; height: 14px; source: @image-url("assets/icons/lock.svg"); image-fit: contain; colorize: Theme.warning; }
-                if n.connected: Image { x: 270px; y: 7px; width: 14px; height: 14px; source: @image-url("assets/icons/check.svg"); image-fit: contain; colorize: Theme.success; }
+                // dBm
+                Text { x: 220px; y: 8px; width: 40px; height: 12px; text: n.signal + " dBm"; color: Theme.text-muted; font-size: 7px; horizontal-alignment: right; vertical-alignment: center; }
+                // Icone cadeado/check
+                if n.secured && !n.connected: Image { x: 266px; y: 6px; width: 16px; height: 16px; source: @image-url("assets/icons/lock.svg"); image-fit: contain; colorize: Theme.warning; }
+                if n.connected: Image { x: 266px; y: 6px; width: 16px; height: 16px; source: @image-url("assets/icons/check.svg"); image-fit: contain; colorize: Theme.success; }
             }
         }
         // Scroll por gesto mantido; indicador visual removido.
@@ -741,14 +762,43 @@ export component SettingsPanel inherits Rectangle {
         LocaleRow {
             x: 0px; y: 0px; width: 292px; height: 46px;
             label: "Regiao"; value: root.region-label; icon: @image-url("assets/icons/globe.svg");
-            clicked => { root.region-index = root.region-index == 4 ? 0 : root.region-index + 1; root.locale-changed(root.region-index, root.language-index); }
+            clicked => {
+                root.region-index = root.region-index == 4 ? 0 : root.region-index + 1;
+                root.locale-changed(root.region-index, root.language-index);
+            }
         }
         LocaleRow {
             x: 0px; y: 54px; width: 292px; height: 46px;
             label: "Idioma"; value: root.language-label; icon: @image-url("assets/icons/message-circle.svg");
-            clicked => { root.language-index = root.language-index == 4 ? 0 : root.language-index + 1; root.locale-changed(root.region-index, root.language-index); }
+            clicked => {
+                root.language-index = root.language-index == 4 ? 0 : root.language-index + 1;
+                root.locale-changed(root.region-index, root.language-index);
+            }
         }
-        Text { x: 4px; y: 108px; width: 284px; height: 20px; text: "Toque em cada linha para percorrer 5 opcoes."; color: Theme.text-muted; font-size: Theme.font-xs; horizontal-alignment: center; vertical-alignment: center; }
+        // Botao Guardar (visual feedback only)
+        Rectangle {
+            x: 70px; y: 110px; width: 152px; height: 32px;
+            border-radius: Theme.radius-s;
+            background: save.pressed ? Theme.accent-hi : Theme.accent;
+            border-width: 1px;
+            border-color: Theme.accent-hi;
+            save := TouchArea {
+                clicked => {
+                    root.locale-changed(root.region-index, root.language-index);
+                    root.save-feedback = true;
+                    save-feedback-timer.running = true;
+                }
+            }
+            Text {
+                x: 0px; y: 0px; width: 152px; height: 32px;
+                text: root.save-feedback ? "Guardado!" : "Guardar";
+                color: Theme.bg-0;
+                font-size: Theme.font-sm;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
     }
 
     // ================= PAGINA 4 — SOM E ECRA =================

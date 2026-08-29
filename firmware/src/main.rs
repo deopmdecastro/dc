@@ -13,6 +13,7 @@
 mod audio;
 mod config;
 mod display;
+mod fish_audio;
 mod network;
 mod pinout;
 mod slint_platform;
@@ -74,8 +75,7 @@ fn main() -> Result<()> {
     let (network_cmd_tx, network_cmd_rx) = mpsc::channel();
     let (system_event_tx, system_event_rx) = mpsc::channel();
     audio::spawn_audio_task(
-        |_lvl| { /* atualizar audio-level da UI via .invoke_from_event_loop */ },
-        |_pcm| { /* enviar buffer PCM ao WebSocket */ },
+        |_lvl| { /* atualizar audio-level da UI */ },
     )?;
     network::spawn_network_task(
         modem,
@@ -146,14 +146,55 @@ fn main() -> Result<()> {
             }
         });
     }
-    app.on_wake_word_triggered(|| log::info!("UI: comando de voz: abrir apps"));
+    let weak_app = app.as_weak();
+    app.on_wake_word_triggered(move || {
+        log::info!("UI: comando de voz: iniciar interacao");
+        if let Some(app) = weak_app.upgrade() {
+            app.set_listening(true);
+            app.set_speaking(false);
+        }
+        let weak = weak_app.clone();
+        let _ = audio::start_listening(Box::new(move |samples| {
+            let level = audio::calculate_rms(samples);
+            if let Some(app) = weak.upgrade() {
+                app.set_audio_level(level);
+            }
+        }));
+        // Simular: 3s a ouvir -> 1s a processar -> 2s a falar
+        let weak_thinking = weak_app.clone();
+        slint::Timer::single_shot(std::time::Duration::from_secs(3), move || {
+            audio::stop_listening();
+            if let Some(app) = weak_thinking.upgrade() {
+                app.set_listening(false);
+                app.set_audio_level(0.0);
+                log::info!("UI: comando de voz: a processar...");
+            }
+        });
+        let weak_speaking = weak_app.clone();
+        slint::Timer::single_shot(std::time::Duration::from_secs(4), move || {
+            if let Some(app) = weak_speaking.upgrade() {
+                app.set_speaking(true);
+                log::info!("UI: comando de voz: a responder...");
+                audio::play_test_tone(2);
+            }
+        });
+        let weak_done = weak_app.clone();
+        slint::Timer::single_shot(std::time::Duration::from_secs(6), move || {
+            if let Some(app) = weak_done.upgrade() {
+                app.set_speaking(false);
+                log::info!("UI: comando de voz: concluido");
+            }
+        });
+    });
     {
         let tx = network_cmd_tx.clone();
-        app.on_note_created(move |text| { let _ = tx.send(NetworkCommand::CreateNote { text: text.to_string() }); });
+        app.on_save_note(move |text, _idx| {
+            let _ = tx.send(NetworkCommand::CreateNote { text: text.to_string() });
+        });
     }
     {
         let tx = network_cmd_tx.clone();
-        app.on_note_deleted(move |id| { let _ = tx.send(NetworkCommand::DeleteNote { id: (id + 1) as u64 }); });
+        app.on_delete_note(move |idx| { let _ = tx.send(NetworkCommand::DeleteNote { id: (idx + 1) as u64 }); });
     }
     app.on_launch_app(|idx| log::info!("UI: launch_app({})", idx));
     {
@@ -168,8 +209,11 @@ fn main() -> Result<()> {
         app.on_locale_changed(move |region, language| {
             let region = region.clamp(0, 4) as u8;
             let language = language.clamp(0, 4) as u8;
+            log::info!("Idioma/Regiao: a guardar region={} language={}", region, language);
             if let Err(e) = store.borrow().save_locale(region, language) {
                 log::warn!("NVS: falha ao guardar idioma/regiao: {e:?}");
+            } else {
+                log::info!("NVS: idioma/regiao guardado com sucesso");
             }
             let _ = tx.send(NetworkCommand::SetLocale {
                 region_index: region,

@@ -37,6 +37,7 @@ export component AppWindow inherits Window {
     in-out property <bool> control-center-open: false;
     in-out property <string> current-time: "09:42";
     in-out property <bool> wifi-on: true;
+    in-out property <bool> wifi-connected: false;
     in-out property <bool> bluetooth-on: true;
     in-out property <bool> api-online: false;
     in-out property <bool> autorotate: true;
@@ -52,6 +53,7 @@ export component AppWindow inherits Window {
     in-out property <bool> music-playing: false;
     in-out property <float> audio-level: 0.0;
     in-out property <bool> listening: false;
+    in-out property <bool> speaking: false;
     in-out property <float> screen-opacity: 1.0;
     in-out property <string> weather-city: "A carregar";
     in-out property <int> weather-temp: 0;
@@ -117,11 +119,12 @@ export component AppWindow inherits Window {
         opacity: root.screen-opacity;
 
         if root.current-screen == Screen.Splash:
-            SplashScreen { width: 100%; height: 100%; }
+            SplashScreen { width: 100%; height: 100%; language-index: root.language-index; }
 
         if root.current-screen == Screen.FirstBootPasscode:
             PasscodeSetup {
                 width: 100%; height: 100%;
+                language-index: root.language-index;
                 confirm(pass) => {
                     root.passcode-created(pass);
                     root.show-screen(Screen.FirstBootRegion);
@@ -144,7 +147,9 @@ export component AppWindow inherits Window {
                 width: 100%; height: 100%;
                 audio-level: root.audio-level;
                 listening: root.listening;
-                mic-tapped => { root.wake-word-triggered(); root.show-screen(Screen.Launcher); }
+                speaking: root.speaking;
+                language-index: root.language-index;
+                mic-tapped => { root.wake-word-triggered(); }
                 menu-tapped => { root.show-screen(Screen.Launcher); }
             }
 
@@ -171,6 +176,7 @@ export component AppWindow inherits Window {
                 track-titles: root.spotify-titles;
                 track-artists: root.spotify-artists;
                 track-albums: root.spotify-albums;
+                language-index: root.language-index;
                 playback-changed(playing) => {
                     root.music-command(playing ? "play" : "pause");
                 }
@@ -227,6 +233,7 @@ export component AppWindow inherits Window {
             SettingsPanel {
                 width: 100%; height: 100%;
                 wifi-on <=> root.wifi-on;
+                wifi-connected <=> root.wifi-connected;
                 bluetooth-on <=> root.bluetooth-on;
                 volume <=> root.volume;
                 brightness <=> root.brightness;
@@ -294,9 +301,11 @@ export component AppWindow inherits Window {
                 volume <=> root.volume;
                 brightness <=> root.brightness;
                 wifi-on <=> root.wifi-on;
+                wifi-connected <=> root.wifi-connected;
                 bluetooth-on <=> root.bluetooth-on;
                 autorotate <=> root.autorotate;
                 current-time: root.current-time;
+                language-index: root.language-index;
                 brightness-changed(v) => {
                     root.brightness = v;
                     root.set-brightness(v);

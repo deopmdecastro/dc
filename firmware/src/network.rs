@@ -390,32 +390,112 @@ fn api_time_url(health_url: &str, offset_secs: i32) -> String {
     format!("{base}/time?offset_secs={offset_secs}")
 }
 
-fn fetch_weather(health_url: &str, region_index: u8) -> Result<WeatherInfo> {
-    let url = api_weather_url(health_url, region_index);
-    log::info!("Clima: consumindo endpoint real {url}");
+fn fetch_weather(_health_url: &str, region_index: u8) -> Result<WeatherInfo> {
+    let (lat, lon) = match region_index {
+        0 => (-15.78, -47.93),
+        1 => (38.72, -9.14),
+        2 => (-8.84, 13.23),
+        3 => (-25.97, 32.57),
+        _ => (40.71, -74.01),
+    };
+    let city = reverse_geocode(lat, lon).unwrap_or_else(|| match region_index {
+        0 => "Brasil".to_string(),
+        1 => "Portugal".to_string(),
+        2 => "Angola".to_string(),
+        3 => "Mocambique".to_string(),
+        _ => "Estados Unidos".to_string(),
+    });
+    let url = format!(
+        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,wind_speed_10m,weather_code",
+        lat, lon
+    );
+    log::info!("Clima: consumindo Open-Meteo para {}", city);
     let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let headers = [("accept", "application/json")];
     let request = client.request(Method::Get, &url, &headers)?;
-    log::info!("API: GET {url}");
     let mut response = request.submit()?;
     let status = response.status();
     if !(200..300).contains(&status) {
-        return Err(anyhow!("API /weather retornou HTTP {status}"));
+        return Err(anyhow!("Open-Meteo retornou HTTP {status}"));
     }
-
-    let mut buf = [0_u8; 512];
+    let mut buf = [0_u8; 1024];
     let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0)?;
     let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
-    let value: WeatherApiResponse = serde_json::from_str(body)?;
-    if !value.ok {
-        return Err(anyhow!("API /weather respondeu ok=false"));
-    }
-
+    let value: OpenMeteoResponse = serde_json::from_str(body)?;
+    let temp = value.current.temperature_2m as i32;
+    let wind = value.current.wind_speed_10m as i32;
+    let summary = weather_summary(value.current.weather_code, temp, wind);
     Ok(WeatherInfo {
-        city: value.city,
-        temperature_c: value.temperature_c,
-        summary: value.summary,
+        city,
+        temperature_c: temp,
+        summary,
     })
+}
+
+fn reverse_geocode(lat: f64, lon: f64) -> Option<String> {
+    let url = format!(
+        "https://geocoding-api.open-meteo.com/v1/reverse?latitude={}&longitude={}&count=1&language=pt",
+        lat, lon
+    );
+    log::info!("Geocoding: buscando cidade para {}, {}", lat, lon);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config()).ok()?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, &url, &headers).ok()?;
+    let mut response = request.submit().ok()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return None;
+    }
+    let mut buf = [0_u8; 512];
+    let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0).ok()?;
+    let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
+    let value: GeocodingResponse = serde_json::from_str(body).ok()?;
+    value.results.first().map(|r| {
+        let name = &r.name;
+        if let Some(admin1) = &r.admin1 {
+            format!("{}, {}", name, admin1)
+        } else {
+            name.clone()
+        }
+    })
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GeocodingResponse {
+    results: Vec<GeocodingResult>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct GeocodingResult {
+    name: String,
+    admin1: Option<String>,
+}
+
+fn weather_summary(code: i32, temp: i32, wind: i32) -> String {
+    let condition = match code {
+        0 => "Ceu limpo",
+        1 | 2 | 3 => "Parcialmente nublado",
+        45 | 48 => "Nevoeiro",
+        51 | 53 | 55 => "Chuvisco",
+        61 | 63 | 65 => "Chuva",
+        71 | 73 | 75 => "Neve",
+        80 | 81 | 82 => "Aguaceiros",
+        95 | 96 | 99 => "Trovoada",
+        _ => "Nublado",
+    };
+    format!("{} | {}°C | Vento {} km/h", condition, temp, wind)
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct OpenMeteoResponse {
+    current: OpenMeteoCurrent,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct OpenMeteoCurrent {
+    temperature_2m: f64,
+    wind_speed_10m: f64,
+    weather_code: i32,
 }
 
 fn api_base(health_url: &str) -> String {
@@ -423,10 +503,6 @@ fn api_base(health_url: &str) -> String {
         .strip_suffix("/health")
         .unwrap_or_else(|| health_url.trim_end_matches('/'))
         .to_owned()
-}
-
-fn api_weather_url(health_url: &str, region_index: u8) -> String {
-    format!("{}/weather?region={}", api_base(health_url), region_index.min(4))
 }
 
 fn post_music_command(health_url: &str, action: &str) -> Result<()> {
@@ -547,14 +623,6 @@ fn music_command_url(health_url: &str) -> String {
     } else {
         format!("{}/music/command", health_url.trim_end_matches('/'))
     }
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct WeatherApiResponse {
-    ok: bool,
-    city: String,
-    temperature_c: i32,
-    summary: String,
 }
 
 fn http_config() -> esp_idf_svc::http::client::Configuration {

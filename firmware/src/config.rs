@@ -126,8 +126,10 @@ impl ConfigStore {
     }
 
     pub fn save_locale(&self, region_index: u8, language_index: u8) -> Result<()> {
+        log::info!("NVS: save_locale region={} language={}", region_index, language_index);
         self.nvs.set_u8(KEY_REGION, region_index.min(4))?;
         self.nvs.set_u8(KEY_LANGUAGE, language_index.min(4))?;
+        log::info!("NVS: save_locale concluido");
         Ok(())
     }
 

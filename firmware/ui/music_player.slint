@@ -10,10 +10,12 @@ export component MusicPlayer inherits Rectangle {
     in property <[string]> track-titles: ["A carregar..."];
     in property <[string]> track-artists: [""];
     in property <[string]> track-albums: [""];
+    in property <int> language-index: 0;
 
     property <int> track-count: max(1, root.track-titles.length);
     property <string> track-title:
-        root.track-index < root.track-count ? root.track-titles[root.track-index] : "Sem faixas";
+        root.track-index < root.track-count ? root.track-titles[root.track-index] :
+        (root.language-index == 2 ? "No tracks" : root.language-index == 3 ? "Aucune piste" : root.language-index == 4 ? "Sin pistas" : "Sem faixas");
     property <string> artist:
         root.track-index < root.track-count ? root.track-artists[root.track-index] : "";
     property <string> album:
@@ -43,7 +45,9 @@ export component MusicPlayer inherits Rectangle {
     }
     Text {
         x: 0px; y: 4px; width: 320px; height: 26px;
-        text: "A tocar";
+        text: root.language-index == 2 ? "Playing" :
+              root.language-index == 3 ? "En lecture" :
+              root.language-index == 4 ? "Reproduciendo" : "A tocar";
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;

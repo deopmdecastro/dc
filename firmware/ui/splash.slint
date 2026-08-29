@@ -1,6 +1,7 @@
 import { Theme } from "theme.slint";
 
 export component SplashScreen inherits Rectangle {
+    in property <int> language-index: 0;
     width: 320px;
     height: 240px;
 
@@ -31,7 +32,9 @@ export component SplashScreen inherits Rectangle {
 
         // Subtitulo
         Text {
-            text: "Assistente pessoal";
+            text: root.language-index == 2 ? "Personal assistant" :
+                  root.language-index == 3 ? "Assistant personnel" :
+                  root.language-index == 4 ? "Asistente personal" : "Assistente pessoal";
             color: Theme.accent-hi;
             font-size: Theme.font-xs;
             horizontal-alignment: center;

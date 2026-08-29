@@ -128,13 +128,13 @@ export component NotesPanel inherits Rectangle {
         border-radius: Theme.radius-s;
         background: add.pressed ? Theme.accent-hi : Theme.accent;
         add := TouchArea { clicked => { root.edit-index = -1; root.draft = ""; root.composing = true; } }
-        Text { text: "Nova"; color: Theme.bg-0; font-size: 9px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
+        Text { text: root.language-index == 2 ? "New" : root.language-index == 3 ? "Nouveau" : root.language-index == 4 ? "Nuevo" : "Nova"; color: Theme.bg-0; font-size: 9px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
     }
 
     // Contador discreto de notas no canto direito do header
     Text {
         x: 188px; y: 0px; width: 56px; height: 34px;
-        text: root.notes.length + " nota" + (root.notes.length == 1 ? "" : "s");
+        text: root.notes.length + (root.language-index == 2 ? " note" : root.language-index == 3 ? " note" : root.language-index == 4 ? " nota" : " nota") + (root.notes.length == 1 ? "" : "s");
         color: Theme.text-muted;
         font-size: 9px;
         horizontal-alignment: right;
@@ -151,7 +151,9 @@ export component NotesPanel inherits Rectangle {
         Image { x: 132px; y: 28px; width: 24px; height: 24px; source: @image-url("assets/icons/file-text.svg"); image-fit: contain; colorize: Theme.text-muted; }
         Text {
             x: 12px; y: 64px; width: 264px; height: 24px;
-            text: "Sem notas. Toque em Nova para comecar.";
+            text: root.language-index == 2 ? "No notes. Tap New to start." :
+                  root.language-index == 3 ? "Aucune note. Appuyez sur Nouveau." :
+                  root.language-index == 4 ? "Sin notas. Toca Nuevo para empezar." : "Sem notas. Toque em Nova para comecar.";
             color: Theme.text-secondary;
             font-size: Theme.font-sm;
             horizontal-alignment: center;
@@ -195,7 +197,7 @@ export component NotesPanel inherits Rectangle {
         }
         Text {
             x: 44px; y: 22px; width: 210px; height: 14px;
-            text: index == 0 ? "Ultima edicao" : "Toque para editar";
+            text: index == 0 ? (root.language-index == 2 ? "Last edit" : root.language-index == 3 ? "Derniere edition" : root.language-index == 4 ? "Ultima edicion" : "Ultima edicao") : (root.language-index == 2 ? "Tap to edit" : root.language-index == 3 ? "Appuyer pour modifier" : root.language-index == 4 ? "Toca para editar" : "Toque para editar");
             color: Theme.text-muted;
             font-size: 8px;
         }
@@ -245,7 +247,7 @@ export component NotesPanel inherits Rectangle {
                 background: Theme.bg-2;
                 Text {
                     x: 14px; y: 0px; width: 220px; height: 26px;
-                    text: root.edit-index >= 0 ? "Editar nota" : "Nova nota";
+                    text: root.edit-index >= 0 ? (root.language-index == 2 ? "Edit note" : root.language-index == 3 ? "Modifier" : root.language-index == 4 ? "Editar nota" : "Editar nota") : (root.language-index == 2 ? "New note" : root.language-index == 3 ? "Nouvelle note" : root.language-index == 4 ? "Nueva nota" : "Nova nota");
                     color: Theme.text-primary;
                     font-size: Theme.font-sm;
                     font-weight: 800;
@@ -268,63 +270,59 @@ export component NotesPanel inherits Rectangle {
                 border-color: root.draft == "" ? Theme.stroke-soft : Theme.accent-deep;
                 Text {
                     x: 10px; y: 0px; width: 260px; height: 30px;
-                    text: root.draft == "" ? "Escrever..." : root.draft;
+                    text: root.draft == "" ? (root.language-index == 2 ? "Write..." : root.language-index == 3 ? "Ecrire..." : root.language-index == 4 ? "Escribir..." : "Escrever...") : root.draft;
                     color: root.draft == "" ? Theme.text-muted : Theme.text-primary;
                     font-size: Theme.font-sm;
                     vertical-alignment: center;
                     overflow: elide;
                 }
             }
-            if !root.keyboard-collapsed && root.keyboard-mode == 0: Rectangle {
+            if root.keyboard-mode == 0: Rectangle {
                 x: 12px; y: 68px; width: 280px; height: 88px; background: #00000000;
                 NoteKeyRow { x: 0px; y: 0px; width: 280px; height: 22px; keys: ["a","b","c","d","e","f","g","h"]; text-value <=> root.draft; }
                 NoteKeyRow { x: 0px; y: 26px; width: 280px; height: 22px; keys: ["i","j","k","l","m","n","o","p"]; text-value <=> root.draft; }
-                NoteKeyRow { x: 0px; y: 52px; width: 280px; height: 22px; keys: ["q","r","s","t","u","v"," "," "]; text-value <=> root.draft; }
+                NoteKeyRow { x: 0px; y: 52px; width: 280px; height: 22px; keys: ["q","r","s","t","u","v","w","x"]; text-value <=> root.draft; }
             }
-            if !root.keyboard-collapsed && root.keyboard-mode == 1: Rectangle {
+            if root.keyboard-mode == 1: Rectangle {
                 x: 12px; y: 68px; width: 280px; height: 88px; background: #00000000;
                 NoteKeyRow { x: 0px; y: 0px; width: 280px; height: 22px; keys: ["A","B","C","D","E","F","G","H"]; text-value <=> root.draft; }
                 NoteKeyRow { x: 0px; y: 26px; width: 280px; height: 22px; keys: ["I","J","K","L","M","N","O","P"]; text-value <=> root.draft; }
-                NoteKeyRow { x: 0px; y: 52px; width: 280px; height: 22px; keys: ["Q","R","S","T","U","V"," "," "]; text-value <=> root.draft; }
+                NoteKeyRow { x: 0px; y: 52px; width: 280px; height: 22px; keys: ["Q","R","S","T","U","V","W","X"]; text-value <=> root.draft; }
             }
-            if !root.keyboard-collapsed && root.keyboard-mode == 2: Rectangle {
+            if root.keyboard-mode == 2: Rectangle {
                 x: 12px; y: 68px; width: 280px; height: 88px; background: #00000000;
                 NoteKeyRow { x: 0px; y: 0px; width: 280px; height: 22px; keys: ["0","1","2","3","4","5","6","7"]; text-value <=> root.draft; }
                 NoteKeyRow { x: 0px; y: 26px; width: 280px; height: 22px; keys: ["8","9",".",",","?","!","-","_"]; text-value <=> root.draft; }
-                NoteKeyRow { x: 0px; y: 52px; width: 280px; height: 22px; keys: ["@","#","/",";",":","+"," "," "]; text-value <=> root.draft; }
+                NoteKeyRow { x: 0px; y: 52px; width: 280px; height: 22px; keys: ["@","#","$","%","&","*"," "," "]; text-value <=> root.draft; }
             }
 
             // Acoes da composicao
+            // Caps/Shift toggle
             NoteAction {
                 x: 12px; y: 162px; width: 50px; height: 28px;
-                label: root.keyboard-collapsed ? "Teclado" : (root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc");
-                clicked => { if (root.keyboard-collapsed) { root.keyboard-collapsed = false; } else { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
+                label: root.keyboard-mode == 0 ? "⇧" : "⇩";
+                primary: root.keyboard-mode == 1;
+                clicked => { root.keyboard-mode = root.keyboard-mode == 0 ? 1 : 0; }
+            }
+            // Numbers/Symbols toggle
+            NoteAction {
+                x: 66px; y: 162px; width: 50px; height: 28px;
+                label: root.keyboard-mode == 2 ? "ABC" : "123";
+                primary: root.keyboard-mode == 2;
+                clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : 2; }
             }
             NoteAction {
-                x: 66px; y: 162px; width: 70px; height: 28px;
-                label: "Limpar";
+                x: 120px; y: 162px; width: 70px; height: 28px;
+                label: root.language-index == 2 ? "Clear" : root.language-index == 3 ? "Effacer" : root.language-index == 4 ? "Borrar" : "Limpar";
                 clicked => { root.draft = ""; }
             }
             NoteAction {
-                x: 140px; y: 162px; width: 60px; height: 28px;
-                label: "Cancelar";
+                x: 194px; y: 162px; width: 52px; height: 28px;
+                label: root.language-index == 2 ? "Cancel" : root.language-index == 3 ? "Annuler" : root.language-index == 4 ? "Cancelar" : "Cancelar";
                 clicked => { root.composing = false; root.draft = ""; root.edit-index = -1; }
             }
             NoteAction {
-                x: 204px; y: 162px; width: 52px; height: 28px;
-                label: "Apagar";
-                danger: true;
-                clicked => {
-                    if (root.edit-index >= 0 && root.edit-index < root.notes.length) {
-                        root.delete-note(root.edit-index);
-                        root.composing = false;
-                        root.draft = "";
-                        root.edit-index = -1;
-                    }
-                }
-            }
-            NoteAction {
-                x: 260px; y: 162px; width: 36px; height: 28px;
+                x: 250px; y: 162px; width: 46px; height: 28px;
                 label: "OK";
                 primary: root.draft != "";
                 clicked => {

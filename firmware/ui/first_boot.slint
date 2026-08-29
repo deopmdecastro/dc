@@ -51,6 +51,7 @@ export component PasscodeSetup inherits Rectangle {
     in-out property <string> d3: "";
     in-out property <string> d4: "";
     in-out property <int> filled: 0;
+    in property <int> language-index: 0;
 
     property <int> pin-length: 5;
     property <string> passcode-str: root.d0 + root.d1 + root.d2 + root.d3 + root.d4;
@@ -72,7 +73,9 @@ export component PasscodeSetup inherits Rectangle {
     }
     Text {
         x: 0px; y: 50px; width: 320px; height: 20px;
-        text: "Definir PIN";
+        text: root.language-index == 2 ? "Set PIN" :
+              root.language-index == 3 ? "Definir PIN" :
+              root.language-index == 4 ? "Establecer PIN" : "Definir PIN";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
         font-weight: 700;
@@ -81,11 +84,14 @@ export component PasscodeSetup inherits Rectangle {
     }
     Text {
         x: 30px; y: 70px; width: 260px; height: 14px;
-        text: "Crie uma senha para proteger o assistente.";
+        text: root.language-index == 2 ? "Create a password to protect the assistant." :
+              root.language-index == 3 ? "Cree un mot de passe pour proteger l'assistant." :
+              root.language-index == 4 ? "Cree una contrasena para proteger el asistente." : "Crie uma senha para proteger o assistente.";
         color: Theme.text-secondary;
         font-size: Theme.font-xs;
         horizontal-alignment: center;
         vertical-alignment: center;
+        wrap: word-wrap;
     }
 
     HorizontalLayout {
@@ -167,7 +173,7 @@ export component PasscodeSetup inherits Rectangle {
             }
         }
         Image { x: 66px; y: 9px; width: 18px; height: 16px; source: @image-url("assets/icons/check.svg"); image-fit: contain; colorize: root.filled == root.pin-length ? Theme.bg-0 : Theme.text-secondary; }
-        Text { x: 90px; y: 0px; width: 90px; height: 100%; text: "Confirmar"; color: root.filled == root.pin-length ? Theme.bg-0 : Theme.text-secondary; font-size: Theme.font-sm; font-weight: 700; vertical-alignment: center; }
+        Text { x: 90px; y: 0px; width: 90px; height: 100%; text: root.language-index == 2 ? "Confirm" : root.language-index == 3 ? "Confirmer" : root.language-index == 4 ? "Confirmar" : "Confirmar"; color: root.filled == root.pin-length ? Theme.bg-0 : Theme.text-secondary; font-size: Theme.font-sm; font-weight: 700; vertical-alignment: center; }
     }
 }
 
@@ -176,10 +182,11 @@ export component RegionLanguage inherits Rectangle {
     in-out property <int> language-index: 0;
 
     property <string> region-label:
-        root.region-index == 0 ? "Brasil" :
+        root.region-index == 0 ? (root.language-index == 2 ? "Brazil" : root.language-index == 3 ? "Bresil" : root.language-index == 4 ? "Brasil" : "Brasil") :
         root.region-index == 1 ? "Portugal" :
         root.region-index == 2 ? "Angola" :
-        root.region-index == 3 ? "Mocambique" : "Estados Unidos";
+        root.region-index == 3 ? (root.language-index == 2 ? "Mozambique" : root.language-index == 3 ? "Mozambique" : root.language-index == 4 ? "Mozambique" : "Mocambique") :
+        (root.language-index == 2 ? "United States" : root.language-index == 3 ? "Etats-Unis" : root.language-index == 4 ? "Estados Unidos" : "Estados Unidos");
     property <string> language-label:
         root.language-index == 0 ? "Portugues (Brasil)" :
         root.language-index == 1 ? "Portugues (Portugal)" :
@@ -202,7 +209,9 @@ export component RegionLanguage inherits Rectangle {
     }
     Text {
         x: 0px; y: 54px; width: 320px; height: 20px;
-        text: "Idioma e Regiao";
+        text: root.language-index == 2 ? "Language & Region" :
+              root.language-index == 3 ? "Langue et region" :
+              root.language-index == 4 ? "Idioma y region" : "Idioma e Regiao";
         color: Theme.text-primary;
         font-size: Theme.font-lg;
         font-weight: 700;
@@ -212,7 +221,7 @@ export component RegionLanguage inherits Rectangle {
 
     LocalePicker {
         x: 30px; y: 84px; width: 260px; height: 48px;
-        title: "Regiao";
+        title: root.language-index == 2 ? "Region" : root.language-index == 3 ? "Region" : root.language-index == 4 ? "Region" : "Regiao";
         value: root.region-label;
         icon: @image-url("assets/icons/globe.svg");
         clicked => { root.region-index = root.region-index == 4 ? 0 : root.region-index + 1; }
@@ -220,7 +229,7 @@ export component RegionLanguage inherits Rectangle {
 
     LocalePicker {
         x: 30px; y: 138px; width: 260px; height: 48px;
-        title: "Idioma";
+        title: root.language-index == 2 ? "Language" : root.language-index == 3 ? "Langue" : root.language-index == 4 ? "Idioma" : "Idioma";
         value: root.language-label;
         icon: @image-url("assets/icons/message-circle.svg");
         clicked => { root.language-index = root.language-index == 4 ? 0 : root.language-index + 1; }
@@ -232,7 +241,7 @@ export component RegionLanguage inherits Rectangle {
         background: tc.pressed ? Theme.accent-hi : Theme.accent;
         tc := TouchArea { clicked => { root.continue-clicked(root.region-index, root.language-index); } }
         Text {
-            text: "Continuar";
+            text: root.language-index == 2 ? "Continue" : root.language-index == 3 ? "Continuer" : root.language-index == 4 ? "Continuar" : "Continuar";
             color: Theme.bg-0;
             font-size: Theme.font-md;
             font-weight: 700;

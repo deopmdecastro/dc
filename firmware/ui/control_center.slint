@@ -72,10 +72,12 @@ export component ControlCenter inherits Rectangle {
     in-out property <float> volume: 0.75;
     in-out property <float> brightness: 0.60;
     in-out property <bool> wifi-on: true;
+    in-out property <bool> wifi-connected: false;
     in-out property <bool> bluetooth-on: true;
     in-out property <bool> dnd-on: false;
     in-out property <bool> autorotate: true;
     in property <string> current-time: "--:--";
+    in property <int> language-index: 0;
 
     callback brightness-changed(float);
     callback volume-changed(float);
@@ -96,7 +98,9 @@ export component ControlCenter inherits Rectangle {
 
     Text {
         x: 16px; y: 16px; width: 200px; height: 16px;
-        text: "Centro de Controlo";
+        text: root.language-index == 2 ? "Control Center" :
+              root.language-index == 3 ? "Centre de controle" :
+              root.language-index == 4 ? "Centro de control" : "Centro de Controlo";
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
@@ -115,10 +119,10 @@ export component ControlCenter inherits Rectangle {
 
     // Tiles de toggle rapidos
     for tile[index] in [
-        { label: "Wi-Fi", icon: @image-url("assets/icons/wifi.svg"), active: root.wifi-on, color: Theme.accent-blue },
-        { label: "Bluetooth", icon: @image-url("assets/icons/bluetooth.svg"), active: root.bluetooth-on, color: Theme.accent },
-        { label: "Nao perturbe", icon: @image-url("assets/icons/moon.svg"), active: root.dnd-on, color: Theme.accent-violet },
-        { label: "Orientacao", icon: @image-url("assets/icons/rotate-cw.svg"), active: root.autorotate, color: Theme.accent-cyan },
+        { label: root.language-index == 2 ? "Wi-Fi" : root.language-index == 3 ? "Wi-Fi" : root.language-index == 4 ? "Wi-Fi" : "Wi-Fi", icon: @image-url("assets/icons/wifi.svg"), active: root.wifi-on, color: Theme.accent-blue },
+        { label: root.language-index == 2 ? "Bluetooth" : root.language-index == 3 ? "Bluetooth" : root.language-index == 4 ? "Bluetooth" : "Bluetooth", icon: @image-url("assets/icons/bluetooth.svg"), active: root.bluetooth-on, color: Theme.accent },
+        { label: root.language-index == 2 ? "Do not disturb" : root.language-index == 3 ? "Ne pas deranger" : root.language-index == 4 ? "No molestar" : "Nao perturbe", icon: @image-url("assets/icons/moon.svg"), active: root.dnd-on, color: Theme.accent-violet },
+        { label: root.language-index == 2 ? "Orientation" : root.language-index == 3 ? "Orientation" : root.language-index == 4 ? "Orientacion" : "Orientacao", icon: @image-url("assets/icons/rotate-cw.svg"), active: root.autorotate, color: Theme.accent-cyan },
     ] : Rectangle {
         x: 12px + index * 75px; y: 40px; width: 64px; height: 52px;
         border-radius: Theme.radius-m;
@@ -141,7 +145,12 @@ export component ControlCenter inherits Rectangle {
         }
     }
 
-    for label[index] in ["Wi-Fi", "Bluetooth", "N. perturbe", "Orientacao"] : Text {
+    for label[index] in [
+        root.language-index == 2 ? "Wi-Fi" : root.language-index == 3 ? "Wi-Fi" : root.language-index == 4 ? "Wi-Fi" : "Wi-Fi",
+        root.language-index == 2 ? "Bluetooth" : root.language-index == 3 ? "Bluetooth" : root.language-index == 4 ? "Bluetooth" : "Bluetooth",
+        root.language-index == 2 ? "DND" : root.language-index == 3 ? "NPD" : root.language-index == 4 ? "DND" : "N. perturbe",
+        root.language-index == 2 ? "Orientation" : root.language-index == 3 ? "Orientation" : root.language-index == 4 ? "Orientacion" : "Orientacao"
+    ] : Text {
         x: 12px + index * 75px; y: 94px; width: 64px; height: 12px;
         text: label;
         color: Theme.text-secondary;
@@ -153,7 +162,7 @@ export component ControlCenter inherits Rectangle {
 
     ControlSlider {
         x: 12px; y: 118px; width: 296px; height: 36px;
-        label: "Volume";
+        label: root.language-index == 2 ? "Volume" : root.language-index == 3 ? "Volume" : root.language-index == 4 ? "Volumen" : "Volume";
         icon: @image-url("assets/icons/volume-2.svg");
         accent-color: Theme.accent-blue;
         value <=> root.volume;
@@ -162,7 +171,7 @@ export component ControlCenter inherits Rectangle {
 
     ControlSlider {
         x: 12px; y: 160px; width: 296px; height: 36px;
-        label: "Brilho";
+        label: root.language-index == 2 ? "Brightness" : root.language-index == 3 ? "Luminosite" : root.language-index == 4 ? "Brillo" : "Brilho";
         icon: @image-url("assets/icons/sun.svg");
         accent-color: Theme.warning;
         value <=> root.brightness;

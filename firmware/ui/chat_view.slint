@@ -3,15 +3,34 @@ import { Theme } from "theme.slint";
 export component ChatView inherits Rectangle {
     in property <float> audio-level: 0.0;
     in property <bool> listening: false;
+    in property <bool> speaking: false;
+    in property <int> language-index: 0;
     callback mic-tapped();
     callback menu-tapped();
 
     property <length> swipe-x: 0px;
     property <bool> swiping: false;
+    property <float> anim-phase: 0;
+    property <int> state: 0; // 0=idle, 1=listening, 2=thinking, 3=speaking
 
     width: 320px;
     height: 216px;
     background: Theme.bg-0;
+
+    // Animacao de pulso para o estado de escuta
+    property <float> pulse: 0;
+    pulse-timer := Timer {
+        interval: 80ms;
+        running: root.listening || root.speaking;
+        triggered() => {
+            if (root.pulse >= 1.0) {
+                root.pulse = 0.0;
+            } else {
+                root.pulse = root.pulse + 0.15;
+            }
+            self.running = root.listening || root.speaking;
+        }
+    }
 
     TouchArea {
         width: 100%;
@@ -35,23 +54,27 @@ export component ChatView inherits Rectangle {
     Rectangle {
         x: 130px; y: 26px; width: 60px; height: 18px;
         border-radius: 9px;
-        background: Theme.accent-tint;
+        background: root.listening ? Theme.accent-tint : Theme.panel-soft;
         border-width: 1px;
-        border-color: Theme.accent-deep;
+        border-color: root.listening ? Theme.accent : Theme.stroke;
+        animate background { duration: 200ms; }
         Text {
             text: "DC OS";
-            color: Theme.accent;
+            color: root.listening ? Theme.accent-hi : Theme.accent;
             font-size: Theme.font-xs;
             font-weight: 700;
             horizontal-alignment: center;
             vertical-alignment: center;
             letter-spacing: 1px;
+            animate color { duration: 200ms; }
         }
     }
 
     Text {
         x: 0px; y: 52px; width: 320px; height: 28px;
-        text: "Assistente pessoal";
+        text: root.language-index == 2 ? "Personal assistant" :
+              root.language-index == 3 ? "Assistant personnel" :
+              root.language-index == 4 ? "Asistente personal" : "Assistente pessoal";
         color: Theme.text-primary;
         font-size: 20px;
         font-weight: 800;
@@ -59,32 +82,41 @@ export component ChatView inherits Rectangle {
         vertical-alignment: center;
     }
 
+    // Texto de estado
     Text {
         x: 0px; y: 84px; width: 320px; height: 16px;
-        text: root.listening ? "A ouvir..." : "Como posso ajudar hoje?";
-        color: root.listening ? Theme.accent : Theme.text-secondary;
+        text: root.listening
+            ? (root.language-index == 2 ? "Listening..." : root.language-index == 3 ? "Ecoute..." : root.language-index == 4 ? "Escuchando..." : "A ouvir...")
+            : root.speaking
+            ? (root.language-index == 2 ? "Speaking..." : root.language-index == 3 ? "En train de parler..." : root.language-index == 4 ? "Hablando..." : "A falar...")
+            : (root.language-index == 2 ? "How can I help you today?" : root.language-index == 3 ? "Comment puis-je vous aider?" : root.language-index == 4 ? "Como puedo ayudarte hoy?" : "Como posso ajudar hoje?");
+        color: root.listening ? Theme.accent : root.speaking ? Theme.success : Theme.text-secondary;
         font-size: Theme.font-sm;
         horizontal-alignment: center;
         vertical-alignment: center;
+        animate color { duration: 200ms; }
     }
 
-    // Visualizador de audio (barras simetricas)
+    // Visualizador de audio (barras simetricas) - melhorado
     HorizontalLayout {
-        x: 42px; y: 112px; width: 236px; height: 40px;
+        x: 30px; y: 112px; width: 260px; height: 44px;
         alignment: center;
-        spacing: 4px;
+        spacing: 3px;
         for i in 32 : Rectangle {
             property <int> dist: i < 16 ? 15 - i : i - 16;
-            width: 3px;
-            height: root.listening
-                ? (dist < 3 ? 26px : dist < 7 ? 20px : dist < 11 ? 14px : 9px)
-                : (dist < 5 ? 11px : dist < 10 ? 8px : 5px);
-            border-radius: 1.5px;
+            width: 4px;
+            height: root.listening || root.speaking
+                ? (dist < 3 ? 30px * root.pulse : dist < 7 ? 20px * root.pulse : dist < 11 ? 14px * root.pulse : 8px * root.pulse)
+                : (dist < 5 ? 8px : dist < 10 ? 6px : 4px);
+            border-radius: 2px;
             y: (parent.height - self.height) / 2;
             background: root.listening
                 ? (dist < 7 ? Theme.accent : Theme.accent-cyan)
+                : root.speaking
+                ? (dist < 7 ? Theme.success : Theme.success)
                 : Theme.stroke;
-            animate height { duration: 180ms; easing: ease-in-out; }
+            animate height { duration: 100ms; easing: ease-out; }
+            animate background { duration: 200ms; }
         }
     }
 
@@ -93,6 +125,7 @@ export component ChatView inherits Rectangle {
         x: 108px; y: 158px; width: 104px; height: 12px;
         alignment: center;
         spacing: 4px;
+        visible: !root.listening && !root.speaking;
         Image {
             width: 10px; height: 10px;
             y: 1px;
@@ -101,27 +134,55 @@ export component ChatView inherits Rectangle {
             colorize: Theme.text-dim;
         }
         Text {
-            text: "deslize para apps";
+            text: root.language-index == 2 ? "slide for apps" : root.language-index == 3 ? "glisser pour les apps" : root.language-index == 4 ? "desliza para apps" : "deslize para apps";
             color: Theme.text-dim;
             font-size: 8px;
             vertical-alignment: center;
         }
     }
 
-    // Botao de microfone
+    // Botao de microfone - melhorado com animacao
     Rectangle {
-        x: 132px; y: 172px; width: 56px; height: 40px;
-        border-radius: 20px;
-        background: root.listening ? Theme.accent-deep : Theme.panel;
-        border-width: 1.5px;
-        border-color: root.listening ? Theme.accent-hi : Theme.stroke;
-        animate background { duration: 150ms; }
+        x: 122px; y: 172px; width: 76px; height: 44px;
+        border-radius: 22px;
+        background: root.listening ? Theme.accent-deep : root.speaking ? Theme.success : Theme.panel;
+        border-width: 2px;
+        border-color: root.listening ? Theme.accent-hi : root.speaking ? Theme.success : Theme.stroke;
+        animate background { duration: 200ms; }
+        // Efeito de pulse quando esta a ouvir
+        Rectangle {
+            x: -4px - (root.pulse * 4px); y: -4px - (root.pulse * 4px);
+            width: 84px + (root.pulse * 8px); height: 52px + (root.pulse * 8px);
+            border-radius: 26px;
+            background: #00000000;
+            border-width: 2px;
+            border-color: root.listening ? Theme.accent : #00000000;
+            animate border-color { duration: 150ms; }
+            visible: root.listening;
+        }
         tm := TouchArea { clicked => { root.mic-tapped(); } }
         Image {
-            x: 18px; y: 9px; width: 20px; height: 20px;
-            source: @image-url("assets/icons/mic.svg");
+            x: root.speaking ? 26px : 28px; y: 11px;
+            width: root.speaking ? 24px : 20px; height: root.speaking ? 24px : 20px;
+            source: root.speaking ? @image-url("assets/icons/volume-2.svg") : @image-url("assets/icons/mic.svg");
             image-fit: contain;
-            colorize: root.listening ? Theme.accent-hi : Theme.text-secondary;
+            colorize: root.listening ? Theme.accent-hi : root.speaking ? Theme.bg-0 : Theme.text-secondary;
+        }
+    }
+
+    // Indicador "OI DC" no canto
+    Rectangle {
+        x: 10px; y: 10px; width: 50px; height: 16px;
+        border-radius: 8px;
+        background: Theme.accent-tint;
+        visible: root.listening;
+        Text {
+            x: 6px; y: 0px; width: 38px; height: 16px;
+            text: "OI DC";
+            color: Theme.accent;
+            font-size: 8px;
+            font-weight: 700;
+            vertical-alignment: center;
         }
     }
 }
