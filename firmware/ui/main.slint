@@ -32,6 +32,7 @@ export component AppWindow inherits Window {
     in-out property <string> current-time: "09:42";
     in-out property <bool> wifi-on: true;
     in-out property <bool> bluetooth-on: true;
+    in-out property <bool> api-online: false;
     in-out property <bool> autorotate: true;
     in-out property <float> volume: 0.75;
     in-out property <float> brightness: 0.60;
@@ -191,6 +192,7 @@ export component AppWindow inherits Window {
             current-time: root.current-time;
             wifi-on: root.wifi-on;
             bluetooth-on: root.bluetooth-on;
+            api-online: root.api-online;
             TouchArea { clicked => { root.control-center-open = true; } }
         }
 

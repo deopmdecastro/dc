@@ -52,16 +52,16 @@ export component MusicPlayer inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // Album art placeholder
     Rectangle {
         x: 16px; y: 42px; width: 98px; height: 98px;
         border-radius: Theme.radius-m;
-        background: Theme.accent-deep;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.stroke-soft;
         clip: true;
-        Rectangle { x: -10px; y: 50px; width: 120px; height: 34px; background: Theme.accent-cyan; }
-        Rectangle { x: 18px; y: 8px; width: 44px; height: 44px; border-radius: 22px; background: Theme.accent-pink; }
-        Rectangle { x: 52px; y: 20px; width: 36px; height: 56px; border-radius: 18px; background: Theme.accent-blue; }
-        Image { x: 31px; y: 31px; width: 36px; height: 36px; source: @image-url("assets/icons/spotify.svg"); image-fit: contain; }
+        Rectangle { x: 16px; y: 72px; width: 66px; height: 2px; background: Theme.stroke; }
+        Rectangle { x: 26px; y: 78px; width: 46px; height: 2px; background: Theme.stroke-soft; }
+        Image { x: 32px; y: 26px; width: 34px; height: 34px; source: @image-url("assets/icons/spotify.svg"); image-fit: contain; }
     }
 
     // Track info
@@ -111,7 +111,7 @@ export component MusicPlayer inherits Rectangle {
         Rectangle {
             width: parent.width * root.progress; height: 100%;
             border-radius: 2px;
-            background: Theme.accent-cyan;
+            background: Theme.success;
         }
     }
     Text { x: 16px; y: 160px; width: 40px; height: 11px; text: root.pos-label; color: Theme.text-secondary; font-size: 8px; }
@@ -144,7 +144,7 @@ export component MusicPlayer inherits Rectangle {
         Rectangle {
             width: 54px; height: 40px;
             border-radius: 20px;
-            background: Theme.accent;
+            background: Theme.success;
             TouchArea {
                 clicked => {
                     root.playing = !root.playing;

@@ -1,40 +1,39 @@
 import { Theme } from "theme.slint";
 
-// Splash escuro e estavel para o firmware. Evita animacoes, gradientes e
-// opacidades fracionarias porque o backend LLVM-Xtensa pode falhar ao
-// compilar constantes float geradas pelo Slint.
 export component SplashScreen inherits Rectangle {
     width: 320px;
     height: 240px;
     background: Theme.bg-0;
 
     Rectangle {
-        x: 44px; y: 42px; width: 232px; height: 156px;
-        border-radius: 78px;
+        x: 34px; y: 52px; width: 252px; height: 128px;
+        border-radius: Theme.radius-m;
         background: Theme.bg-1;
         border-width: 1px;
-        border-color: Theme.accent-deep;
+        border-color: Theme.stroke-soft;
     }
-    Rectangle {
-        x: 84px; y: 86px; width: 152px; height: 52px;
-        border-radius: 26px;
-        background: #00000000;
-        border-width: 2px;
-        border-color: Theme.accent;
-    }
-    Rectangle {
-        x: 114px; y: 98px; width: 92px; height: 28px;
-        border-radius: 14px;
-        background: #00000000;
-        border-width: 2px;
-        border-color: Theme.accent-cyan;
-    }
+
     Image {
-        x: 60px;
-        y: 60px;
-        width: 200px;
-        height: 120px;
+        x: 94px;
+        y: 72px;
+        width: 132px;
+        height: 78px;
         source: @image-url("assets/branding/dc-assistant-logo-white.png");
         image-fit: contain;
+    }
+
+    Rectangle {
+        x: 96px; y: 172px; width: 128px; height: 2px;
+        background: Theme.accent;
+    }
+
+    Text {
+        x: 0px; y: 186px; width: 320px; height: 16px;
+        text: "DC OS";
+        color: Theme.text-secondary;
+        font-size: Theme.font-sm;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
     }
 }

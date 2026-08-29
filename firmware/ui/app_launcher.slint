@@ -36,8 +36,8 @@ export component AppLauncher inherits Rectangle {
         for i[row-index] in row : Rectangle {
             visible: !(index == 1 && row-index == 3);
             width: 68px; height: 76px;
-            border-radius: Theme.radius-m;
-            background: Theme.panel-soft;
+            border-radius: Theme.radius-s;
+            background: Theme.panel;
             border-width: 1px;
             border-color: Theme.stroke-soft;
             clip: true;
@@ -47,8 +47,9 @@ export component AppLauncher inherits Rectangle {
             Rectangle {
                 x: 19px; y: 10px; width: 30px; height: 30px;
                 border-radius: 15px;
-                background: root.apps[i].color;
-                opacity: 0.15;
+                background: Theme.panel-elevated;
+                border-width: 1px;
+                border-color: root.apps[i].color;
             }
             Image {
                 x: 22px; y: 13px; width: 24px; height: 24px;

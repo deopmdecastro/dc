@@ -1,13 +1,12 @@
-//! Spotify Web API integration — fetches the user's top tracks.
+//! Spotify integration - fetches the user's top tracks.
 //!
-//! Uses the OAuth token provided at build time. The ESP32-S3
-//! makes an HTTPS GET to `api.spotify.com/v1/me/top/tracks`, parses the
-//! JSON response with serde_json, and emits `SystemEvent::SpotifyTracksLoaded`
-//! so the Slint UI can display real track data in the music player.
+//! Prefer the local dc-os-core endpoint over HTTP. If that is unavailable and
+//! a build-time token exists, fall back to Spotify Web API directly.
 
 use crate::system::SystemEvent;
 use anyhow::{anyhow, Result};
 use embedded_svc::http::client::{Client as HttpClient, Method};
+use embedded_svc::utils::io;
 use esp_idf_svc::http::client::EspHttpConnection;
 use std::sync::mpsc::Sender;
 
@@ -15,8 +14,8 @@ include!(concat!(env!("OUT_DIR"), "/spotify_token.rs"));
 
 const SPOTIFY_API_BASE: &str = "https://api.spotify.com/v1/me/top/tracks?time_range=long_term&limit=5";
 
-pub fn fetch_top_tracks(token: &str, event_tx: &Sender<SystemEvent>) {
-    match fetch_top_tracks_inner(token) {
+pub fn fetch_top_tracks(api_health_url: &str, token: &str, event_tx: &Sender<SystemEvent>) {
+    match fetch_top_tracks_inner(api_health_url, token) {
         Ok(tracks) => {
             log::info!("Spotify: {} faixas carregadas", tracks.len());
             let _ = event_tx.send(SystemEvent::SpotifyTracksLoaded(tracks));
@@ -27,7 +26,41 @@ pub fn fetch_top_tracks(token: &str, event_tx: &Sender<SystemEvent>) {
     }
 }
 
-fn fetch_top_tracks_inner(token: &str) -> Result<Vec<SpotifyTrack>> {
+fn fetch_top_tracks_inner(api_health_url: &str, token: &str) -> Result<Vec<SpotifyTrack>> {
+    match fetch_top_tracks_from_core(api_health_url) {
+        Ok(tracks) => return Ok(tracks),
+        Err(e) => log::warn!("Spotify: dc-os-core /music/top-tracks falhou: {e:?}"),
+    }
+
+    if token.is_empty() {
+        return Err(anyhow!("SPOTIFY_TOKEN vazio e dc-os-core indisponivel"));
+    }
+
+    fetch_top_tracks_from_spotify(token)
+}
+
+fn fetch_top_tracks_from_core(api_health_url: &str) -> Result<Vec<SpotifyTrack>> {
+    let url = core_top_tracks_url(api_health_url);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default())?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, &url, &headers)?;
+    let mut response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("dc-os-core retornou HTTP {status}"));
+    }
+
+    let body = read_response_body(&mut response)?;
+    let top: CoreTopTracksResponse = serde_json::from_str(&body)
+        .map_err(|e| anyhow!("parse JSON dc-os-core: {e}"))?;
+    if !top.ok {
+        return Err(anyhow!("dc-os-core reportou ok=false"));
+    }
+
+    Ok(top.body.items)
+}
+
+fn fetch_top_tracks_from_spotify(token: &str) -> Result<Vec<SpotifyTrack>> {
     let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default())?);
     let headers = [
         ("accept", "application/json"),
@@ -41,23 +74,42 @@ fn fetch_top_tracks_inner(token: &str) -> Result<Vec<SpotifyTrack>> {
         return Err(anyhow!("Spotify API retornou HTTP {status}"));
     }
 
+    let body = read_response_body(&mut response)?;
+    log::info!("Spotify: resposta {} bytes", body.len());
+
+    let top: TopTracksResponse = serde_json::from_str(&body)
+        .map_err(|e| anyhow!("parse JSON: {e}"))?;
+
+    Ok(top.items)
+}
+
+fn read_response_body<R>(response: &mut R) -> Result<String>
+where
+    R: embedded_svc::io::Read,
+    <R as embedded_svc::io::ErrorType>::Error: core::fmt::Debug,
+{
     let mut buf = Vec::new();
     let mut chunk = [0u8; 512];
     loop {
-        let n = embedded_svc::io::Read::read(&mut response, &mut chunk)?;
+        let n = io::try_read_full(&mut *response, &mut chunk)
+            .map_err(|e| anyhow!("read body: {:?}", e.0))?;
         if n == 0 {
             break;
         }
         buf.extend_from_slice(&chunk[..n]);
+        if n < chunk.len() {
+            break;
+        }
     }
 
-    let body = std::str::from_utf8(&buf).map_err(|e| anyhow!("body nao e UTF-8: {e}"))?;
-    log::info!("Spotify: resposta {} bytes", body.len());
+    String::from_utf8(buf).map_err(|e| anyhow!("body nao e UTF-8: {e}"))
+}
 
-    let top: TopTracksResponse = serde_json::from_str(body)
-        .map_err(|e| anyhow!("parse JSON: {e}"))?;
-
-    Ok(top.items)
+fn core_top_tracks_url(api_health_url: &str) -> String {
+    let base = api_health_url
+        .strip_suffix("/health")
+        .unwrap_or_else(|| api_health_url.trim_end_matches('/'));
+    format!("{base}/music/top-tracks")
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -76,6 +128,12 @@ pub struct Artist {
 #[derive(Debug, serde::Deserialize)]
 struct TopTracksResponse {
     items: Vec<SpotifyTrack>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CoreTopTracksResponse {
+    ok: bool,
+    body: TopTracksResponse,
 }
 
 impl SpotifyTrack {

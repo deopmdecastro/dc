@@ -31,6 +31,7 @@ pub struct NetConfig {
 const NET_TASK_STACK_SIZE: usize = 16 * 1024;
 const API_PROBE_INTERVAL_SECS: u64 = 30;
 const CLOCK_INTERVAL_SECS: u64 = 1;
+const API_TIME_INTERVAL_SECS: u64 = 30;
 
 pub fn spawn_network_task(
     modem: Modem<'static>,
@@ -72,6 +73,8 @@ fn run_network(
     let mut sntp: Option<EspSntp<'static>> = None;
     let mut next_probe_in = 0_u64;
     let mut next_clock_in = 0_u64;
+    let mut next_api_time_in = 0_u64;
+    let mut last_api_time = "--:--".to_owned();
 
     log::info!(
         "Wi-Fi: config inicial enabled={} ssid='{}' api='{}'",
@@ -137,13 +140,12 @@ fn run_network(
                     };
                     next_probe_in = 0;
                     next_clock_in = 0;
+                    next_api_time_in = 0;
 
                     // Fetch Spotify top tracks once after connecting.
                     let spotify_token = crate::spotify::SPOTIFY_TOKEN;
-                    if !spotify_token.is_empty() {
-                        log::info!("Spotify: a pedir top tracks apos Wi-Fi");
-                        crate::spotify::fetch_top_tracks(spotify_token, &event_tx);
-                    }
+                    log::info!("Spotify: a pedir top tracks apos Wi-Fi");
+                    crate::spotify::fetch_top_tracks(&cfg.api_health_url, spotify_token, &event_tx);
                 }
                 Err(e) => {
                     log::warn!("Wi-Fi: falha ao conectar: {e:?}");
@@ -165,10 +167,25 @@ fn run_network(
 
         if connected {
             if next_clock_in == 0 {
-                let _ = event_tx.send(SystemEvent::TimeChanged(current_hhmm(timezone_offset_secs)));
+                let local_time = current_hhmm(timezone_offset_secs);
+                if local_time == "--:--" && last_api_time != "--:--" {
+                    let _ = event_tx.send(SystemEvent::TimeChanged(last_api_time.clone()));
+                } else {
+                    let _ = event_tx.send(SystemEvent::TimeChanged(local_time));
+                }
                 next_clock_in = CLOCK_INTERVAL_SECS;
             } else {
                 next_clock_in = next_clock_in.saturating_sub(1);
+            }
+
+            if next_api_time_in == 0 {
+                if let Ok(api_time) = fetch_api_time(&cfg.api_health_url, timezone_offset_secs) {
+                    last_api_time = api_time.clone();
+                    let _ = event_tx.send(SystemEvent::TimeChanged(api_time));
+                }
+                next_api_time_in = API_TIME_INTERVAL_SECS;
+            } else {
+                next_api_time_in = next_api_time_in.saturating_sub(1);
             }
 
             if next_probe_in == 0 {
@@ -236,6 +253,37 @@ fn probe_api(url: &str) -> Result<bool> {
     Ok((200..300).contains(&status))
 }
 
+fn fetch_api_time(health_url: &str, offset_secs: i32) -> Result<String> {
+    let url = api_time_url(health_url, offset_secs);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&Default::default())?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, &url, &headers)?;
+    log::info!("API: GET {url}");
+    let mut response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("API /time retornou HTTP {status}"));
+    }
+
+    let mut buf = [0_u8; 192];
+    let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0)?;
+    let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
+    let value: serde_json::Value = serde_json::from_str(body)?;
+    let hhmm = value
+        .get("hhmm")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow!("API /time sem campo hhmm"))?;
+
+    Ok(hhmm.to_owned())
+}
+
+fn api_time_url(health_url: &str, offset_secs: i32) -> String {
+    let base = health_url
+        .strip_suffix("/health")
+        .unwrap_or_else(|| health_url.trim_end_matches('/'));
+    format!("{base}/time?offset_secs={offset_secs}")
+}
+
 fn post_music_command(health_url: &str, action: &str) -> Result<()> {
     let url = music_command_url(health_url);
     let payload = format!("{{\"action\":\"{}\"}}", action);
@@ -249,8 +297,17 @@ fn post_music_command(health_url: &str, action: &str) -> Result<()> {
     let mut request = client.request(Method::Post, &url, &headers)?;
     request.write_all(payload.as_bytes())?;
     request.flush()?;
-    let response = request.submit()?;
-    log::info!("API: POST {} action={} status={}", url, action, response.status());
+    let mut response = request.submit()?;
+    let status = response.status();
+    let mut buf = [0_u8; 512];
+    let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0)?;
+    let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
+    log::info!("API: POST {} action={} status={} body={:?}", url, action, status, body);
+
+    if !(200..300).contains(&status) || body.contains("\"ok\":false") {
+        return Err(anyhow!("API music command falhou status={status} body={body}"));
+    }
+
     Ok(())
 }
 

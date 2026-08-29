@@ -1,14 +1,11 @@
 import { Theme } from "theme.slint";
 
-// ChatView — home screen. Swipe left opens the app launcher.
-// The old "Abrir Apps" button has been removed; gesture replaces it.
 export component ChatView inherits Rectangle {
     in property <float> audio-level: 0.0;
     in property <bool> listening: false;
     callback mic-tapped();
     callback menu-tapped();
 
-    // Swipe gesture state
     property <length> swipe-x: 0px;
     property <bool> swiping: false;
 
@@ -16,7 +13,6 @@ export component ChatView inherits Rectangle {
     height: 216px;
     background: Theme.bg-0;
 
-    // Full-screen TouchArea for swipe detection
     TouchArea {
         width: 100%;
         height: 100%;
@@ -35,40 +31,42 @@ export component ChatView inherits Rectangle {
         }
     }
 
-    // Greeting text
     Text {
-        x: 0px; y: 48px; width: 100%; height: 20px;
-        text: "Ola, eu sou o";
-        color: Theme.text-primary;
+        x: 0px; y: 40px; width: 320px; height: 18px;
+        text: "DC OS";
+        color: Theme.text-secondary;
         font-size: Theme.font-md;
+        font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
+
     Text {
-        x: 0px; y: 70px; width: 100%; height: 30px;
-        text: "DC Assistant";
-        color: Theme.accent-cyan;
-        font-size: 20px;
+        x: 0px; y: 64px; width: 320px; height: 28px;
+        text: "Assistente pessoal";
+        color: Theme.text-primary;
+        font-size: 19px;
         font-weight: 800;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
+
     Text {
-        x: 0px; y: 102px; width: 100%; height: 16px;
-        text: "Como posso ajudar voce hoje?";
+        x: 0px; y: 98px; width: 320px; height: 16px;
+        text: "Como posso ajudar hoje?";
         color: Theme.text-secondary;
         font-size: Theme.font-sm;
         horizontal-alignment: center;
         vertical-alignment: center;
     }
 
-    // Swipe hint arrow (left edge)
     Image {
-        x: 4px; y: 100px; width: 12px; height: 12px;
+        x: 5px; y: 102px; width: 11px; height: 11px;
         source: @image-url("assets/icons/chevron-left.svg");
         image-fit: contain;
-        opacity: 0.3;
+        opacity: 0.35;
     }
+
     Text {
         x: 0px; y: 118px; width: 30px; height: 10px;
         text: "apps";
@@ -77,38 +75,38 @@ export component ChatView inherits Rectangle {
         horizontal-alignment: center;
     }
 
-    // Audio waveform visualization
     HorizontalLayout {
-        x: 40px; y: 136px; width: 240px; height: 34px;
+        x: 42px; y: 136px; width: 236px; height: 32px;
         alignment: center;
-        spacing: 3px;
+        spacing: 4px;
         for i in 32 : Rectangle {
             property <int> dist: i < 16 ? 15 - i : i - 16;
-            width: 4px;
+            width: 3px;
             height: root.listening
-                ? (dist < 3 ? 24px : dist < 7 ? 20px : dist < 11 ? 16px : 12px)
-                : (dist < 5 ? 14px : dist < 10 ? 11px : 8px);
+                ? (dist < 3 ? 22px : dist < 7 ? 18px : dist < 11 ? 14px : 10px)
+                : (dist < 5 ? 12px : dist < 10 ? 9px : 6px);
             border-radius: 2px;
             y: (parent.height - self.height) / 2;
-            background: i < 16 ? Theme.accent-pink : Theme.accent-cyan;
+            background: root.listening ? Theme.accent : Theme.stroke;
         }
     }
 
-    // Mic button
     Rectangle {
-        x: 132px; y: 173px; width: 56px; height: 42px;
-        border-radius: 21px;
-        background: Theme.panel-soft;
-        border-width: 2px;
-        border-color: root.listening ? Theme.accent-pink : Theme.accent;
+        x: 134px; y: 174px; width: 52px; height: 38px;
+        border-radius: 19px;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: root.listening ? Theme.accent-hi : Theme.stroke;
         TouchArea { clicked => { root.mic-tapped(); } }
+
         Rectangle {
-            x: 12px; y: 5px; width: 32px; height: 32px;
+            x: 10px; y: 3px; width: 32px; height: 32px;
             border-radius: 16px;
             background: root.listening ? Theme.accent-deep : #00000000;
         }
+
         Image {
-            x: 18px; y: 10px; width: 20px; height: 20px;
+            x: 16px; y: 9px; width: 20px; height: 20px;
             source: @image-url("assets/icons/mic.svg");
             image-fit: contain;
         }

@@ -254,6 +254,7 @@ fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {
                     log::info!("UI: bluetooth_on={on}");
                 }
                 SystemEvent::ApiHealthChanged(ok) => {
+                    app.set_api_online(ok);
                     log::info!("UI: api_health={ok}");
                 }
                 SystemEvent::TimeChanged(value) => {

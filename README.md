@@ -20,9 +20,10 @@ hardware **ES3C28P**:
   por categorias, Alarme configurável, PIN persistente e região/idioma.
 - A tela inicial usa gesto de deslizar para a esquerda para abrir o launcher
   de aplicacoes (o botao "Abrir Apps" foi removido).
-- Player de musica integra a Spotify Web API e mostra as top tracks reais.
-- Wi-Fi liga de verdade, sincroniza hora por SNTP e consome a API real por HTTP.
-- Player envia `play`, `pause`, `next` e `prev` para o backend/Mopidy.
+- Player de musica consome top tracks reais pelo backend e usa Spotify Web API
+  para `play`, `pause`, `next` e `prev` quando `SPOTIFY_TOKEN` esta configurado.
+- Wi-Fi liga de verdade, sincroniza hora por SNTP e tambem consome `/time` da
+  API real por HTTP.
 - Brilho ajusta o PWM do backlight; volume fica persistido para integração de
   áudio.
 - Bluetooth/BLE está desligado no `sdkconfig.defaults` porque o firmware atual
@@ -66,6 +67,8 @@ cd C:\DC\dc\backend
 docker compose up -d --build
 docker compose ps
 curl.exe -s http://localhost:8080/health
+curl.exe -s "http://localhost:8080/time?offset_secs=3600"
+curl.exe -s http://localhost:8080/music/devices
 ```
 
 Serviços principais:
@@ -177,7 +180,7 @@ Touch: up ui=(..., ...)
 ## Spotify
 
 O player de musica agora integra a Spotify Web API. Apos ligar o Wi-Fi,
-o firmware pede as 5 faixas mais ouvidas (`v1/me/top/tracks?time_range=long_term`).
+o firmware pede ao backend as 5 faixas mais ouvidas (`/music/top-tracks`).
 Os titulos e artistas reais aparecem no ecrã do music player.
 
 Para incluir o token OAuth do Spotify no firmware, usa uma destas opcoes antes
@@ -209,6 +212,28 @@ cargo build --release --locked
 O token e incorporado no binario em build-time. Sempre que trocares o token,
 recompila e faz flash novamente. Sem token, o player mostra "A carregar..." e
 funciona em modo offline.
+
+Para o backend tocar musica de verdade pelo Spotify Web API, configura tambem
+`backend/.env`:
+
+```powershell
+cd C:\DC\dc\backend
+Copy-Item .env.example .env
+notepad .env
+docker compose up -d --build
+```
+
+Dentro de `backend/.env`:
+
+```text
+SPOTIFY_TOKEN="BQ..."
+SPOTIFY_DEVICE_ID=
+```
+
+O token precisa dos scopes `user-top-read`, `user-read-playback-state` e
+`user-modify-playback-state`. Para tocar, a conta precisa de Spotify Premium e
+um dispositivo ativo. Usa `/music/devices` para descobrir o `device_id` caso o
+Spotify responda que nao existe player ativo.
 
 ## Configuração Wi-Fi
 
@@ -247,9 +272,10 @@ O fuso é escolhido pela região configurada:
 - Moçambique: UTC+2
 - Estados Unidos: UTC-4
 
-Em seguida faz `GET` periódico ao endpoint `DC_CORE_HTTP` para confirmar se a
-API real está acessível. Os botões do player chamam `POST /music/command` no
-mesmo backend.
+Em seguida faz `GET` periodico ao endpoint `DC_CORE_HTTP` para confirmar se a
+API real esta acessivel. A hora tambem pode vir de `/time?offset_secs=...` no
+mesmo backend quando o SNTP ainda nao atualizou o relogio do ESP. Os botoes do
+player chamam `POST /music/command` no backend.
 
 As Definições abrem primeiro em categorias:
 

@@ -8,6 +8,7 @@ export component StatusBar inherits Rectangle {
     in property <string> current-time: "09:42";
     in property <bool> wifi-on: true;
     in property <bool> bluetooth-on: true;
+    in property <bool> api-online: false;
 
     width: 320px;
     height: 24px;
@@ -31,6 +32,12 @@ export component StatusBar inherits Rectangle {
     }
 
     // Icones no canto superior direito
+    Image {
+        x: 248px; y: 5px; width: 14px; height: 14px;
+        source: @image-url("assets/icons/cloud.svg");
+        image-fit: contain;
+        visible: root.api-online;
+    }
     Image {
         x: 272px; y: 5px; width: 14px; height: 14px;
         source: @image-url("assets/icons/wifi.svg");
