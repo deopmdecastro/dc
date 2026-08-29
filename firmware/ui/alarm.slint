@@ -66,11 +66,11 @@ export component AlarmPanel inherits Rectangle {
     // Header
     Rectangle { x: 0px; y: 0px; width: 320px; height: 34px; background: Theme.bg-1; Rectangle { x: 0px; y: 33px; width: 320px; height: 1px; background: Theme.stroke-soft; } }
     Rectangle {
-        x: 6px; y: 4px; width: 28px; height: 26px;
+        x: 0px; y: 0px; width: 40px; height: 34px;
         border-radius: Theme.radius-s;
         background: bk.pressed ? Theme.panel-elevated : #00000000;
         bk := TouchArea { clicked => { root.back(); } }
-        Image { x: 7px; y: 6px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; colorize: Theme.accent; }
+        Image { x: 13px; y: 10px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; colorize: Theme.accent; }
     }
     Text {
         x: 0px; y: 0px; width: 320px; height: 34px;

@@ -219,6 +219,21 @@ fn main() -> Result<()> {
         });
     }
     {
+        // A linguagem .slint nao tem funcao de substring/remocao de
+        // caracteres em strings, por isso o backspace da senha Wi-Fi e
+        // resolvido aqui: le o valor atual, remove o ultimo caractere
+        // (respeitando fronteiras UTF-8) e escreve de volta na UI.
+        let app_weak = app.as_weak();
+        app.on_wifi_password_backspace(move || {
+            if let Some(app) = app_weak.upgrade() {
+                let current = app.get_wifi_password();
+                let mut chars: Vec<char> = current.chars().collect();
+                chars.pop();
+                app.set_wifi_password(chars.into_iter().collect::<String>().into());
+            }
+        });
+    }
+    {
         let store = config_store.clone();
         let tx = network_cmd_tx.clone();
         app.on_wifi_network_selected(move |ssid, password| {

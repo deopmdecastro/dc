@@ -52,6 +52,7 @@ export component AppWindow inherits Window {
     in-out property <[string]> spotify-albums: [""];
     in-out property <[WifiNetwork]> wifi-networks: [];
     in-out property <[BluetoothDevice]> bluetooth-devices: [];
+    in-out property <string> wifi-password: "";
 
     property <bool> show-status: root.current-screen != Screen.Splash
         && root.current-screen != Screen.FirstBootPasscode
@@ -65,6 +66,7 @@ export component AppWindow inherits Window {
     callback passcode-updated(string);
     callback wifi-enabled-changed(bool);
     callback wifi-network-selected(string, string);
+    callback wifi-password-backspace();
     callback scan-wifi-networks();
     callback bluetooth-enabled-changed(bool);
     callback locale-changed(int, int);
@@ -180,6 +182,8 @@ export component AppWindow inherits Window {
                 language-index <=> root.language-index;
                 networks: root.wifi-networks;
                 bluetooth-devices: root.bluetooth-devices;
+                wifi-password <=> root.wifi-password;
+                wifi-password-backspace => { root.wifi-password-backspace(); }
                 change-passcode => { root.show-screen(Screen.SettingsPassword); }
                 scan-wifi-networks => { root.scan-wifi-networks(); }
                 wifi-changed(on) => { root.wifi-enabled-changed(on); }
