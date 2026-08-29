@@ -1,11 +1,11 @@
 //! Task de rede: Wi-Fi station + SNTP + probe HTTP do dc-os-core.
 
-use crate::system::{NetworkCommand, SystemEvent};
+use crate::system::{NetworkCommand, SystemEvent, WifiNetworkInfo};
 use anyhow::{anyhow, Result};
 use core::convert::TryInto;
 use embedded_svc::{
-    io::Write as EmbeddedWrite,
     http::{client::Client as HttpClient, Method},
+    io::Write as EmbeddedWrite,
     utils::io,
     wifi::{AuthMethod, ClientConfiguration, Configuration},
 };
@@ -24,6 +24,7 @@ pub struct NetConfig {
     pub enabled: bool,
     pub ssid: String,
     pub password: String,
+    pub bluetooth_enabled: bool,
     pub api_health_url: String,
     pub timezone_offset_secs: i32,
 }
@@ -32,6 +33,9 @@ const NET_TASK_STACK_SIZE: usize = 16 * 1024;
 const API_PROBE_INTERVAL_SECS: u64 = 30;
 const CLOCK_INTERVAL_SECS: u64 = 1;
 const API_TIME_INTERVAL_SECS: u64 = 30;
+const WIFI_SCAN_INTERVAL_SECS: u64 = 45;
+const SPOTIFY_RETRY_INTERVAL_SECS: u64 = 60;
+const MAX_WIFI_NETWORKS: usize = 4;
 
 pub fn spawn_network_task(
     modem: Modem<'static>,
@@ -61,7 +65,7 @@ fn run_network(
     event_tx: Sender<SystemEvent>,
 ) -> Result<()> {
     let mut wifi = BlockingWifi::wrap(
-        EspWifi::new(modem, sysloop.clone(), Some(nvs))?,
+        EspWifi::new(modem, sysloop.clone(), Some(nvs.clone()))?,
         sysloop,
     )?;
 
@@ -74,6 +78,8 @@ fn run_network(
     let mut next_probe_in = 0_u64;
     let mut next_clock_in = 0_u64;
     let mut next_api_time_in = 0_u64;
+    let mut next_scan_in = 0_u64;
+    let mut next_spotify_in = 0_u64;
     let mut last_api_time = "--:--".to_owned();
 
     log::info!(
@@ -82,13 +88,23 @@ fn run_network(
         ssid,
         cfg.api_health_url
     );
+    let _ = event_tx.send(SystemEvent::BluetoothChanged(cfg.bluetooth_enabled));
+    let _ = event_tx.send(SystemEvent::BluetoothDevicesChanged(Vec::new()));
 
     loop {
         while let Ok(cmd) = cmd_rx.try_recv() {
             match cmd {
                 NetworkCommand::SetWifiEnabled(enabled) => {
                     desired_wifi = enabled;
+                    next_scan_in = 0;
                     log::info!("Wi-Fi: pedido da UI enabled={enabled}");
+                    if !enabled {
+                        let _ = event_tx.send(SystemEvent::WifiNetworksChanged(Vec::new()));
+                    }
+                }
+                NetworkCommand::ScanWifi => {
+                    next_scan_in = 0;
+                    log::info!("Wi-Fi: scan pedido pela UI");
                 }
                 NetworkCommand::SetWifiCredentials {
                     ssid: new_ssid,
@@ -98,6 +114,7 @@ fn run_network(
                     ssid = new_ssid;
                     password = new_password;
                     desired_wifi = true;
+                    next_scan_in = 0;
                     if connected {
                         let _ = wifi.disconnect();
                         let _ = wifi.stop();
@@ -106,9 +123,24 @@ fn run_network(
                         let _ = event_tx.send(SystemEvent::ApiHealthChanged(false));
                     }
                 }
+                NetworkCommand::SetBluetoothEnabled(enabled) => {
+                    log::info!(
+                        "Bluetooth: estado {} guardado; scan BLE real desativado nesta combinacao ESP-IDF/esp-idf-svc",
+                        if enabled { "ligado" } else { "desligado" }
+                    );
+                    let _ = event_tx.send(SystemEvent::BluetoothChanged(enabled));
+                    let _ = event_tx.send(SystemEvent::BluetoothDevicesChanged(Vec::new()));
+                }
+                NetworkCommand::ScanBluetooth => {
+                    log::info!(
+                        "Bluetooth: scan BLE ignorado; Bluedroid do esp-idf-svc 0.52.1 nao compila com ESP-IDF 5.2.3"
+                    );
+                    let _ = event_tx.send(SystemEvent::BluetoothDevicesChanged(Vec::new()));
+                }
                 NetworkCommand::SetTimezoneOffset(offset_secs) => {
                     timezone_offset_secs = offset_secs;
-                    let _ = event_tx.send(SystemEvent::TimeChanged(current_hhmm(timezone_offset_secs)));
+                    let _ =
+                        event_tx.send(SystemEvent::TimeChanged(current_hhmm(timezone_offset_secs)));
                     log::info!("SNTP: timezone offset={}s", offset_secs);
                 }
                 NetworkCommand::MusicCommand(action) => {
@@ -120,6 +152,22 @@ fn run_network(
                         log::warn!("API: comando de musica ignorado sem Wi-Fi");
                     }
                 }
+            }
+        }
+
+        if desired_wifi {
+            if next_scan_in == 0 {
+                let connected_ssid = if connected { ssid.as_str() } else { "" };
+                match scan_wifi(&mut wifi, connected_ssid) {
+                    Ok(networks) => {
+                        log::info!("Wi-Fi: scan encontrou {} redes", networks.len());
+                        let _ = event_tx.send(SystemEvent::WifiNetworksChanged(networks));
+                    }
+                    Err(e) => log::warn!("Wi-Fi: scan falhou: {e:?}"),
+                }
+                next_scan_in = WIFI_SCAN_INTERVAL_SECS;
+            } else {
+                next_scan_in = next_scan_in.saturating_sub(1);
             }
         }
 
@@ -141,11 +189,7 @@ fn run_network(
                     next_probe_in = 0;
                     next_clock_in = 0;
                     next_api_time_in = 0;
-
-                    // Fetch Spotify top tracks once after connecting.
-                    let spotify_token = crate::spotify::SPOTIFY_TOKEN;
-                    log::info!("Spotify: a pedir top tracks apos Wi-Fi");
-                    crate::spotify::fetch_top_tracks(&cfg.api_health_url, spotify_token, &event_tx);
+                    next_spotify_in = 0;
                 }
                 Err(e) => {
                     log::warn!("Wi-Fi: falha ao conectar: {e:?}");
@@ -163,6 +207,8 @@ fn run_network(
             connected = false;
             let _ = event_tx.send(SystemEvent::WifiChanged(false));
             let _ = event_tx.send(SystemEvent::ApiHealthChanged(false));
+            let _ = event_tx.send(SystemEvent::WifiNetworksChanged(Vec::new()));
+            next_spotify_in = 0;
         }
 
         if connected {
@@ -198,6 +244,15 @@ fn run_network(
             } else {
                 next_probe_in = next_probe_in.saturating_sub(1);
             }
+
+            if next_spotify_in == 0 {
+                let spotify_token = crate::spotify::SPOTIFY_TOKEN;
+                log::info!("Spotify: a pedir top tracks");
+                crate::spotify::fetch_top_tracks(&cfg.api_health_url, spotify_token, &event_tx);
+                next_spotify_in = SPOTIFY_RETRY_INTERVAL_SECS;
+            } else {
+                next_spotify_in = next_spotify_in.saturating_sub(1);
+            }
         }
 
         let _keep_sntp_alive = sntp.as_ref();
@@ -205,7 +260,11 @@ fn run_network(
     }
 }
 
-fn connect_wifi(wifi: &mut BlockingWifi<EspWifi<'static>>, ssid: &str, password: &str) -> Result<()> {
+fn connect_wifi(
+    wifi: &mut BlockingWifi<EspWifi<'static>>,
+    ssid: &str,
+    password: &str,
+) -> Result<()> {
     if ssid.is_empty() {
         return Err(anyhow!("SSID vazio"));
     }
@@ -228,8 +287,10 @@ fn connect_wifi(wifi: &mut BlockingWifi<EspWifi<'static>>, ssid: &str, password:
     });
 
     wifi.set_configuration(&wifi_configuration)?;
-    wifi.start()?;
-    log::info!("Wi-Fi: started");
+    if !wifi.is_started()? {
+        wifi.start()?;
+        log::info!("Wi-Fi: started");
+    }
     wifi.connect()?;
     log::info!("Wi-Fi: connected");
     wifi.wait_netif_up()?;
@@ -302,13 +363,76 @@ fn post_music_command(health_url: &str, action: &str) -> Result<()> {
     let mut buf = [0_u8; 512];
     let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0)?;
     let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
-    log::info!("API: POST {} action={} status={} body={:?}", url, action, status, body);
+    log::info!(
+        "API: POST {} action={} status={} body={:?}",
+        url,
+        action,
+        status,
+        body
+    );
 
     if !(200..300).contains(&status) || body.contains("\"ok\":false") {
-        return Err(anyhow!("API music command falhou status={status} body={body}"));
+        return Err(anyhow!(
+            "API music command falhou status={status} body={body}"
+        ));
     }
 
     Ok(())
+}
+
+fn scan_wifi(
+    wifi: &mut BlockingWifi<EspWifi<'static>>,
+    connected_ssid: &str,
+) -> Result<Vec<WifiNetworkInfo>> {
+    if !wifi.is_started()? {
+        let station_config = Configuration::Client(ClientConfiguration {
+            ssid: "".try_into().map_err(|_| anyhow!("SSID vazio invalido"))?,
+            bssid: None,
+            auth_method: AuthMethod::None,
+            password: ""
+                .try_into()
+                .map_err(|_| anyhow!("password vazia invalida"))?,
+            channel: None,
+            ..Default::default()
+        });
+        wifi.set_configuration(&station_config)?;
+        wifi.start()?;
+        log::info!("Wi-Fi: started para scan");
+    }
+
+    let mut networks: Vec<WifiNetworkInfo> = wifi
+        .scan()?
+        .into_iter()
+        .filter_map(|ap| {
+            let ssid = ap.ssid.as_str().trim();
+            if ssid.is_empty() {
+                return None;
+            }
+            Some(WifiNetworkInfo {
+                ssid: ssid.to_owned(),
+                secured: ap.auth_method.is_some() && ap.auth_method != Some(AuthMethod::None),
+                connected: ssid == connected_ssid,
+                signal_strength: ap.signal_strength,
+            })
+        })
+        .collect();
+
+    networks.sort_by(|a, b| b.signal_strength.cmp(&a.signal_strength));
+    let mut unique = Vec::new();
+    for network in networks {
+        if unique
+            .iter()
+            .any(|n: &WifiNetworkInfo| n.ssid == network.ssid)
+        {
+            continue;
+        }
+        unique.push(network);
+        if unique.len() == MAX_WIFI_NETWORKS {
+            break;
+        }
+    }
+
+    Ok(unique)
 }
 
 fn music_command_url(health_url: &str) -> String {

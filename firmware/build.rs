@@ -47,8 +47,7 @@ fn write_generated_spotify_token() {
         rust_string_literal(token.trim())
     );
 
-    fs::write(out_dir.join("spotify_token.rs"), contents)
-        .expect("falha ao gerar spotify_token.rs");
+    fs::write(out_dir.join("spotify_token.rs"), contents).expect("falha ao gerar spotify_token.rs");
 }
 
 fn read_env_value(path: &str, key: &str) -> Option<String> {

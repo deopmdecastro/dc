@@ -140,13 +140,23 @@ fn run_touch(i2c0: I2C0<'static>, tx: Sender<TouchEvent>) -> Result<()> {
                                 start: down_point,
                                 delta: dx,
                             });
-                            log::info!("Touch: swipe-x start=({}, {}) delta={}", down_point.x, down_point.y, dx);
+                            log::info!(
+                                "Touch: swipe-x start=({}, {}) delta={}",
+                                down_point.x,
+                                down_point.y,
+                                dx
+                            );
                         } else if dy.abs() >= SWIPE_MIN_PX {
                             let _ = tx.send(TouchEvent::SwipeY {
                                 start: down_point,
                                 delta: dy,
                             });
-                            log::info!("Touch: swipe-y start=({}, {}) delta={}", down_point.x, down_point.y, dy);
+                            log::info!(
+                                "Touch: swipe-y start=({}, {}) delta={}",
+                                down_point.x,
+                                down_point.y,
+                                dy
+                            );
                         }
                     }
                     log::info!(

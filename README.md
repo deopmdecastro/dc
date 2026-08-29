@@ -21,13 +21,13 @@ hardware **ES3C28P**:
 - A tela inicial usa gesto de deslizar para a esquerda para abrir o launcher
   de aplicacoes (o botao "Abrir Apps" foi removido).
 - Player de musica consome top tracks reais pelo backend e usa Spotify Web API
-  para `play`, `pause`, `next` e `prev` quando `SPOTIFY_TOKEN` esta configurado.
+  para `play`, `pause`, `next` e `prev` quando o OAuth Spotify esta configurado.
 - Wi-Fi liga de verdade, sincroniza hora por SNTP e tambem consome `/time` da
   API real por HTTP.
 - Brilho ajusta o PWM do backlight; volume fica persistido para integração de
   áudio.
-- Bluetooth/BLE está desligado no `sdkconfig.defaults` porque o firmware atual
-  ainda não usa BLE e isso evita incompatibilidade com ESP-IDF 5.2.3.
+- Bluetooth fica configurado em modo BLE/NimBLE no `sdkconfig.defaults`, sem
+  ativar Bluedroid, porque Bluedroid quebra o build com ESP-IDF 5.2.3.
 
 ## Estrutura
 
@@ -37,7 +37,7 @@ dc/
 │   ├── .cargo/config.toml     # target Xtensa e target-dir ../../t
 │   ├── Cargo.toml
 │   ├── partitions.csv         # tabela 16 MB, factory app 4 MB
-│   ├── sdkconfig.defaults     # flash, PSRAM, stacks, Wi-Fi
+│   ├── sdkconfig.defaults     # flash, PSRAM, stacks, Wi-Fi e BLE
 │   ├── src/                   # display, touch, audio, network, Slint platform
 │   └── ui/                    # telas Slint 320x240
 ├── backend/                   # Docker Compose: core, Whisper, Mopidy
@@ -227,13 +227,19 @@ Dentro de `backend/.env`:
 
 ```text
 SPOTIFY_TOKEN="BQ..."
+SPOTIFY_REFRESH_TOKEN="AQ..."
+SPOTIFY_CLIENT_ID="..."
+SPOTIFY_CLIENT_SECRET="..."
 SPOTIFY_DEVICE_ID=
 ```
 
-O token precisa dos scopes `user-top-read`, `user-read-playback-state` e
-`user-modify-playback-state`. Para tocar, a conta precisa de Spotify Premium e
-um dispositivo ativo. Usa `/music/devices` para descobrir o `device_id` caso o
-Spotify responda que nao existe player ativo.
+O token precisa dos scopes `user-top-read`, `user-read-playback-state`,
+`user-modify-playback-state` e `user-read-currently-playing`. O access token
+expira, mas o backend renova automaticamente quando `SPOTIFY_REFRESH_TOKEN`,
+`SPOTIFY_CLIENT_ID` e `SPOTIFY_CLIENT_SECRET` estao configurados. Para tocar, a
+conta precisa de Spotify Premium e um dispositivo ativo. Usa `/music/devices`
+para descobrir o `device_id` caso o Spotify responda que nao existe player
+ativo.
 
 ## Configuração Wi-Fi
 
@@ -257,9 +263,9 @@ cargo build --release --locked
 ```
 
 Depois grava normalmente com `cargo espflash flash ...`. O estado Wi-Fi, a
-rede selecionada e o PIN de 5 dígitos ficam gravados no NVS; no arranque
-seguinte o firmware carrega esses valores e salta a configuração inicial se já
-houver PIN.
+rede selecionada, a senha digitada na UI e o PIN de 5 digitos ficam gravados
+no NVS; no arranque seguinte o firmware carrega esses valores e salta a
+configuracao inicial se ja houver PIN.
 
 ## Hora, API e Bluetooth
 
@@ -277,19 +283,30 @@ API real esta acessivel. A hora tambem pode vir de `/time?offset_secs=...` no
 mesmo backend quando o SNTP ainda nao atualizou o relogio do ESP. Os botoes do
 player chamam `POST /music/command` no backend.
 
+Nas Definicoes, a pagina `Conexoes` faz scan real das redes Wi-Fi visiveis com
+o radio do ESP32-S3. A lista e atualizada ao abrir a pagina, ao tocar no botao
+de atualizar e periodicamente enquanto o Wi-Fi esta ligado. As redes sao
+ordenadas pelo sinal, mostram RSSI em dBm e redes duplicadas ficam ocultas.
+
+Nas redes protegidas, tocar no SSID abre um teclado compacto para inserir a
+senha antes de ligar. As Definicoes tambem aceitam arrasto horizontal para
+navegar entre as paginas, alem dos botoes de voltar.
+
 As Definições abrem primeiro em categorias:
 
-- Conexões: Wi-Fi, Bluetooth e redes conhecidas
+- Conexoes: Wi-Fi, Bluetooth e redes disponiveis
 - Segurança: alterar PIN
 - Idioma e Região: 5 regiões e 5 idiomas
 - Som e Ecrã: volume e brilho
 - Sistema: resumo do firmware
 
-O Bluetooth já aparece e fica persistido nas Definições/Control Center. O stack
-BLE real continua desligado em `sdkconfig.defaults` porque este projeto fixou
-ESP-IDF 5.2.3 + `esp-idf-svc 0.52.x`, combinação que anteriormente quebrou o
-build ao ativar BLE. Para ativar rádio BLE de verdade, primeiro será preciso
-trocar para um driver BLE compatível e reabrir `CONFIG_BT_ENABLED`.
+O Bluetooth usa configuracao NimBLE no SDK, mas o firmware ainda nao faz scan
+BLE real. O toggle atualiza o estado no NVS e na UI. Bluedroid ficou
+explicitamente desligado porque `esp-idf-svc 0.52.1` tenta compilar APIs GATT
+que nao existem nos bindings do ESP-IDF 5.2.3, causando erros como
+`esp_ble_conn_params_t` e `esp_ble_gattc_enh_open` nao encontrados. O ESP32-S3
+nao suporta Bluetooth Classic/A2DP neste caminho, por isso audio por
+coluna/fone Bluetooth nao esta incluido aqui.
 
 A rotação agora é manual entre paisagem normal e paisagem invertida. Este módulo
 não tem acelerómetro mapeado no pinout atual, portanto ainda não existe
@@ -344,8 +361,9 @@ Ver [docs/PINOUT.md](docs/PINOUT.md) para a tabela completa.
 - `localhost:8080` retorna 404 ou a API nao responde: este projeto usa
   `dc-os-core` em `localhost:8081`, porque a porta 8080 pode estar ocupada por
   outro container.
-- Spotify retorna `401`: token expirado/invalido. Gera um novo token com scopes
-  `user-top-read`, `user-read-playback-state` e `user-modify-playback-state`,
-  atualiza `backend/.env` e `firmware/.env.local`, depois recompila/reinicia.
+- Spotify retorna `401`: token expirado, invalido ou sem scopes. Gera OAuth com
+  `user-top-read`, `user-read-playback-state`, `user-modify-playback-state` e
+  `user-read-currently-playing`; confirma tambem `SPOTIFY_REFRESH_TOKEN`,
+  `SPOTIFY_CLIENT_ID` e `SPOTIFY_CLIENT_SECRET` no `backend/.env`.
 
 Guia detalhado: [docs/BUILD_AND_FLASH.md](docs/BUILD_AND_FLASH.md).

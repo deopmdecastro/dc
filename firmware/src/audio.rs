@@ -4,8 +4,8 @@
 use anyhow::Result;
 
 pub const SAMPLE_RATE: u32 = 16_000;
-pub const CHANNELS:    u8  = 1;
-pub const BITS:        u8  = 16;
+pub const CHANNELS: u8 = 1;
+pub const BITS: u8 = 16;
 
 /// Spawna a task de áudio full-duplex. Recebe closures para:
 ///  - `on_level(f32)`   → atualiza a onda visual (0..1)
@@ -23,7 +23,9 @@ where
     //  5. Encaminhar PCM 16 kHz mono ao on_pcm()
     log::info!(
         "Áudio I2S task: stub inicializada ({} Hz / {} ch / {} bits)",
-        SAMPLE_RATE, CHANNELS, BITS
+        SAMPLE_RATE,
+        CHANNELS,
+        BITS
     );
     Ok(())
 }

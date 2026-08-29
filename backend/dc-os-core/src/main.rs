@@ -10,7 +10,10 @@
 //!   POST /music/command       play/pause/next/prev (proxy Mopidy JSON-RPC)
 
 use axum::{
-    extract::{ws::{Message, WebSocket, WebSocketUpgrade}, Query, State},
+    extract::{
+        ws::{Message, WebSocket, WebSocketUpgrade},
+        Query, State,
+    },
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -23,51 +26,88 @@ use std::{
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
+use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 
-#[derive(Clone)]
 struct AppState {
-    stt_url:    String,
+    stt_url: String,
     mopidy_url: String,
-    spotify_token: String,
-    spotify_device_id: Option<String>,
-    http:       reqwest::Client,
+    spotify: SpotifyAuth,
+    http: reqwest::Client,
+}
+
+struct SpotifyAuth {
+    access_token: String,
+    refresh_token: String,
+    client_id: String,
+    client_secret: String,
+    device_id: Option<String>,
+    runtime_token: RwLock<String>,
 }
 
 #[derive(Serialize)]
-struct Health { status: &'static str, service: &'static str, version: &'static str }
+struct Health {
+    status: &'static str,
+    service: &'static str,
+    version: &'static str,
+}
 
 #[derive(Deserialize)]
-struct MusicCommand { action: String }
+struct MusicCommand {
+    action: String,
+}
 
 #[derive(Deserialize)]
-struct TimeQuery { offset_secs: Option<i64> }
+struct TimeQuery {
+    offset_secs: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct MusicTopTracksQuery {
+    compact: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct SpotifyTokenResponse {
+    access_token: String,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
     let state = Arc::new(AppState {
-        stt_url:    env::var("STT_URL").unwrap_or_else(|_| "http://stt-whisper:9000/asr".into()),
+        stt_url: env::var("STT_URL").unwrap_or_else(|_| "http://stt-whisper:9000/asr".into()),
         mopidy_url: env::var("MOPIDY_URL").unwrap_or_else(|_| "http://mopidy:6680".into()),
-        spotify_token: env::var("SPOTIFY_TOKEN").unwrap_or_default(),
-        spotify_device_id: env::var("SPOTIFY_DEVICE_ID").ok().filter(|v| !v.trim().is_empty()),
-        http:       reqwest::Client::new(),
+        spotify: SpotifyAuth {
+            access_token: env::var("SPOTIFY_TOKEN").unwrap_or_default(),
+            refresh_token: env::var("SPOTIFY_REFRESH_TOKEN").unwrap_or_default(),
+            client_id: env::var("SPOTIFY_CLIENT_ID").unwrap_or_default(),
+            client_secret: env::var("SPOTIFY_CLIENT_SECRET").unwrap_or_default(),
+            device_id: env::var("SPOTIFY_DEVICE_ID")
+                .ok()
+                .filter(|v| !v.trim().is_empty()),
+            runtime_token: RwLock::new(String::new()),
+        },
+        http: reqwest::Client::new(),
     });
 
     let app = Router::new()
-        .route("/health",           get(health))
-        .route("/time",             get(time_now))
-        .route("/ws",               get(ws_upgrade))
+        .route("/health", get(health))
+        .route("/time", get(time_now))
+        .route("/ws", get(ws_upgrade))
         .route("/voice/transcribe", post(transcribe))
-        .route("/music/state",      get(music_state))
-        .route("/music/devices",    get(music_devices))
+        .route("/music/state", get(music_state))
+        .route("/music/devices", get(music_devices))
         .route("/music/top-tracks", get(music_top_tracks))
-        .route("/music/command",    post(music_command))
+        .route("/music/command", post(music_command))
         .with_state(state)
         .layer(CorsLayer::permissive());
 
-    let port: u16 = env::var("DC_CORE_PORT").ok().and_then(|s| s.parse().ok()).unwrap_or(8080);
+    let port: u16 = env::var("DC_CORE_PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(8080);
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     tracing::info!("dc-os-core escutando em {}", addr);
     axum::serve(tokio::net::TcpListener::bind(addr).await?, app).await?;
@@ -75,7 +115,11 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn health() -> Json<Health> {
-    Json(Health { status: "ok", service: "dc-os-core", version: env!("CARGO_PKG_VERSION") })
+    Json(Health {
+        status: "ok",
+        service: "dc-os-core",
+        version: env!("CARGO_PKG_VERSION"),
+    })
 }
 
 async fn time_now(Query(query): Query<TimeQuery>) -> Json<serde_json::Value> {
@@ -110,7 +154,9 @@ async fn handle_socket(mut socket: WebSocket) {
         match msg {
             Message::Text(t) => tracing::debug!("WS text: {t}"),
             Message::Binary(_b) => { /* TODO: bufferizar e enviar ao Whisper */ }
-            Message::Ping(p) => { let _ = socket.send(Message::Pong(p)).await; }
+            Message::Ping(p) => {
+                let _ = socket.send(Message::Pong(p)).await;
+            }
             Message::Close(_) => break,
             _ => {}
         }
@@ -123,7 +169,8 @@ async fn transcribe(State(s): State<Arc<AppState>>, body: bytes::Bytes) -> impl 
         "audio_file",
         reqwest::multipart::Part::bytes(body.to_vec())
             .file_name("audio.wav")
-            .mime_str("audio/wav").unwrap(),
+            .mime_str("audio/wav")
+            .unwrap(),
     );
     match s.http.post(&s.stt_url).multipart(form).send().await {
         Ok(r) => r.text().await.unwrap_or_default(),
@@ -132,34 +179,45 @@ async fn transcribe(State(s): State<Arc<AppState>>, body: bytes::Bytes) -> impl 
 }
 
 async fn music_state(State(s): State<Arc<AppState>>) -> Json<serde_json::Value> {
-    if !s.spotify_token.is_empty() {
-        return Json(match spotify_request(&s, reqwest::Method::GET, "/v1/me/player", None).await {
-            Ok((StatusCode::NO_CONTENT, _)) => serde_json::json!({
-                "ok": false,
-                "driver": "spotify",
-                "reason": "no_active_playback"
-            }),
-            Ok((status, body)) => serde_json::json!({
-                "ok": status.is_success(),
-                "driver": "spotify",
-                "status": status.as_u16(),
-                "body": body
-            }),
-            Err(e) => serde_json::json!({
-                "ok": false,
-                "driver": "spotify",
-                "error": e.to_string()
-            }),
-        });
+    if spotify_configured(&s).await {
+        return Json(
+            match spotify_request(&s, reqwest::Method::GET, "/v1/me/player", None).await {
+                Ok((StatusCode::NO_CONTENT, _)) => serde_json::json!({
+                    "ok": false,
+                    "driver": "spotify",
+                    "reason": "no_active_playback"
+                }),
+                Ok((status, body)) => serde_json::json!({
+                    "ok": status.is_success(),
+                    "driver": "spotify",
+                    "status": status.as_u16(),
+                    "body": body
+                }),
+                Err(e) => serde_json::json!({
+                    "ok": false,
+                    "driver": "spotify",
+                    "error": e.to_string()
+                }),
+            },
+        );
     }
 
     let body = serde_json::json!({
         "jsonrpc": "2.0", "id": 1, "method": "core.playback.get_state"
     });
-    let val = match s.http.post(format!("{}/mopidy/rpc", s.mopidy_url)).json(&body).send().await {
+    let val = match s
+        .http
+        .post(format!("{}/mopidy/rpc", s.mopidy_url))
+        .json(&body)
+        .send()
+        .await
+    {
         Ok(response) => {
             let status = response.status();
-            let body = response.json::<serde_json::Value>().await.unwrap_or_default();
+            let body = response
+                .json::<serde_json::Value>()
+                .await
+                .unwrap_or_default();
             serde_json::json!({
                 "ok": status.is_success() && body.get("error").is_none(),
                 "driver": "mopidy",
@@ -177,58 +235,127 @@ async fn music_state(State(s): State<Arc<AppState>>) -> Json<serde_json::Value> 
 }
 
 async fn music_devices(State(s): State<Arc<AppState>>) -> Json<serde_json::Value> {
-    if s.spotify_token.is_empty() {
+    if !spotify_configured(&s).await {
         return Json(serde_json::json!({
             "ok": false,
             "driver": "spotify",
-            "error": "SPOTIFY_TOKEN nao configurado"
+            "error": "Spotify nao configurado"
         }));
     }
 
-    Json(match spotify_request(&s, reqwest::Method::GET, "/v1/me/player/devices", None).await {
-        Ok((status, body)) => serde_json::json!({
-            "ok": status.is_success(),
-            "driver": "spotify",
-            "status": status.as_u16(),
-            "body": body
-        }),
-        Err(e) => serde_json::json!({
-            "ok": false,
-            "driver": "spotify",
-            "error": e.to_string()
-        }),
-    })
+    Json(
+        match spotify_request(&s, reqwest::Method::GET, "/v1/me/player/devices", None).await {
+            Ok((status, body)) => serde_json::json!({
+                "ok": status.is_success(),
+                "driver": "spotify",
+                "status": status.as_u16(),
+                "body": body
+            }),
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "error": e.to_string()
+            }),
+        },
+    )
 }
 
-async fn music_top_tracks(State(s): State<Arc<AppState>>) -> Json<serde_json::Value> {
-    if s.spotify_token.is_empty() {
+async fn music_top_tracks(
+    Query(query): Query<MusicTopTracksQuery>,
+    State(s): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    if !spotify_configured(&s).await {
         return Json(serde_json::json!({
             "ok": false,
             "driver": "spotify",
-            "error": "SPOTIFY_TOKEN nao configurado"
+            "error": "Spotify nao configurado"
         }));
     }
 
     let endpoint = "/v1/me/top/tracks?time_range=long_term&limit=5";
-    Json(match spotify_request(&s, reqwest::Method::GET, endpoint, None).await {
-        Ok((status, body)) => serde_json::json!({
-            "ok": status.is_success(),
-            "driver": "spotify",
-            "status": status.as_u16(),
-            "body": body
-        }),
-        Err(e) => serde_json::json!({
-            "ok": false,
-            "driver": "spotify",
-            "error": e.to_string()
-        }),
-    })
+    Json(
+        match spotify_request(&s, reqwest::Method::GET, endpoint, None).await {
+            Ok((status, body)) => {
+                if query.compact() && status.is_success() {
+                    serde_json::json!({
+                        "ok": true,
+                        "driver": "spotify",
+                        "status": status.as_u16(),
+                        "body": {
+                            "items": compact_spotify_tracks(&body)
+                        }
+                    })
+                } else {
+                    serde_json::json!({
+                        "ok": status.is_success(),
+                        "driver": "spotify",
+                        "status": status.as_u16(),
+                        "body": body
+                    })
+                }
+            }
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "error": e.to_string()
+            }),
+        },
+    )
+}
+
+fn compact_spotify_tracks(body: &serde_json::Value) -> Vec<serde_json::Value> {
+    body.get("items")
+        .and_then(|items| items.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .take(5)
+                .map(|item| {
+                    let artists = item
+                        .get("artists")
+                        .and_then(|artists| artists.as_array())
+                        .map(|artists| {
+                            artists
+                                .iter()
+                                .filter_map(|artist| {
+                                    artist.get("name").and_then(|name| name.as_str())
+                                })
+                                .map(|name| serde_json::json!({ "name": name }))
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+
+                    serde_json::json!({
+                        "name": item.get("name").and_then(|name| name.as_str()).unwrap_or("Sem titulo"),
+                        "artists": artists,
+                        "album": {
+                            "name": item
+                                .get("album")
+                                .and_then(|album| album.get("name"))
+                                .and_then(|name| name.as_str())
+                                .unwrap_or("")
+                        }
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+impl MusicTopTracksQuery {
+    fn compact(&self) -> bool {
+        self.compact
+            .as_deref()
+            .map(|value| matches!(value, "1" | "true" | "yes" | "sim"))
+            .unwrap_or(false)
+    }
 }
 
 async fn music_command(
-    State(s): State<Arc<AppState>>, Json(cmd): Json<MusicCommand>,
+    State(s): State<Arc<AppState>>,
+    Json(cmd): Json<MusicCommand>,
 ) -> Json<serde_json::Value> {
-    if !s.spotify_token.is_empty() {
+    if spotify_configured(&s).await {
         return Json(match spotify_music_command(&s, &cmd.action).await {
             Ok(value) => value,
             Err(e) => serde_json::json!({
@@ -241,17 +368,26 @@ async fn music_command(
     }
 
     let method = match cmd.action.as_str() {
-        "play"  => "core.playback.play",
+        "play" => "core.playback.play",
         "pause" => "core.playback.pause",
-        "next"  => "core.playback.next",
-        "prev"  => "core.playback.previous",
-        _       => return Json(serde_json::json!({ "error": "unknown action" })),
+        "next" => "core.playback.next",
+        "prev" => "core.playback.previous",
+        _ => return Json(serde_json::json!({ "error": "unknown action" })),
     };
     let body = serde_json::json!({ "jsonrpc":"2.0", "id":1, "method": method });
-    match s.http.post(format!("{}/mopidy/rpc", s.mopidy_url)).json(&body).send().await {
+    match s
+        .http
+        .post(format!("{}/mopidy/rpc", s.mopidy_url))
+        .json(&body)
+        .send()
+        .await
+    {
         Ok(response) => {
             let status = response.status();
-            let body = response.json::<serde_json::Value>().await.unwrap_or_default();
+            let body = response
+                .json::<serde_json::Value>()
+                .await
+                .unwrap_or_default();
             Json(serde_json::json!({
                 "ok": status.is_success() && body.get("error").is_none(),
                 "driver": "mopidy",
@@ -326,17 +462,34 @@ async fn spotify_request(
     body: Option<serde_json::Value>,
 ) -> anyhow::Result<(StatusCode, serde_json::Value)> {
     let mut url = format!("https://api.spotify.com{path}");
-    if let Some(device_id) = &s.spotify_device_id {
+    if let Some(device_id) = &s.spotify.device_id {
         let sep = if url.contains('?') { '&' } else { '?' };
         url.push(sep);
         url.push_str("device_id=");
         url.push_str(device_id);
     }
 
+    let token = spotify_token(s).await?;
+    let result = send_spotify_request(s, method.clone(), &url, body.clone(), &token).await?;
+    if result.0 != StatusCode::UNAUTHORIZED || !spotify_can_refresh(s) {
+        return Ok(result);
+    }
+
+    let token = refresh_spotify_token(s).await?;
+    send_spotify_request(s, method, &url, body, &token).await
+}
+
+async fn send_spotify_request(
+    s: &AppState,
+    method: reqwest::Method,
+    url: &str,
+    body: Option<serde_json::Value>,
+    token: &str,
+) -> anyhow::Result<(StatusCode, serde_json::Value)> {
     let mut request = s
         .http
         .request(method, url)
-        .bearer_auth(&s.spotify_token)
+        .bearer_auth(token)
         .header("accept", "application/json");
 
     if let Some(body) = body {
@@ -353,4 +506,59 @@ async fn spotify_request(
     };
 
     Ok((status, body))
+}
+
+async fn spotify_configured(s: &AppState) -> bool {
+    !spotify_token_value(s).await.is_empty() || spotify_can_refresh(s)
+}
+
+async fn spotify_token(s: &AppState) -> anyhow::Result<String> {
+    let token = spotify_token_value(s).await;
+    if !token.is_empty() {
+        return Ok(token);
+    }
+    refresh_spotify_token(s).await
+}
+
+async fn spotify_token_value(s: &AppState) -> String {
+    let runtime_token = s.spotify.runtime_token.read().await;
+    if !runtime_token.is_empty() {
+        return runtime_token.clone();
+    }
+    s.spotify.access_token.clone()
+}
+
+fn spotify_can_refresh(s: &AppState) -> bool {
+    !s.spotify.refresh_token.is_empty()
+        && !s.spotify.client_id.is_empty()
+        && !s.spotify.client_secret.is_empty()
+}
+
+async fn refresh_spotify_token(s: &AppState) -> anyhow::Result<String> {
+    if !spotify_can_refresh(s) {
+        anyhow::bail!("Spotify token expirado e refresh token nao configurado");
+    }
+
+    let response = s
+        .http
+        .post("https://accounts.spotify.com/api/token")
+        .basic_auth(&s.spotify.client_id, Some(&s.spotify.client_secret))
+        .form(&[
+            ("grant_type", "refresh_token"),
+            ("refresh_token", s.spotify.refresh_token.as_str()),
+        ])
+        .send()
+        .await?;
+
+    let status = response.status();
+    let text = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        anyhow::bail!("Spotify refresh HTTP {}: {}", status.as_u16(), text);
+    }
+
+    let body = serde_json::from_str::<SpotifyTokenResponse>(&text)?;
+    let mut runtime_token = s.spotify.runtime_token.write().await;
+    *runtime_token = body.access_token.clone();
+
+    Ok(body.access_token)
 }

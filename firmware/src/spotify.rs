@@ -12,7 +12,8 @@ use std::sync::mpsc::Sender;
 
 include!(concat!(env!("OUT_DIR"), "/spotify_token.rs"));
 
-const SPOTIFY_API_BASE: &str = "https://api.spotify.com/v1/me/top/tracks?time_range=long_term&limit=5";
+const SPOTIFY_API_BASE: &str =
+    "https://api.spotify.com/v1/me/top/tracks?time_range=long_term&limit=5";
 
 pub fn fetch_top_tracks(api_health_url: &str, token: &str, event_tx: &Sender<SystemEvent>) {
     match fetch_top_tracks_inner(api_health_url, token) {
@@ -22,6 +23,9 @@ pub fn fetch_top_tracks(api_health_url: &str, token: &str, event_tx: &Sender<Sys
         }
         Err(e) => {
             log::warn!("Spotify: falha ao obter top tracks: {e:?}");
+            let _ = event_tx.send(SystemEvent::SpotifyTracksLoaded(vec![
+                SpotifyTrack::status("Spotify indisponivel", "A repetir em breve"),
+            ]));
         }
     }
 }
@@ -51,13 +55,19 @@ fn fetch_top_tracks_from_core(api_health_url: &str) -> Result<Vec<SpotifyTrack>>
     }
 
     let body = read_response_body(&mut response)?;
-    let top: CoreTopTracksResponse = serde_json::from_str(&body)
-        .map_err(|e| anyhow!("parse JSON dc-os-core: {e}"))?;
+    let top: CoreTopTracksResponse =
+        serde_json::from_str(&body).map_err(|e| anyhow!("parse JSON dc-os-core: {e}"))?;
     if !top.ok {
-        return Err(anyhow!("dc-os-core reportou ok=false"));
+        return Err(anyhow!(
+            "dc-os-core reportou ok=false: {}",
+            top.error.unwrap_or_else(|| "sem detalhe".to_owned())
+        ));
     }
 
-    Ok(top.body.items)
+    Ok(top
+        .body
+        .ok_or_else(|| anyhow!("dc-os-core respondeu sem body.items"))?
+        .items)
 }
 
 fn fetch_top_tracks_from_spotify(token: &str) -> Result<Vec<SpotifyTrack>> {
@@ -77,8 +87,8 @@ fn fetch_top_tracks_from_spotify(token: &str) -> Result<Vec<SpotifyTrack>> {
     let body = read_response_body(&mut response)?;
     log::info!("Spotify: resposta {} bytes", body.len());
 
-    let top: TopTracksResponse = serde_json::from_str(&body)
-        .map_err(|e| anyhow!("parse JSON: {e}"))?;
+    let top: TopTracksResponse =
+        serde_json::from_str(&body).map_err(|e| anyhow!("parse JSON: {e}"))?;
 
     Ok(top.items)
 }
@@ -109,19 +119,28 @@ fn core_top_tracks_url(api_health_url: &str) -> String {
     let base = api_health_url
         .strip_suffix("/health")
         .unwrap_or_else(|| api_health_url.trim_end_matches('/'));
-    format!("{base}/music/top-tracks")
+    format!("{base}/music/top-tracks?compact=true")
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[allow(dead_code)]
 pub struct SpotifyTrack {
     pub name: String,
+    #[serde(default)]
     pub artists: Vec<Artist>,
+    #[serde(default)]
+    pub album: Option<Album>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[allow(dead_code)]
 pub struct Artist {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[allow(dead_code)]
+pub struct Album {
     pub name: String,
 }
 
@@ -133,15 +152,35 @@ struct TopTracksResponse {
 #[derive(Debug, serde::Deserialize)]
 struct CoreTopTracksResponse {
     ok: bool,
-    body: TopTracksResponse,
+    #[serde(default)]
+    body: Option<TopTracksResponse>,
+    #[serde(default)]
+    error: Option<String>,
 }
 
 impl SpotifyTrack {
+    fn status(name: &str, detail: &str) -> Self {
+        Self {
+            name: name.to_owned(),
+            artists: vec![Artist {
+                name: detail.to_owned(),
+            }],
+            album: None,
+        }
+    }
+
     pub fn artist_names(&self) -> String {
         self.artists
             .iter()
             .map(|a| a.name.clone())
             .collect::<Vec<_>>()
             .join(", ")
+    }
+
+    pub fn album_name(&self) -> &str {
+        self.album
+            .as_ref()
+            .map(|album| album.name.as_str())
+            .unwrap_or("")
     }
 }

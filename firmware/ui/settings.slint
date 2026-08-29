@@ -1,6 +1,7 @@
 import { Theme } from "theme.slint";
 
-export struct WifiNetwork { ssid: string, secured: bool, connected: bool }
+export struct WifiNetwork { ssid: string, secured: bool, connected: bool, signal: int }
+export struct BluetoothDevice { address: string, rssi: int }
 
 component SettingsToggle inherits Rectangle {
     in property <string> label;
@@ -144,6 +145,135 @@ component StepperRow inherits Rectangle {
     }
 }
 
+component PasswordKey inherits Rectangle {
+    in property <string> label;
+    in-out property <string> password;
+
+    border-radius: Theme.radius-s;
+    background: Theme.panel-soft;
+    border-width: 1px;
+    border-color: Theme.stroke-soft;
+    TouchArea { clicked => { root.password = root.password + root.label; } }
+    Text {
+        text: root.label;
+        color: Theme.text-primary;
+        font-size: Theme.font-xs;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component PasswordKeyRow inherits HorizontalLayout {
+    in property <[string]> keys;
+    in-out property <string> password;
+
+    spacing: 4px;
+    for key in root.keys : PasswordKey {
+        width: 32px;
+        height: 24px;
+        label: key;
+        password <=> root.password;
+    }
+}
+
+component PasswordAction inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    callback clicked();
+
+    border-radius: Theme.radius-s;
+    background: root.primary ? Theme.accent : Theme.panel-elevated;
+    border-width: 1px;
+    border-color: root.primary ? Theme.accent-hi : Theme.stroke-soft;
+    TouchArea { clicked => { root.clicked(); } }
+    Text {
+        text: root.label;
+        color: Theme.text-primary;
+        font-size: 9px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component WifiPasswordDialog inherits Rectangle {
+    in-out property <string> ssid;
+    in-out property <string> password;
+    in-out property <int> keyboard-mode: 0;
+    callback connect(string, string);
+    callback cancel();
+
+    background: #03050EDD;
+
+    Rectangle {
+        x: 8px; y: 8px; width: 304px; height: 200px;
+        border-radius: Theme.radius-m;
+        background: Theme.bg-1;
+        border-width: 1px;
+        border-color: Theme.stroke;
+
+        Text {
+            x: 14px; y: 10px; width: 276px; height: 16px;
+            text: "Senha Wi-Fi";
+            color: Theme.text-primary;
+            font-size: Theme.font-md;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+        Text {
+            x: 14px; y: 28px; width: 276px; height: 12px;
+            text: root.ssid;
+            color: Theme.text-secondary;
+            font-size: Theme.font-xs;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        Rectangle {
+            x: 14px; y: 45px; width: 276px; height: 24px;
+            border-radius: Theme.radius-s;
+            background: Theme.panel-soft;
+            border-width: 1px;
+            border-color: Theme.stroke-soft;
+            Text {
+                x: 10px; y: 0px; width: 256px; height: 100%;
+                text: root.password == "" ? "Inserir senha" : root.password;
+                color: root.password == "" ? Theme.text-muted : Theme.text-primary;
+                font-size: Theme.font-xs;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+
+        if root.keyboard-mode == 0: Rectangle {
+            x: 10px; y: 76px; width: 284px; height: 100px; background: #00000000;
+            PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["a","b","c","d","e","f","g","h"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 26px; width: 284px; height: 24px; keys: ["i","j","k","l","m","n","o","p"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 52px; width: 284px; height: 24px; keys: ["q","r","s","t","u","v","w","x"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 78px; width: 284px; height: 24px; keys: ["y","z","0","1","2","3","4","5"]; password <=> root.password; }
+        }
+        if root.keyboard-mode == 1: Rectangle {
+            x: 10px; y: 76px; width: 284px; height: 100px; background: #00000000;
+            PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["A","B","C","D","E","F","G","H"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 26px; width: 284px; height: 24px; keys: ["I","J","K","L","M","N","O","P"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 52px; width: 284px; height: 24px; keys: ["Q","R","S","T","U","V","W","X"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 78px; width: 284px; height: 24px; keys: ["Y","Z","6","7","8","9","-","_"]; password <=> root.password; }
+        }
+        if root.keyboard-mode == 2: Rectangle {
+            x: 10px; y: 76px; width: 284px; height: 100px; background: #00000000;
+            PasswordKeyRow { x: 0px; y: 0px; width: 284px; height: 24px; keys: ["0","1","2","3","4","5","6","7"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 26px; width: 284px; height: 24px; keys: ["8","9","@","#","$","%","&","!"]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 52px; width: 284px; height: 24px; keys: ["?","-","_","+",".","/","*","="]; password <=> root.password; }
+            PasswordKeyRow { x: 0px; y: 78px; width: 284px; height: 24px; keys: [":",";","(",")","[","]","{","}"]; password <=> root.password; }
+        }
+
+        PasswordAction { x: 14px; y: 176px; width: 50px; height: 18px; label: root.keyboard-mode == 0 ? "ABC" : root.keyboard-mode == 1 ? "123" : "abc"; clicked => { root.keyboard-mode = root.keyboard-mode == 2 ? 0 : root.keyboard-mode + 1; } }
+        PasswordAction { x: 70px; y: 176px; width: 54px; height: 18px; label: "Limpar"; clicked => { root.password = ""; } }
+        PasswordAction { x: 130px; y: 176px; width: 70px; height: 18px; label: "Cancelar"; clicked => { root.cancel(); } }
+        PasswordAction { x: 206px; y: 176px; width: 84px; height: 18px; label: "Ligar"; primary: root.password != ""; clicked => { if (root.password != "") { root.connect(root.ssid, root.password); } } }
+    }
+}
+
 export component SettingsPanel inherits Rectangle {
     in-out property <int> page: 0;
     in-out property <bool> wifi-on: true;
@@ -152,6 +282,11 @@ export component SettingsPanel inherits Rectangle {
     in-out property <float> brightness: 0.60;
     in-out property <int> region-index: 0;
     in-out property <int> language-index: 0;
+    in-out property <bool> wifi-password-open: false;
+    in-out property <string> selected-ssid: "";
+    in-out property <string> wifi-password: "";
+    in-out property <int> wifi-keyboard-mode: 0;
+    in-out property <bool> swipe-locked: false;
 
     property <string> region-label:
         root.region-index == 0 ? "Brasil" :
@@ -164,15 +299,13 @@ export component SettingsPanel inherits Rectangle {
         root.language-index == 2 ? "English" :
         root.language-index == 3 ? "Francais" : "Espanol";
 
-    in property <[WifiNetwork]> networks: [
-        { ssid: "Casa_Deo", secured: true, connected: true },
-        { ssid: "DC_Network", secured: true, connected: false },
-        { ssid: "Visitantes", secured: false, connected: false },
-    ];
+    in property <[WifiNetwork]> networks: [];
+    in property <[BluetoothDevice]> bluetooth-devices: [];
 
     callback back();
+    callback scan-wifi-networks();
     callback change-passcode();
-    callback network-selected(string);
+    callback network-selected(string, string);
     callback wifi-changed(bool);
     callback bluetooth-changed(bool);
     callback locale-changed(int, int);
@@ -182,6 +315,38 @@ export component SettingsPanel inherits Rectangle {
     width: 320px;
     height: 216px;
     background: Theme.bg-0;
+    clip: true;
+
+    function open-page(next-page: int) {
+        root.page = max(0, min(5, next-page));
+        if (root.page == 1) { root.scan-wifi-networks(); }
+    }
+
+    swipe-lock-timer := Timer {
+        interval: 260ms;
+        running: false;
+        triggered() => {
+            root.swipe-locked = false;
+            self.running = false;
+        }
+    }
+
+    TouchArea {
+        x: 0px; y: 36px; width: 320px; height: 180px;
+        moved => {
+            if (!root.wifi-password-open && !root.swipe-locked) {
+                if (self.mouse-x - self.pressed-x > 64px) {
+                    if (root.page > 0) { root.open-page(root.page - 1); }
+                    root.swipe-locked = true;
+                    swipe-lock-timer.running = true;
+                } else if (self.pressed-x - self.mouse-x > 64px) {
+                    if (root.page < 5) { root.open-page(root.page + 1); }
+                    root.swipe-locked = true;
+                    swipe-lock-timer.running = true;
+                }
+            }
+        }
+    }
 
     Rectangle {
         x: 0px; y: 0px; width: 46px; height: 36px;
@@ -224,7 +389,11 @@ export component SettingsPanel inherits Rectangle {
             background: Theme.panel-soft;
             border-width: 1px;
             border-color: Theme.stroke-soft;
-            TouchArea { clicked => { root.page = index + 1; } }
+            TouchArea {
+                clicked => {
+                    root.open-page(index + 1);
+                }
+            }
             Image { x: 10px; y: 7px; width: 14px; height: 14px; source: item.icon; image-fit: contain; }
             Text { x: 34px; y: 3px; width: 150px; height: 11px; text: item.title; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 700; }
             Text { x: 34px; y: 15px; width: 170px; height: 10px; text: item.detail; color: Theme.text-secondary; font-size: 8px; }
@@ -235,20 +404,72 @@ export component SettingsPanel inherits Rectangle {
     if root.page == 1: Rectangle {
         x: 14px; y: 42px; width: 292px; height: 162px;
         background: #00000000;
-        SettingsToggle { x: 0px; y: 0px; width: 292px; height: 34px; label: "Wi-Fi"; icon: @image-url("assets/icons/wifi.svg"); checked <=> root.wifi-on; changed(on) => { root.wifi-changed(on); } }
-        SettingsToggle { x: 0px; y: 40px; width: 292px; height: 34px; label: "Bluetooth"; icon: @image-url("assets/icons/bluetooth.svg"); checked <=> root.bluetooth-on; changed(on) => { root.bluetooth-changed(on); } }
-        Text { x: 0px; y: 82px; width: 130px; height: 12px; text: "Redes disponiveis"; color: Theme.text-secondary; font-size: Theme.font-xs; }
-        for n[index] in root.networks : Rectangle {
-            x: 0px; y: 98px + index * 31px; width: 292px; height: 27px;
+        SettingsToggle {
+            x: 0px; y: 0px; width: 292px; height: 32px;
+            label: "Wi-Fi"; icon: @image-url("assets/icons/wifi.svg"); checked <=> root.wifi-on;
+            changed(on) => {
+                root.wifi-changed(on);
+                if (on) { root.scan-wifi-networks(); }
+            }
+        }
+        SettingsToggle { x: 0px; y: 36px; width: 292px; height: 32px; label: "Bluetooth"; icon: @image-url("assets/icons/bluetooth.svg"); checked <=> root.bluetooth-on; changed(on) => { root.bluetooth-changed(on); } }
+        Text { x: 0px; y: 76px; width: 130px; height: 12px; text: "Redes disponiveis"; color: Theme.text-secondary; font-size: Theme.font-xs; }
+        Text {
+            x: 138px; y: 76px; width: 104px; height: 12px;
+            text: root.bluetooth-on ? "BLE ligado" : "BLE desligado";
+            color: root.bluetooth-on ? Theme.accent-cyan : Theme.text-muted;
+            font-size: Theme.font-xs;
+            horizontal-alignment: right;
+        }
+        Rectangle {
+            x: 252px; y: 72px; width: 40px; height: 22px;
             border-radius: Theme.radius-s;
             background: Theme.panel-soft;
             border-width: 1px;
             border-color: Theme.stroke-soft;
-            TouchArea { clicked => { root.wifi-on = true; root.network-selected(n.ssid); } }
-            Image { x: 10px; y: 6px; width: 15px; height: 15px; source: @image-url("assets/icons/wifi.svg"); image-fit: contain; }
-            Text { x: 34px; y: 4px; width: 160px; height: 11px; text: n.ssid; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 600; }
-            Text { x: 34px; y: 15px; width: 80px; height: 10px; text: n.connected ? "Conectado" : ""; color: Theme.accent-cyan; font-size: 8px; }
-            if n.secured: Image { x: 262px; y: 6px; width: 14px; height: 14px; source: @image-url("assets/icons/lock.svg"); image-fit: contain; }
+            TouchArea { clicked => { root.scan-wifi-networks(); } }
+            Image { x: 12px; y: 3px; width: 16px; height: 16px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; }
+        }
+        if !root.wifi-on: Text {
+            x: 0px; y: 108px; width: 292px; height: 28px;
+            text: "Wi-Fi desligado";
+            color: Theme.text-muted;
+            font-size: Theme.font-sm;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        if root.wifi-on && root.networks.length == 0: Text {
+            x: 0px; y: 108px; width: 292px; height: 28px;
+            text: "A procurar redes...";
+            color: Theme.text-muted;
+            font-size: Theme.font-sm;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        for n[index] in root.networks : Rectangle {
+            x: 0px; y: 98px + index * 26px; width: 292px; height: 24px;
+            border-radius: Theme.radius-s;
+            background: Theme.panel-soft;
+            border-width: 1px;
+            border-color: Theme.stroke-soft;
+            TouchArea {
+                clicked => {
+                    root.wifi-on = true;
+                    if (n.secured) {
+                        root.selected-ssid = n.ssid;
+                        root.wifi-password = "";
+                        root.wifi-keyboard-mode = 0;
+                        root.wifi-password-open = true;
+                    } else {
+                        root.network-selected(n.ssid, "");
+                    }
+                }
+            }
+            Image { x: 10px; y: 5px; width: 14px; height: 14px; source: @image-url("assets/icons/wifi.svg"); image-fit: contain; }
+            Text { x: 34px; y: 3px; width: 158px; height: 11px; text: n.ssid; color: Theme.text-primary; font-size: Theme.font-sm; font-weight: 600; }
+            Text { x: 34px; y: 14px; width: 80px; height: 9px; text: n.connected ? "Conectado" : ""; color: Theme.accent-cyan; font-size: 8px; }
+            Text { x: 200px; y: 7px; width: 48px; height: 10px; text: n.signal + " dBm"; color: Theme.text-muted; font-size: 8px; horizontal-alignment: right; }
+            if n.secured: Image { x: 262px; y: 5px; width: 14px; height: 14px; source: @image-url("assets/icons/lock.svg"); image-fit: contain; }
         }
     }
 
@@ -296,6 +517,21 @@ export component SettingsPanel inherits Rectangle {
         border-color: Theme.stroke-soft;
         Text { x: 14px; y: 12px; width: 260px; height: 16px; text: "DC OS"; color: Theme.text-primary; font-size: Theme.font-md; font-weight: 700; }
         Text { x: 14px; y: 34px; width: 260px; height: 38px; text: "Firmware ESP32-S3 com Slint, Wi-Fi, SNTP, NVS e API local."; color: Theme.text-secondary; font-size: Theme.font-xs; wrap: word-wrap; }
+    }
+
+    if root.wifi-password-open: WifiPasswordDialog {
+        x: 0px; y: 0px; width: 320px; height: 216px;
+        ssid <=> root.selected-ssid;
+        password <=> root.wifi-password;
+        keyboard-mode <=> root.wifi-keyboard-mode;
+        cancel => {
+            root.wifi-password-open = false;
+            root.wifi-password = "";
+        }
+        connect(ssid, password) => {
+            root.wifi-password-open = false;
+            root.network-selected(ssid, password);
+        }
     }
 }
 

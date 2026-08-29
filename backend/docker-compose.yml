@@ -19,8 +19,11 @@ services:
       MOPIDY_URL:   http://mopidy:6680
       DC_CORE_HOST: 0.0.0.0
       DC_CORE_PORT: "8080"
-      SPOTIFY_TOKEN:     ${SPOTIFY_TOKEN:-}
-      SPOTIFY_DEVICE_ID: ${SPOTIFY_DEVICE_ID:-}
+      SPOTIFY_TOKEN:         ${SPOTIFY_TOKEN:-}
+      SPOTIFY_REFRESH_TOKEN: ${SPOTIFY_REFRESH_TOKEN:-}
+      SPOTIFY_CLIENT_ID:     ${SPOTIFY_CLIENT_ID:-}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
+      SPOTIFY_DEVICE_ID:     ${SPOTIFY_DEVICE_ID:-}
     depends_on:
       - stt-whisper
       - mopidy

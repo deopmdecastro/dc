@@ -13,20 +13,20 @@ use esp_idf_hal::{
 
 // Comandos ILI9341V usados no bring-up e no envio de pixels.
 const CMD_SWRESET: u8 = 0x01;
-const CMD_SLPOUT:  u8 = 0x11;
-const CMD_INVON:   u8 = 0x21;
-const CMD_DISPON:  u8 = 0x29;
-const CMD_CASET:   u8 = 0x2A;
-const CMD_PASET:   u8 = 0x2B;
-const CMD_RAMWR:   u8 = 0x2C;
-const CMD_MADCTL:  u8 = 0x36;
-const CMD_COLMOD:  u8 = 0x3A;
+const CMD_SLPOUT: u8 = 0x11;
+const CMD_INVON: u8 = 0x21;
+const CMD_DISPON: u8 = 0x29;
+const CMD_CASET: u8 = 0x2A;
+const CMD_PASET: u8 = 0x2B;
+const CMD_RAMWR: u8 = 0x2C;
+const CMD_MADCTL: u8 = 0x36;
+const CMD_COLMOD: u8 = 0x3A;
 
 pub struct Display<'d> {
-    spi:  SpiDeviceDriver<'d, SpiDriver<'d>>,
-    dc:   PinDriver<'d, Output>,
+    spi: SpiDeviceDriver<'d, SpiDriver<'d>>,
+    dc: PinDriver<'d, Output>,
     pub backlight: LedcDriver<'d>,
-    pub width:  u32,
+    pub width: u32,
     pub height: u32,
 }
 
@@ -48,14 +48,19 @@ impl<'d> Display<'d> {
         // --- SPI2 ---
         let sclk = unsafe { AnyIOPin::steal(pins::DISP_SCLK as _) };
         let mosi = unsafe { AnyIOPin::steal(pins::DISP_MOSI as _) };
-        let cs   = unsafe { AnyIOPin::steal(pins::DISP_CS   as _) };
-        let dc   = unsafe { AnyIOPin::steal(pins::DISP_DC   as _) };
+        let cs = unsafe { AnyIOPin::steal(pins::DISP_CS as _) };
+        let dc = unsafe { AnyIOPin::steal(pins::DISP_DC as _) };
 
         let spi_drv = SpiDriver::new(
-            spi2, sclk, mosi, Option::<AnyIOPin>::None, &SpiDriverConfig::new(),
+            spi2,
+            sclk,
+            mosi,
+            Option::<AnyIOPin>::None,
+            &SpiDriverConfig::new(),
         )?;
         let spi = SpiDeviceDriver::new(
-            spi_drv, Some(cs),
+            spi_drv,
+            Some(cs),
             &SpiConfig::new().baudrate(40.MHz().into()),
         )?;
 
@@ -68,15 +73,16 @@ impl<'d> Display<'d> {
                 .frequency(5.kHz().into())
                 .resolution(Resolution::Bits10),
         )?;
-        let mut backlight = LedcDriver::new(ledc_channel0, timer,
-            unsafe { AnyIOPin::steal(pins::DISP_BL as _) })?;
+        let mut backlight = LedcDriver::new(ledc_channel0, timer, unsafe {
+            AnyIOPin::steal(pins::DISP_BL as _)
+        })?;
         backlight.set_duty(backlight.get_max_duty())?; // brilho inicial a 100%
 
         let mut disp = Self {
             spi,
             dc,
             backlight,
-            width:  DISPLAY_W,
+            width: DISPLAY_W,
             height: DISPLAY_H,
         };
         disp.bring_up_ili9341v()?;
@@ -102,7 +108,11 @@ impl<'d> Display<'d> {
     /// Sem a inversao, este modulo mostra o tema escuro como fundo claro e
     /// troca os acentos ciano/magenta por vermelho/verde.
     fn bring_up_ili9341v(&mut self) -> Result<()> {
-        log::info!("Display: ILI9341V bring-up ({}×{})", self.width, self.height);
+        log::info!(
+            "Display: ILI9341V bring-up ({}×{})",
+            self.width,
+            self.height
+        );
 
         self.cmd(CMD_SWRESET)?;
         FreeRtos::delay_ms(120);
@@ -170,10 +180,10 @@ impl<'d> Display<'d> {
     /// - `PortraitCCW`→ MADCTL 0x88  (BGR, MY)
     pub fn set_rotation(&mut self, rot: DisplayRotation) -> Result<()> {
         let madctl: u8 = match rot {
-            DisplayRotation::Landscape    => 0x28,
+            DisplayRotation::Landscape => 0x28,
             DisplayRotation::Landscape180 => 0xE8,
-            DisplayRotation::PortraitCW   => 0x48,
-            DisplayRotation::PortraitCCW  => 0x88,
+            DisplayRotation::PortraitCW => 0x48,
+            DisplayRotation::PortraitCCW => 0x88,
         };
         self.cmd(CMD_MADCTL)?;
         self.data(&[madctl])?;

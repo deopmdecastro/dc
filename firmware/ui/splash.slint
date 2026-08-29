@@ -3,37 +3,53 @@ import { Theme } from "theme.slint";
 export component SplashScreen inherits Rectangle {
     width: 320px;
     height: 240px;
-    background: Theme.bg-0;
 
-    Rectangle {
-        x: 34px; y: 52px; width: 252px; height: 128px;
-        border-radius: Theme.radius-m;
-        background: Theme.bg-1;
-        border-width: 1px;
-        border-color: Theme.stroke-soft;
-    }
+    // Fundo com degradê radial sutil partindo do centro
+    background: @radial-gradient(circle, Theme.accent-deep 0%, Theme.bg-0 70%);
 
-    Image {
-        x: 94px;
-        y: 72px;
-        width: 132px;
-        height: 78px;
-        source: @image-url("assets/branding/dc-assistant-logo-white.png");
-        image-fit: contain;
-    }
+    // Layout principal centralizado
+    VerticalLayout {
+        alignment: center;
+        spacing: 14px;
 
-    Rectangle {
-        x: 96px; y: 172px; width: 128px; height: 2px;
-        background: Theme.accent;
-    }
+        // Logo
+        Image {
+            height: 48px;
+            source: @image-url("assets/branding/dc-assistant-logo-white.png");
+            image-fit: contain;
+            horizontal-alignment: center;
+        }
 
-    Text {
-        x: 0px; y: 186px; width: 320px; height: 16px;
-        text: "DC OS";
-        color: Theme.text-secondary;
-        font-size: Theme.font-sm;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+        // Nome do Sistema
+        Text {
+            text: "DC OS";
+            color: Theme.text-primary;
+            font-size: Theme.font-md;
+            font-weight: 700;
+            horizontal-alignment: center;
+            letter-spacing: 2px;
+        }
+
+        // Barra de progresso centralizada
+        HorizontalLayout {
+            alignment: center;
+
+            Rectangle {
+                width: 120px;
+                height: 3px;
+                border-radius: 1.5px;
+                background: Theme.bg-2;
+                clip: true;
+
+                Rectangle {
+                    property <length> anim-offset: (animation-tick() / 10ms) * 1px;
+                    x: -60px + mod(self.anim-offset, 180px);
+                    width: 60px;
+                    height: 100%;
+                    border-radius: 1.5px;
+                    background: @linear-gradient(90deg, Theme.accent 0%, Theme.accent-hi 100%);
+                }
+            }
+        }
     }
 }

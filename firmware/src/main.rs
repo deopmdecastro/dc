@@ -25,7 +25,7 @@ use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
 use std::{cell::RefCell, rc::Rc, sync::mpsc};
-use system::{NetworkCommand, SystemEvent};
+use system::NetworkCommand;
 
 // Módulo gerado a partir de ui/main.slint.
 slint::include_modules!();
@@ -34,11 +34,14 @@ fn main() -> Result<()> {
     // ---- Espressif runtime ----
     esp_idf_svc::sys::link_patches();
     esp_idf_svc::log::EspLogger::initialize_default();
-    log::info!("DC OS boot — DC Assistant firmware v{}", env!("CARGO_PKG_VERSION"));
+    log::info!(
+        "DC OS boot — DC Assistant firmware v{}",
+        env!("CARGO_PKG_VERSION")
+    );
 
     let peripherals = Peripherals::take()?;
-    let sysloop     = EspSystemEventLoop::take()?;
-    let nvs         = EspDefaultNvsPartition::take()?;
+    let sysloop = EspSystemEventLoop::take()?;
+    let nvs = EspDefaultNvsPartition::take()?;
     let config_store = Rc::new(RefCell::new(config::ConfigStore::new(nvs.clone())?));
     let app_config = config_store.borrow().load();
 
@@ -57,11 +60,13 @@ fn main() -> Result<()> {
 
     // ---- Slint window (software renderer) ----
     let window = MinimalSoftwareWindow::new(RepaintBufferType::ReusedBuffer);
-    window.set_size(slint::PhysicalSize::new(pinout::DISPLAY_W, pinout::DISPLAY_H));
+    window.set_size(slint::PhysicalSize::new(
+        pinout::DISPLAY_W,
+        pinout::DISPLAY_H,
+    ));
 
-    let display_static = unsafe {
-        core::mem::transmute::<display::Display<'_>, display::Display<'static>>(display)
-    };
+    let display_static =
+        unsafe { core::mem::transmute::<display::Display<'_>, display::Display<'static>>(display) };
     slint_platform::init_platform(window.clone(), display_static);
 
     // ---- Tasks periféricas ----
@@ -73,11 +78,14 @@ fn main() -> Result<()> {
         |_pcm| { /* enviar buffer PCM ao WebSocket */ },
     )?;
     network::spawn_network_task(
-        modem, sysloop, nvs,
+        modem,
+        sysloop,
+        nvs,
         network::NetConfig {
             enabled: app_config.wifi_enabled,
             ssid: app_config.wifi_ssid.clone(),
             password: app_config.wifi_password.clone(),
+            bluetooth_enabled: app_config.bluetooth_enabled,
             api_health_url: app_config.api_health_url.clone(),
             timezone_offset_secs: timezone_offset_secs(app_config.region_index),
         },
@@ -86,8 +94,8 @@ fn main() -> Result<()> {
     )?;
 
     // ---- Cria a AppWindow (definida em ui/main.slint) ----
-    let app = AppWindow::new()
-        .map_err(|e| anyhow::anyhow!("falha ao criar AppWindow Slint: {e:?}"))?;
+    let app =
+        AppWindow::new().map_err(|e| anyhow::anyhow!("falha ao criar AppWindow Slint: {e:?}"))?;
     app.set_wifi_on(app_config.wifi_enabled);
     app.set_bluetooth_on(app_config.bluetooth_enabled);
     app.set_volume(app_config.volume as f32 / 100.0);
@@ -136,7 +144,7 @@ fn main() -> Result<()> {
         });
     }
     app.on_wake_word_triggered(|| log::info!("UI: wake-word acionada"));
-    app.on_launch_app(|idx|      log::info!("UI: launch_app({})", idx));
+    app.on_launch_app(|idx| log::info!("UI: launch_app({})", idx));
     {
         let tx = network_cmd_tx.clone();
         app.on_music_command(move |action| {
@@ -152,7 +160,9 @@ fn main() -> Result<()> {
             if let Err(e) = store.borrow().save_locale(region, language) {
                 log::warn!("NVS: falha ao guardar idioma/regiao: {e:?}");
             }
-            let _ = tx.send(NetworkCommand::SetTimezoneOffset(timezone_offset_secs(region)));
+            let _ = tx.send(NetworkCommand::SetTimezoneOffset(timezone_offset_secs(
+                region,
+            )));
         });
     }
     {
@@ -163,7 +173,12 @@ fn main() -> Result<()> {
             if let Err(e) = store.borrow().save_alarm(enabled, hour, minute) {
                 log::warn!("NVS: falha ao guardar alarme: {e:?}");
             } else {
-                log::info!("Alarme: {} {:02}:{:02}", if enabled { "ligado" } else { "desligado" }, hour, minute);
+                log::info!(
+                    "Alarme: {} {:02}:{:02}",
+                    if enabled { "ligado" } else { "desligado" },
+                    hour,
+                    minute
+                );
             }
         });
     }
@@ -198,31 +213,35 @@ fn main() -> Result<()> {
         });
     }
     {
+        let tx = network_cmd_tx.clone();
+        app.on_scan_wifi_networks(move || {
+            let _ = tx.send(NetworkCommand::ScanWifi);
+        });
+    }
+    {
         let store = config_store.clone();
         let tx = network_cmd_tx.clone();
-        let wifi_password = app_config.wifi_password.clone();
-        app.on_wifi_network_selected(move |ssid| {
-            if let Err(e) = store.borrow().save_wifi_credentials(ssid.as_str(), &wifi_password) {
+        app.on_wifi_network_selected(move |ssid, password| {
+            if let Err(e) = store
+                .borrow()
+                .save_wifi_credentials(ssid.as_str(), password.as_str())
+            {
                 log::warn!("NVS: falha ao guardar rede Wi-Fi: {e:?}");
             }
             let _ = tx.send(NetworkCommand::SetWifiCredentials {
                 ssid: ssid.to_string(),
-                password: wifi_password.clone(),
+                password: password.to_string(),
             });
         });
     }
     {
         let store = config_store.clone();
-        let event_tx = system_event_tx.clone();
+        let tx = network_cmd_tx.clone();
         app.on_bluetooth_enabled_changed(move |enabled| {
             if let Err(e) = store.borrow().save_bluetooth_enabled(enabled) {
                 log::warn!("NVS: falha ao guardar estado Bluetooth: {e:?}");
             }
-            let _ = event_tx.send(SystemEvent::BluetoothChanged(enabled));
-            log::info!(
-                "Bluetooth: estado {} guardado; inicializacao BLE fica pendente de driver dedicado",
-                if enabled { "ligado" } else { "desligado" }
-            );
+            let _ = tx.send(NetworkCommand::SetBluetoothEnabled(enabled));
         });
     }
     app.on_set_rotation(|on| {

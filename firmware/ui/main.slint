@@ -6,7 +6,7 @@ import { PasscodeSetup, RegionLanguage } from "first_boot.slint";
 import { ChatView } from "chat_view.slint";
 import { AppLauncher } from "app_launcher.slint";
 import { MusicPlayer } from "music_player.slint";
-import { SettingsPanel, ChangePasscode } from "settings.slint";
+import { SettingsPanel, ChangePasscode, WifiNetwork, BluetoothDevice } from "settings.slint";
 import { AlarmPanel } from "alarm.slint";
 
 export enum Screen {
@@ -44,11 +44,14 @@ export component AppWindow inherits Window {
     in-out property <bool> music-playing: false;
     in-out property <float> audio-level: 0.0;
     in-out property <bool> listening: false;
+    in-out property <float> screen-opacity: 1.0;
 
     // Spotify track data (preenchido pelo Rust)
     in-out property <[string]> spotify-titles: ["A carregar..."];
     in-out property <[string]> spotify-artists: [""];
     in-out property <[string]> spotify-albums: [""];
+    in-out property <[WifiNetwork]> wifi-networks: [];
+    in-out property <[BluetoothDevice]> bluetooth-devices: [];
 
     property <bool> show-status: root.current-screen != Screen.Splash
         && root.current-screen != Screen.FirstBootPasscode
@@ -61,7 +64,8 @@ export component AppWindow inherits Window {
     callback passcode-created(string);
     callback passcode-updated(string);
     callback wifi-enabled-changed(bool);
-    callback wifi-network-selected(string);
+    callback wifi-network-selected(string, string);
+    callback scan-wifi-networks();
     callback bluetooth-enabled-changed(bool);
     callback locale-changed(int, int);
     callback alarm-changed(bool, int, int);
@@ -70,6 +74,23 @@ export component AppWindow inherits Window {
     // rotacao automatica. O Rust ajusta MADCTL no ILI9341V.
     callback set-rotation(bool);
 
+    function show-screen(screen: Screen) {
+        root.screen-opacity = 0.35;
+        root.current-screen = screen;
+        fade-timer.running = true;
+    }
+
+    animate screen-opacity { duration: 160ms; easing: ease-out; }
+
+    fade-timer := Timer {
+        interval: 24ms;
+        running: false;
+        triggered() => {
+            root.screen-opacity = 1.0;
+            self.running = false;
+        }
+    }
+
     // Container do conteudo: preenche toda a tela quando a status bar
     // esta oculta (splash / first boot) e desce 24px caso contrario.
     Rectangle {
@@ -77,6 +98,7 @@ export component AppWindow inherits Window {
         y: root.show-status ? 24px : 0px;
         width: 320px;
         height: root.show-status ? 216px : 240px;
+        opacity: root.screen-opacity;
 
         if root.current-screen == Screen.Splash:
             SplashScreen { width: 100%; height: 100%; }
@@ -86,7 +108,7 @@ export component AppWindow inherits Window {
                 width: 100%; height: 100%;
                 confirm(pass) => {
                     root.passcode-created(pass);
-                    root.current-screen = Screen.FirstBootRegion;
+                    root.show-screen(Screen.FirstBootRegion);
                 }
             }
 
@@ -97,7 +119,7 @@ export component AppWindow inherits Window {
                 language-index <=> root.language-index;
                 continue-clicked(region, language) => {
                     root.locale-changed(region, language);
-                    root.current-screen = Screen.Home;
+                    root.show-screen(Screen.Home);
                 }
             }
 
@@ -107,7 +129,7 @@ export component AppWindow inherits Window {
                 audio-level: root.audio-level;
                 listening: root.listening;
                 mic-tapped => { root.wake-word-triggered(); }
-                menu-tapped => { root.current-screen = Screen.Launcher; }
+                menu-tapped => { root.show-screen(Screen.Launcher); }
             }
 
         if root.current-screen == Screen.Launcher:
@@ -115,10 +137,10 @@ export component AppWindow inherits Window {
                 width: 100%; height: 100%;
                 app-clicked(idx) => {
                     root.launch-app(idx);
-                    if (idx == 1) { root.current-screen = Screen.Music; }
-                    else if (idx == 5) { root.current-screen = Screen.Alarm; }
-                    else if (idx == 6) { root.current-screen = Screen.Settings; }
-                    else { root.current-screen = Screen.Home; }
+                    if (idx == 1) { root.show-screen(Screen.Music); }
+                    else if (idx == 5) { root.show-screen(Screen.Alarm); }
+                    else if (idx == 6) { root.show-screen(Screen.Settings); }
+                    else { root.show-screen(Screen.Home); }
                 }
             }
 
@@ -134,7 +156,7 @@ export component AppWindow inherits Window {
                 }
                 next => { root.music-command("next"); }
                 prev => { root.music-command("prev"); }
-                back => { root.current-screen = Screen.Launcher; }
+                back => { root.show-screen(Screen.Launcher); }
             }
 
         if root.current-screen == Screen.Alarm:
@@ -144,7 +166,7 @@ export component AppWindow inherits Window {
                 hour <=> root.alarm-hour;
                 minute <=> root.alarm-minute;
                 alarm-changed(on, hour, minute) => { root.alarm-changed(on, hour, minute); }
-                back => { root.current-screen = Screen.Launcher; }
+                back => { root.show-screen(Screen.Launcher); }
             }
 
         if root.current-screen == Screen.Settings:
@@ -156,27 +178,30 @@ export component AppWindow inherits Window {
                 brightness <=> root.brightness;
                 region-index <=> root.region-index;
                 language-index <=> root.language-index;
-                change-passcode => { root.current-screen = Screen.SettingsPassword; }
+                networks: root.wifi-networks;
+                bluetooth-devices: root.bluetooth-devices;
+                change-passcode => { root.show-screen(Screen.SettingsPassword); }
+                scan-wifi-networks => { root.scan-wifi-networks(); }
                 wifi-changed(on) => { root.wifi-enabled-changed(on); }
                 bluetooth-changed(on) => { root.bluetooth-enabled-changed(on); }
                 locale-changed(region, language) => { root.locale-changed(region, language); }
                 volume-changed(v) => { root.set-volume(v); }
                 brightness-changed(v) => { root.set-brightness(v); }
-                network-selected(ssid) => {
+                network-selected(ssid, password) => {
                     root.wifi-on = true;
-                    root.wifi-network-selected(ssid);
+                    root.wifi-network-selected(ssid, password);
                     root.wifi-enabled-changed(true);
                 }
-                back => { root.current-screen = Screen.Launcher; }
+                back => { root.show-screen(Screen.Launcher); }
             }
 
         if root.current-screen == Screen.SettingsPassword:
             ChangePasscode {
                 width: 100%; height: 100%;
-                back => { root.current-screen = Screen.Settings; }
+                back => { root.show-screen(Screen.Settings); }
                 save(pass) => {
                     root.passcode-updated(pass);
-                    root.current-screen = Screen.Settings;
+                    root.show-screen(Screen.Settings);
                 }
             }
 

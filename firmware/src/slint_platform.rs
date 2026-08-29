@@ -5,11 +5,11 @@ use crate::display::{Display, DisplayRotation};
 use crate::pinout::DISPLAY_W;
 use crate::system::SystemEvent;
 use crate::touch::TouchEvent;
-use slint::{ComponentHandle, LogicalPosition};
 use slint::platform::{
     software_renderer::{LineBufferProvider, MinimalSoftwareWindow, Rgb565Pixel},
     Platform, PointerEventButton, WindowEvent,
 };
+use slint::{ComponentHandle, LogicalPosition};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -184,7 +184,9 @@ pub fn run_event_loop(touch_rx: Receiver<TouchEvent>, system_rx: Receiver<System
             }
         });
 
-        unsafe { esp_idf_sys::vTaskDelay(1); }
+        unsafe {
+            esp_idf_sys::vTaskDelay(1);
+        }
     }
 }
 
@@ -205,7 +207,12 @@ fn dispatch_pending_touch_events(touch_rx: &Receiver<TouchEvent>) {
                         button: PointerEventButton::Left,
                     },
                     TouchEvent::SwipeX { start, delta } => {
-                        log::info!("Touch: swipe-x ignorado start=({}, {}) delta={}", start.x, start.y, delta);
+                        log::info!(
+                            "Touch: swipe-x ignorado start=({}, {}) delta={}",
+                            start.x,
+                            start.y,
+                            delta
+                        );
                         return;
                     }
                     TouchEvent::SwipeY { start, delta } => {
@@ -249,9 +256,33 @@ fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {
                     app.set_wifi_on(on);
                     log::info!("UI: wifi_on={on}");
                 }
+                SystemEvent::WifiNetworksChanged(networks) => {
+                    let ui_networks: Vec<crate::WifiNetwork> = networks
+                        .iter()
+                        .map(|network| crate::WifiNetwork {
+                            ssid: network.ssid.as_str().into(),
+                            secured: network.secured,
+                            connected: network.connected,
+                            signal: network.signal_strength as i32,
+                        })
+                        .collect();
+                    app.set_wifi_networks(slint::ModelRc::from(ui_networks.as_slice()));
+                    log::info!("UI: {} redes Wi-Fi atualizadas", ui_networks.len());
+                }
                 SystemEvent::BluetoothChanged(on) => {
                     app.set_bluetooth_on(on);
                     log::info!("UI: bluetooth_on={on}");
+                }
+                SystemEvent::BluetoothDevicesChanged(devices) => {
+                    let ui_devices: Vec<crate::BluetoothDevice> = devices
+                        .iter()
+                        .map(|device| crate::BluetoothDevice {
+                            address: device.address.as_str().into(),
+                            rssi: device.rssi,
+                        })
+                        .collect();
+                    app.set_bluetooth_devices(slint::ModelRc::from(ui_devices.as_slice()));
+                    log::info!("UI: {} dispositivos BLE atualizados", devices.len());
                 }
                 SystemEvent::ApiHealthChanged(ok) => {
                     app.set_api_online(ok);
@@ -263,10 +294,12 @@ fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {
                 SystemEvent::SpotifyTracksLoaded(tracks) => {
                     let titles: Vec<slint::SharedString> =
                         tracks.iter().map(|t| t.name.as_str().into()).collect();
-                    let artists: Vec<slint::SharedString> =
-                        tracks.iter().map(|t| t.artist_names().as_str().into()).collect();
+                    let artists: Vec<slint::SharedString> = tracks
+                        .iter()
+                        .map(|t| t.artist_names().as_str().into())
+                        .collect();
                     let albums: Vec<slint::SharedString> =
-                        tracks.iter().map(|_| "".into()).collect();
+                        tracks.iter().map(|t| t.album_name().into()).collect();
                     app.set_spotify_titles(slint::ModelRc::from(titles.as_slice()));
                     app.set_spotify_artists(slint::ModelRc::from(artists.as_slice()));
                     app.set_spotify_albums(slint::ModelRc::from(albums.as_slice()));

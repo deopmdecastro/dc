@@ -39,11 +39,19 @@ curl http://localhost:8081/health
 | `STT_URL` | http://stt-whisper:9000/asr | dc-os-core |
 | `MOPIDY_URL` | http://mopidy:6680 | dc-os-core |
 | `SPOTIFY_TOKEN` | vazio | dc-os-core |
+| `SPOTIFY_REFRESH_TOKEN` | vazio | dc-os-core |
+| `SPOTIFY_CLIENT_ID` | vazio | dc-os-core |
+| `SPOTIFY_CLIENT_SECRET` | vazio | dc-os-core |
 | `SPOTIFY_DEVICE_ID` | vazio | dc-os-core |
 | `ASR_MODEL` | small | stt-whisper |
 
 Para tocar musica pelo Spotify Web API, cria `backend/.env` a partir de
-`.env.example` e coloca um token com scopes `user-top-read`,
-`user-read-playback-state` e `user-modify-playback-state`. Playback exige conta
-Premium e um dispositivo ativo; usa `/music/devices` para descobrir o
-`SPOTIFY_DEVICE_ID` quando necessario.
+`.env.example` e coloca o access token, refresh token, client id e client
+secret gerados pelo OAuth. O access token expira, mas o core renova
+automaticamente quando `SPOTIFY_REFRESH_TOKEN`, `SPOTIFY_CLIENT_ID` e
+`SPOTIFY_CLIENT_SECRET` estao configurados.
+
+Scopes recomendados: `user-top-read`, `user-read-playback-state`,
+`user-modify-playback-state` e `user-read-currently-playing`. Playback exige
+conta Premium e um dispositivo Spotify ativo; usa `/music/devices` para
+descobrir o `SPOTIFY_DEVICE_ID` quando necessario.
