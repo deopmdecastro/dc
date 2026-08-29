@@ -54,7 +54,7 @@ impl ConfigStore {
     pub fn load(&self) -> AppConfig {
         let default_ssid = option_env!("DC_WIFI_SSID").unwrap_or("DC_Network");
         let default_pass = option_env!("DC_WIFI_PASS").unwrap_or("");
-        let default_api = option_env!("DC_CORE_HTTP").unwrap_or("http://192.168.1.50:8080/health");
+        let default_api = option_env!("DC_CORE_HTTP").unwrap_or("http://192.168.1.50:8081/health");
 
         AppConfig {
             passcode: self.read_string(KEY_PASSCODE, MAX_PASSCODE),

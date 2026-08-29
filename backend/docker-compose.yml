@@ -12,7 +12,7 @@ services:
     container_name: dc-os-core
     restart: unless-stopped
     ports:
-      - "8080:8080"          # HTTP + WebSocket /ws
+      - "${DC_CORE_HOST_PORT:-8081}:8080"          # HTTP + WebSocket /ws
     environment:
       RUST_LOG: info
       STT_URL:      http://stt-whisper:9000/asr

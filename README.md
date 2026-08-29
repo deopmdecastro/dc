@@ -66,14 +66,14 @@ forem encontrados logo após a instalação.
 cd C:\DC\dc\backend
 docker compose up -d --build
 docker compose ps
-curl.exe -s http://localhost:8080/health
-curl.exe -s "http://localhost:8080/time?offset_secs=3600"
-curl.exe -s http://localhost:8080/music/devices
+curl.exe -s http://localhost:8081/health
+curl.exe -s "http://localhost:8081/time?offset_secs=3600"
+curl.exe -s http://localhost:8081/music/devices
 ```
 
 Serviços principais:
 
-- `dc-os-core`: HTTP + WebSocket em `localhost:8080`
+- `dc-os-core`: HTTP + WebSocket em `localhost:8081`
 - `stt-whisper`: ASR local em `localhost:9000`
 - `mopidy`: música em `localhost:6680` e `localhost:6600`
 
@@ -241,7 +241,7 @@ Por omissão, o firmware tenta:
 
 - SSID: `DC_Network`
 - Password: vazia
-- API health: `http://192.168.1.50:8080/health`
+- API health: `http://192.168.1.50:8081/health`
 
 O ESP não consegue usar `localhost` para falar com o backend no PC. Usa o IP
 LAN da máquina onde corre o `dc-os-core`, por exemplo `192.168.1.50`.
@@ -252,7 +252,7 @@ Podes alterar em build-time com variáveis de ambiente:
 cd C:\DC\dc\firmware
 $env:DC_WIFI_SSID = "MinhaRede"
 $env:DC_WIFI_PASS = "MinhaSenha"
-$env:DC_CORE_HTTP = "http://192.168.1.50:8080/health"
+$env:DC_CORE_HTTP = "http://192.168.1.50:8081/health"
 cargo build --release --locked
 ```
 
@@ -341,5 +341,11 @@ Ver [docs/PINOUT.md](docs/PINOUT.md) para a tabela completa.
 - Flash não conecta: mantém `BOOT` premido, toca em `RESET`, solta `BOOT` e repete o flash.
 - Ecrã branco/sem UI: confirma os logs `Display OK` e o pinout em `docs/PINOUT.md`.
 - Touch não reage: confirma `Touch FT6336G: I2C OK` no monitor.
+- `localhost:8080` retorna 404 ou a API nao responde: este projeto usa
+  `dc-os-core` em `localhost:8081`, porque a porta 8080 pode estar ocupada por
+  outro container.
+- Spotify retorna `401`: token expirado/invalido. Gera um novo token com scopes
+  `user-top-read`, `user-read-playback-state` e `user-modify-playback-state`,
+  atualiza `backend/.env` e `firmware/.env.local`, depois recompila/reinicia.
 
 Guia detalhado: [docs/BUILD_AND_FLASH.md](docs/BUILD_AND_FLASH.md).

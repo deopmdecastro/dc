@@ -270,12 +270,21 @@ async fn music_command(
 }
 
 async fn spotify_music_command(s: &AppState, action: &str) -> anyhow::Result<serde_json::Value> {
-    let (method, path, body) = match action {
-        "play" => (reqwest::Method::PUT, "/v1/me/player/play", Some(serde_json::json!({}))),
-        "pause" => (reqwest::Method::PUT, "/v1/me/player/pause", None),
-        "next" => (reqwest::Method::POST, "/v1/me/player/next", None),
-        "prev" => (reqwest::Method::POST, "/v1/me/player/previous", None),
-        _ => return Ok(serde_json::json!({ "ok": false, "error": "unknown action" })),
+    let (method, path, body) = if action == "play" {
+        let uris = spotify_top_track_uris(s).await.unwrap_or_default();
+        let body = if uris.is_empty() {
+            serde_json::json!({})
+        } else {
+            serde_json::json!({ "uris": uris })
+        };
+        (reqwest::Method::PUT, "/v1/me/player/play", Some(body))
+    } else {
+        match action {
+            "pause" => (reqwest::Method::PUT, "/v1/me/player/pause", None),
+            "next" => (reqwest::Method::POST, "/v1/me/player/next", None),
+            "prev" => (reqwest::Method::POST, "/v1/me/player/previous", None),
+            _ => return Ok(serde_json::json!({ "ok": false, "error": "unknown action" })),
+        }
     };
 
     let (status, response_body) = spotify_request(s, method, path, body).await?;
@@ -286,6 +295,28 @@ async fn spotify_music_command(s: &AppState, action: &str) -> anyhow::Result<ser
         "status": status.as_u16(),
         "body": response_body
     }))
+}
+
+async fn spotify_top_track_uris(s: &AppState) -> anyhow::Result<Vec<String>> {
+    let endpoint = "/v1/me/top/tracks?time_range=long_term&limit=5";
+    let (status, body) = spotify_request(s, reqwest::Method::GET, endpoint, None).await?;
+    if !status.is_success() {
+        anyhow::bail!("Spotify top tracks HTTP {}", status.as_u16());
+    }
+
+    let uris = body
+        .get("items")
+        .and_then(|items| items.as_array())
+        .map(|items| {
+            items
+                .iter()
+                .filter_map(|item| item.get("uri").and_then(|uri| uri.as_str()))
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    Ok(uris)
 }
 
 async fn spotify_request(
