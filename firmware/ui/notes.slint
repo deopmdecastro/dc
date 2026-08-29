@@ -88,6 +88,8 @@ export component NotesPanel inherits Rectangle {
     in-out property <int> edit-index: -1;
     in property <int> language-index: 0;
     callback back();
+    callback delete-note(int);
+    callback save-note(string, int);
 
     property <int> visible-count: max(1, root.notes.length);
     property <int> max-visible: 3;
@@ -162,7 +164,7 @@ export component NotesPanel inherits Rectangle {
         visible: index >= root.note-scroll && index < root.note-scroll + root.max-visible;
         x: 14px; y: 50px + (index - root.note-scroll) * 50px; width: 292px; height: 44px;
         border-radius: Theme.radius-s;
-        background: panel-bg.pressed ? Theme.panel-elevated : Theme.panel-soft;
+        background: ta.pressed ? Theme.panel-elevated : Theme.panel-soft;
         border-width: 1px;
         border-color: Theme.stroke-soft;
         panel-bg := Rectangle {
@@ -204,19 +206,7 @@ export component NotesPanel inherits Rectangle {
             del := TouchArea {
                 clicked => {
                     if (root.notes.length > 0) {
-                        root.notes = [
-                            for entry[i] in root.notes : i == index ? { text: "", tint: Theme.stroke-soft } : entry
-                        ];
-                        // remove a entrada apos um tick de animacao
-                        root.notes = [
-                            for entry[i] in root.notes : entry.text == "" && i == index ? {} : entry
-                        ];
-                        root.notes = [
-                            for entry[i] in root.notes : entry.text != "" ? entry : {}
-                        ];
-                        if (root.note-scroll > 0 && root.note-scroll >= root.notes.length - root.max-visible + 1) {
-                            root.note-scroll = max(0, root.notes.length - root.max-visible);
-                        }
+                        root.delete-note(index);
                     }
                 }
             }
@@ -326,12 +316,7 @@ export component NotesPanel inherits Rectangle {
                 danger: true;
                 clicked => {
                     if (root.edit-index >= 0 && root.edit-index < root.notes.length) {
-                        root.notes = [
-                            for entry[i] in root.notes : i == root.edit-index ? {} : entry
-                        ];
-                        root.notes = [
-                            for entry[i] in root.notes : entry.text != "" ? entry : {}
-                        ];
+                        root.delete-note(root.edit-index);
                         root.composing = false;
                         root.draft = "";
                         root.edit-index = -1;
@@ -344,19 +329,7 @@ export component NotesPanel inherits Rectangle {
                 primary: root.draft != "";
                 clicked => {
                     if (root.draft != "") {
-                        if (root.edit-index >= 0 && root.edit-index < root.notes.length) {
-                            root.notes = [
-                                for entry[i] in root.notes : i == root.edit-index
-                                    ? { text: root.draft, tint: Theme.accent-cyan }
-                                    : entry
-                            ];
-                        } else {
-                            root.notes = [{ text: root.draft, tint: Theme.accent-cyan }] + root.notes;
-                            if (root.notes.length > 20) {
-                                root.notes = root.notes[0..20];
-                            }
-                            root.note-scroll = 0;
-                        }
+                        root.save-note(root.draft, root.edit-index);
                         root.composing = false;
                         root.draft = "";
                         root.edit-index = -1;
