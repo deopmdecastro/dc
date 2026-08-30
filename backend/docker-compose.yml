@@ -24,6 +24,14 @@ services:
       SPOTIFY_CLIENT_ID:     ${SPOTIFY_CLIENT_ID:-}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
       SPOTIFY_DEVICE_ID:     ${SPOTIFY_DEVICE_ID:-}
+      # URL que a Spotify chama depois do login (tem de estar registado tal
+      # e qual na app do Spotify Developer Dashboard).
+      SPOTIFY_REDIRECT_URI:  ${SPOTIFY_REDIRECT_URI:-http://localhost:8081/spotify/callback}
+      # Onde o refresh token obtido via /spotify/login fica guardado, para
+      # sobreviver a um restart do container (ver volume spotify-data abaixo).
+      SPOTIFY_TOKEN_STORE:   /data/spotify_refresh_token
+    volumes:
+      - spotify-data:/data
     depends_on:
       - stt-whisper
       - mopidy
@@ -61,3 +69,4 @@ networks:
 volumes:
   whisper-cache: {}
   mopidy-data:   {}
+  spotify-data:  {}

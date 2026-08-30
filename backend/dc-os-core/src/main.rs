@@ -16,19 +16,30 @@ use axum::{
         Query, State,
     },
     http::StatusCode,
-    response::IntoResponse,
+    response::{Html, IntoResponse, Redirect},
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use std::{
-    env,
+    env, fs,
     net::SocketAddr,
     sync::Arc,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
+
+/// Tempo que a resposta de `/music/top-tracks` fica em cache antes de voltar
+/// a chamar a Spotify Web API. As "top tracks" (long_term) mudam muito
+/// raramente, mas o firmware sonda este endpoint a cada 60s; sem cache isso
+/// gasta a quota da API e aumenta o risco de HTTP 429 (rate limit).
+const TOP_TRACKS_CACHE_TTL: Duration = Duration::from_secs(300);
+
+const SPOTIFY_AUTH_URL: &str = "https://accounts.spotify.com/authorize";
+const SPOTIFY_TOKEN_URL: &str = "https://accounts.spotify.com/api/token";
+const SPOTIFY_SCOPES: &str =
+    "user-top-read user-read-playback-state user-modify-playback-state user-read-currently-playing";
 
 struct AppState {
     stt_url: String,
@@ -36,6 +47,12 @@ struct AppState {
     spotify: SpotifyAuth,
     http: reqwest::Client,
     notes: RwLock<Vec<Note>>,
+    top_tracks_cache: RwLock<Option<CachedTopTracks>>,
+}
+
+struct CachedTopTracks {
+    fetched_at: Instant,
+    value: serde_json::Value,
 }
 
 struct SpotifyAuth {
@@ -43,8 +60,19 @@ struct SpotifyAuth {
     refresh_token: String,
     client_id: String,
     client_secret: String,
+    redirect_uri: String,
     device_id: Option<String>,
     runtime_token: RwLock<String>,
+    /// Refresh token obtido via `/spotify/login` -> `/spotify/callback`.
+    /// Tem prioridade sobre `refresh_token` (vindo do .env) porque pode ser
+    /// mais recente (a Spotify por vezes roda o refresh token a cada uso).
+    runtime_refresh_token: RwLock<String>,
+    /// Caminho opcional (SPOTIFY_TOKEN_STORE) onde o refresh token e
+    /// persistido em disco, para sobreviver a um restart do container.
+    token_store_path: Option<String>,
+    /// Valor de `state` do ultimo pedido `/spotify/login`, para validar o
+    /// callback e mitigar CSRF.
+    oauth_state: RwLock<Option<String>>,
 }
 
 #[derive(Serialize)]
@@ -88,29 +116,59 @@ struct WeatherQuery {
 struct VoiceCommandInput { text: String }
 
 #[derive(Deserialize)]
-struct SpotifyTokenResponse {
+struct SpotifyTokenRefreshResponse {
     access_token: String,
+    #[serde(default)]
+    refresh_token: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct SpotifyCallbackQuery {
+    code: Option<String>,
+    state: Option<String>,
+    error: Option<String>,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
+    let token_store_path = env::var("SPOTIFY_TOKEN_STORE")
+        .ok()
+        .filter(|v| !v.trim().is_empty());
+    let persisted_refresh_token = token_store_path
+        .as_ref()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty());
+    if let Some(path) = &token_store_path {
+        tracing::info!("Spotify: token store configurado em {path}");
+    }
+
     let state = Arc::new(AppState {
         stt_url: env::var("STT_URL").unwrap_or_else(|_| "http://stt-whisper:9000/asr".into()),
         mopidy_url: env::var("MOPIDY_URL").unwrap_or_else(|_| "http://mopidy:6680".into()),
         spotify: SpotifyAuth {
             access_token: env::var("SPOTIFY_TOKEN").unwrap_or_default(),
-            refresh_token: env::var("SPOTIFY_REFRESH_TOKEN").unwrap_or_default(),
+            // Um refresh token ja persistido em disco (obtido via
+            // /spotify/login) e mais fresco do que o valor fixo do .env.
+            refresh_token: persisted_refresh_token
+                .unwrap_or_else(|| env::var("SPOTIFY_REFRESH_TOKEN").unwrap_or_default()),
             client_id: env::var("SPOTIFY_CLIENT_ID").unwrap_or_default(),
             client_secret: env::var("SPOTIFY_CLIENT_SECRET").unwrap_or_default(),
+            redirect_uri: env::var("SPOTIFY_REDIRECT_URI")
+                .unwrap_or_else(|_| "http://localhost:8081/spotify/callback".to_owned()),
             device_id: env::var("SPOTIFY_DEVICE_ID")
                 .ok()
                 .filter(|v| !v.trim().is_empty()),
             runtime_token: RwLock::new(String::new()),
+            runtime_refresh_token: RwLock::new(String::new()),
+            token_store_path,
+            oauth_state: RwLock::new(None),
         },
         http: reqwest::Client::new(),
         notes: RwLock::new(Vec::new()),
+        top_tracks_cache: RwLock::new(None),
     });
 
     let app = Router::new()
@@ -122,6 +180,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/music/devices", get(music_devices))
         .route("/music/top-tracks", get(music_top_tracks))
         .route("/music/command", post(music_command))
+        .route("/spotify/login", get(spotify_login))
+        .route("/spotify/callback", get(spotify_callback))
+        .route("/spotify/status", get(spotify_status))
         .route("/weather", get(weather))
         .route("/notes", get(list_notes).post(create_note))
         .route("/notes/:id", axum::routing::delete(delete_note))
@@ -383,32 +444,34 @@ async fn music_top_tracks(
         return Json(serde_json::json!({
             "ok": false,
             "driver": "spotify",
-            "error": "Spotify nao configurado"
+            "error": "Spotify nao configurado. Visita /spotify/login para autorizar a conta."
         }));
+    }
+
+    if let Some(cached) = read_top_tracks_cache(&s).await {
+        return Json(top_tracks_response(cached, query.compact(), true));
     }
 
     let endpoint = "/v1/me/top/tracks?time_range=long_term&limit=5";
     Json(
         match spotify_request(&s, reqwest::Method::GET, endpoint, None).await {
-            Ok((status, body)) => {
-                if query.compact() && status.is_success() {
-                    serde_json::json!({
-                        "ok": true,
-                        "driver": "spotify",
-                        "status": status.as_u16(),
-                        "body": {
-                            "items": compact_spotify_tracks(&body)
-                        }
-                    })
-                } else {
-                    serde_json::json!({
-                        "ok": status.is_success(),
-                        "driver": "spotify",
-                        "status": status.as_u16(),
-                        "body": body
-                    })
-                }
+            Ok((status, body)) if status.is_success() => {
+                write_top_tracks_cache(&s, body.clone()).await;
+                top_tracks_response(body, query.compact(), false)
             }
+            Ok((StatusCode::TOO_MANY_REQUESTS, body)) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "status": 429,
+                "error": "rate_limited",
+                "body": body
+            }),
+            Ok((status, body)) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "status": status.as_u16(),
+                "body": body
+            }),
             Err(e) => serde_json::json!({
                 "ok": false,
                 "driver": "spotify",
@@ -416,6 +479,40 @@ async fn music_top_tracks(
             }),
         },
     )
+}
+
+fn top_tracks_response(body: serde_json::Value, compact: bool, cached: bool) -> serde_json::Value {
+    if compact {
+        serde_json::json!({
+            "ok": true,
+            "driver": "spotify",
+            "cached": cached,
+            "body": {
+                "items": compact_spotify_tracks(&body)
+            }
+        })
+    } else {
+        serde_json::json!({
+            "ok": true,
+            "driver": "spotify",
+            "cached": cached,
+            "body": body
+        })
+    }
+}
+
+async fn read_top_tracks_cache(s: &AppState) -> Option<serde_json::Value> {
+    let cache = s.top_tracks_cache.read().await;
+    let entry = cache.as_ref()?;
+    (entry.fetched_at.elapsed() < TOP_TRACKS_CACHE_TTL).then(|| entry.value.clone())
+}
+
+async fn write_top_tracks_cache(s: &AppState, value: serde_json::Value) {
+    let mut cache = s.top_tracks_cache.write().await;
+    *cache = Some(CachedTopTracks {
+        fetched_at: Instant::now(),
+        value,
+    });
 }
 
 fn compact_spotify_tracks(body: &serde_json::Value) -> Vec<serde_json::Value> {
@@ -635,7 +732,7 @@ async fn spotify_request(
 
     let token = spotify_token(s).await?;
     let result = send_spotify_request(s, method.clone(), &url, body.clone(), &token).await?;
-    if result.0 != StatusCode::UNAUTHORIZED || !spotify_can_refresh(s) {
+    if result.0 != StatusCode::UNAUTHORIZED || !spotify_can_refresh(s).await {
         return Ok(result);
     }
 
@@ -673,7 +770,7 @@ async fn send_spotify_request(
 }
 
 async fn spotify_configured(s: &AppState) -> bool {
-    !spotify_token_value(s).await.is_empty() || spotify_can_refresh(s)
+    !spotify_token_value(s).await.is_empty() || spotify_can_refresh(s).await
 }
 
 async fn spotify_token(s: &AppState) -> anyhow::Result<String> {
@@ -692,24 +789,36 @@ async fn spotify_token_value(s: &AppState) -> String {
     s.spotify.access_token.clone()
 }
 
-fn spotify_can_refresh(s: &AppState) -> bool {
-    !s.spotify.refresh_token.is_empty()
+/// Refresh token "ativo": o obtido dinamicamente via /spotify/login tem
+/// prioridade sobre o valor fixo carregado do .env, porque a Spotify pode
+/// ter rodado (rotacionado) o refresh token num pedido anterior.
+async fn active_refresh_token(s: &AppState) -> String {
+    let runtime = s.spotify.runtime_refresh_token.read().await;
+    if !runtime.is_empty() {
+        return runtime.clone();
+    }
+    s.spotify.refresh_token.clone()
+}
+
+async fn spotify_can_refresh(s: &AppState) -> bool {
+    !active_refresh_token(s).await.is_empty()
         && !s.spotify.client_id.is_empty()
         && !s.spotify.client_secret.is_empty()
 }
 
 async fn refresh_spotify_token(s: &AppState) -> anyhow::Result<String> {
-    if !spotify_can_refresh(s) {
-        anyhow::bail!("Spotify token expirado e refresh token nao configurado");
+    let refresh_token = active_refresh_token(s).await;
+    if refresh_token.is_empty() || s.spotify.client_id.is_empty() || s.spotify.client_secret.is_empty() {
+        anyhow::bail!("Spotify token expirado e refresh token nao configurado. Visita /spotify/login.");
     }
 
     let response = s
         .http
-        .post("https://accounts.spotify.com/api/token")
+        .post(SPOTIFY_TOKEN_URL)
         .basic_auth(&s.spotify.client_id, Some(&s.spotify.client_secret))
         .form(&[
             ("grant_type", "refresh_token"),
-            ("refresh_token", s.spotify.refresh_token.as_str()),
+            ("refresh_token", refresh_token.as_str()),
         ])
         .send()
         .await?;
@@ -720,9 +829,181 @@ async fn refresh_spotify_token(s: &AppState) -> anyhow::Result<String> {
         anyhow::bail!("Spotify refresh HTTP {}: {}", status.as_u16(), text);
     }
 
-    let body = serde_json::from_str::<SpotifyTokenResponse>(&text)?;
-    let mut runtime_token = s.spotify.runtime_token.write().await;
-    *runtime_token = body.access_token.clone();
+    let body = serde_json::from_str::<SpotifyTokenRefreshResponse>(&text)?;
+    {
+        let mut runtime_token = s.spotify.runtime_token.write().await;
+        *runtime_token = body.access_token.clone();
+    }
+
+    // A Spotify por vezes devolve um novo refresh_token (rotacao); se vier,
+    // substitui o antigo em memoria e em disco para nao ficar desatualizado.
+    if let Some(new_refresh_token) = &body.refresh_token {
+        store_refresh_token(s, new_refresh_token).await;
+    }
 
     Ok(body.access_token)
+}
+
+/// Guarda o refresh token em memoria e, se SPOTIFY_TOKEN_STORE estiver
+/// configurado, tambem em disco para sobreviver a um restart do container.
+async fn store_refresh_token(s: &AppState, refresh_token: &str) {
+    {
+        let mut runtime_refresh_token = s.spotify.runtime_refresh_token.write().await;
+        *runtime_refresh_token = refresh_token.to_owned();
+    }
+
+    if let Some(path) = &s.spotify.token_store_path {
+        match fs::write(path, refresh_token) {
+            Ok(()) => tracing::info!("Spotify: refresh token persistido em {path}"),
+            Err(e) => tracing::warn!("Spotify: falha ao gravar refresh token em {path}: {e}"),
+        }
+    }
+}
+
+/// Redireciona o navegador para a pagina de autorizacao da Spotify. Visitar
+/// isto uma vez (a partir de um browser na mesma rede) e o suficiente para
+/// o dc-os-core obter e guardar o refresh token — sem isso, so client_id e
+/// client_secret nao autorizam nada, porque a Spotify exige consentimento
+/// explicito do utilizador para escopos como `user-top-read`.
+async fn spotify_login(State(s): State<Arc<AppState>>) -> impl IntoResponse {
+    if s.spotify.client_id.is_empty() || s.spotify.client_secret.is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Html(
+                "<p>SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET nao configurados. \
+                 Define-os em backend/.env e reinicia o dc-os-core.</p>"
+                    .to_owned(),
+            ),
+        )
+            .into_response();
+    }
+
+    let state_value = format!(
+        "{:x}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos()
+    );
+    {
+        let mut oauth_state = s.spotify.oauth_state.write().await;
+        *oauth_state = Some(state_value.clone());
+    }
+
+    let url = format!(
+        "{SPOTIFY_AUTH_URL}?client_id={}&response_type=code&redirect_uri={}&scope={}&state={}",
+        urlencode(&s.spotify.client_id),
+        urlencode(&s.spotify.redirect_uri),
+        urlencode(SPOTIFY_SCOPES),
+        urlencode(&state_value),
+    );
+
+    Redirect::temporary(&url).into_response()
+}
+
+/// Recebe o `code` de volta da Spotify, troca-o por access_token +
+/// refresh_token e guarda-os (ver `store_refresh_token`).
+async fn spotify_callback(
+    Query(query): Query<SpotifyCallbackQuery>,
+    State(s): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    if let Some(error) = query.error {
+        return Html(format!("<p>Autorizacao Spotify falhou: {error}</p>")).into_response();
+    }
+
+    let Some(code) = query.code else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Html("<p>Pedido invalido: falta o parametro code.</p>".to_owned()),
+        )
+            .into_response();
+    };
+
+    let expected_state = s.spotify.oauth_state.write().await.take();
+    if expected_state.is_some() && expected_state != query.state {
+        return (
+            StatusCode::BAD_REQUEST,
+            Html(
+                "<p>State invalido ou expirado; volta a iniciar em /spotify/login.</p>".to_owned(),
+            ),
+        )
+            .into_response();
+    }
+
+    let response = match s
+        .http
+        .post(SPOTIFY_TOKEN_URL)
+        .basic_auth(&s.spotify.client_id, Some(&s.spotify.client_secret))
+        .form(&[
+            ("grant_type", "authorization_code"),
+            ("code", code.as_str()),
+            ("redirect_uri", s.spotify.redirect_uri.as_str()),
+        ])
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(e) => return Html(format!("<p>Falha ao contactar a Spotify: {e}</p>")).into_response(),
+    };
+
+    let status = response.status();
+    let text = response.text().await.unwrap_or_default();
+    if !status.is_success() {
+        tracing::warn!("Spotify: troca do code falhou HTTP {}: {}", status.as_u16(), text);
+        return Html(format!(
+            "<p>A Spotify recusou a troca do codigo (HTTP {}). Confirma client id/secret \
+             e se o Redirect URI <code>{}</code> esta registado na app do Spotify Developer \
+             Dashboard.</p>",
+            status.as_u16(),
+            s.spotify.redirect_uri
+        ))
+        .into_response();
+    }
+
+    let body: SpotifyTokenRefreshResponse = match serde_json::from_str(&text) {
+        Ok(body) => body,
+        Err(e) => return Html(format!("<p>Resposta inesperada da Spotify: {e}</p>")).into_response(),
+    };
+
+    {
+        let mut runtime_token = s.spotify.runtime_token.write().await;
+        *runtime_token = body.access_token.clone();
+    }
+
+    match &body.refresh_token {
+        Some(refresh_token) => store_refresh_token(&s, refresh_token).await,
+        None => tracing::warn!("Spotify: callback nao devolveu refresh_token"),
+    }
+
+    Html(
+        "<p>Spotify autorizado com sucesso. Ja podes fechar esta janela — \
+         o dc-os-core vai manter a sessao e renovar o token sozinho.</p>"
+            .to_owned(),
+    )
+    .into_response()
+}
+
+async fn spotify_status(State(s): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    Json(serde_json::json!({
+        "ok": true,
+        "client_id_configured": !s.spotify.client_id.is_empty(),
+        "client_secret_configured": !s.spotify.client_secret.is_empty(),
+        "refresh_token_configured": !active_refresh_token(&s).await.is_empty(),
+        "device_id": s.spotify.device_id,
+        "redirect_uri": s.spotify.redirect_uri,
+        "login_url": "/spotify/login"
+    }))
+}
+
+fn urlencode(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
 }

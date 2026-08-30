@@ -20,8 +20,11 @@ Ambiente local do DC Assistant, orquestrado com Docker Compose.
 | POST | `/voice/transcribe` | Encaminha audio ao Whisper |
 | GET | `/music/state` | Estado do player |
 | GET | `/music/devices` | Dispositivos Spotify disponiveis |
-| GET | `/music/top-tracks` | Top tracks reais via Spotify Web API |
+| GET | `/music/top-tracks` | Top tracks reais via Spotify Web API (cache de 5 min) |
 | POST | `/music/command` | `{ "action": "play|pause|next|prev" }` |
+| GET | `/spotify/login` | Inicia o login OAuth da Spotify (visitar num browser) |
+| GET | `/spotify/callback` | Callback OAuth; troca o `code` por tokens |
+| GET | `/spotify/status` | Diagnostico: o que esta configurado e o que falta |
 | GET | `/weather?region=0..4` | Clima atual via Open-Meteo |
 
 ## Subir Localmente
@@ -45,15 +48,45 @@ curl "http://localhost:8081/weather?region=1"
 | `SPOTIFY_CLIENT_ID` | vazio | dc-os-core |
 | `SPOTIFY_CLIENT_SECRET` | vazio | dc-os-core |
 | `SPOTIFY_DEVICE_ID` | vazio | dc-os-core |
+| `SPOTIFY_REDIRECT_URI` | `http://localhost:8081/spotify/callback` | dc-os-core |
+| `SPOTIFY_TOKEN_STORE` | `/data/spotify_refresh_token` (no container) | dc-os-core |
 | `ASR_MODEL` | small | stt-whisper |
 
-Para tocar musica pelo Spotify Web API, cria `backend/.env` a partir de
-`.env.example` e coloca o access token, refresh token, client id e client
-secret gerados pelo OAuth. O access token expira, mas o core renova
-automaticamente quando `SPOTIFY_REFRESH_TOKEN`, `SPOTIFY_CLIENT_ID` e
-`SPOTIFY_CLIENT_SECRET` estao configurados.
+## Configurar o Spotify (login OAuth em 3 passos)
 
-Scopes recomendados: `user-top-read`, `user-read-playback-state`,
-`user-modify-playback-state` e `user-read-currently-playing`. Playback exige
-conta Premium e um dispositivo Spotify ativo; usa `/music/devices` para
-descobrir o `SPOTIFY_DEVICE_ID` quando necessario.
+1. Cria uma app em https://developer.spotify.com/dashboard, copia o
+   **Client ID** e o **Client Secret**, e adiciona
+   `http://localhost:8081/spotify/callback` (ou o valor que definires em
+   `SPOTIFY_REDIRECT_URI`) como Redirect URI da app.
+2. Copia `backend/.env.example` para `backend/.env` e preenche
+   `SPOTIFY_CLIENT_ID` e `SPOTIFY_CLIENT_SECRET` (nunca commites este
+   ficheiro — ja esta no `.gitignore`). Sobe os servicos:
+   ```bash
+   docker compose up -d --build
+   ```
+3. No PC (ou em qualquer browser na mesma rede), visita
+   `http://localhost:8081/spotify/login`, autoriza a tua conta Spotify e
+   pronto: o `dc-os-core` guarda o `access_token`/`refresh_token`
+   automaticamente (em memoria e em disco, no volume `spotify-data`), e
+   passa a renovar sozinho quando o token expira — nao precisas de gerar
+   nem colar tokens manualmente. Confirma com:
+   ```bash
+   curl http://localhost:8081/spotify/status
+   ```
+
+Se preferires nao usar o login interativo, continua a poder colocar um
+`SPOTIFY_TOKEN`/`SPOTIFY_REFRESH_TOKEN` ja gerados manualmente em
+`backend/.env` — o comportamento antigo continua a funcionar como
+alternativa.
+
+Scopes pedidos automaticamente no `/spotify/login`: `user-top-read`,
+`user-read-playback-state`, `user-modify-playback-state` e
+`user-read-currently-playing`. Playback exige conta Premium e um
+dispositivo Spotify ativo; usa `/music/devices` para descobrir o
+`SPOTIFY_DEVICE_ID` quando necessario.
+
+`/music/top-tracks` mantem agora uma cache de 5 minutos por processo, para
+reduzir o numero de chamadas feitas a Spotify Web API (o firmware sonda este
+endpoint a cada 60s) e diminuir o risco de HTTP 429 (rate limit). Um pedido
+que devolva 429 e reportado como `{"ok": false, "error": "rate_limited"}` em
+vez de tentar renovar o token (o 429 nao tem nada a ver com token expirado).
