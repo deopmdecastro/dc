@@ -512,10 +512,10 @@ async fn weather(
     }
 }
 
-/// Reverse geocode coordinates to city name using Open-Meteo geocoding API
+/// Reverse geocode coordinates to city name using BigDataFree API (free, no key needed)
 async fn reverse_geocode(http: &reqwest::Client, lat: f64, lon: f64) -> Option<String> {
     let url = format!(
-        "https://geocoding-api.open-meteo.com/v1/reverse?latitude={}&longitude={}&count=1&language=pt",
+        "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={}&longitude={}&localityLanguage=pt",
         lat, lon
     );
     let response = http.get(&url).send().await.ok()?;
@@ -523,21 +523,13 @@ async fn reverse_geocode(http: &reqwest::Client, lat: f64, lon: f64) -> Option<S
         return None;
     }
     let body: serde_json::Value = response.json().await.ok()?;
-    body.get("results")
-        .and_then(|r| r.as_array())
-        .and_then(|arr| arr.first())
-        .and_then(|place| {
-            let name = place.get("name")?.as_str()?.to_string();
-            let admin1 = place.get("admin1").and_then(|c| c.as_str());
-            let country = place.get("country").and_then(|c| c.as_str());
-            if let Some(admin1) = admin1 {
-                Some(format!("{}, {}", name, admin1))
-            } else if let Some(country) = country {
-                Some(format!("{}, {}", name, country))
-            } else {
-                Some(name)
-            }
-        })
+    let city = body.get("city").and_then(|c| c.as_str());
+    let locality = body.get("locality").and_then(|c| c.as_str());
+    let country = body.get("countryName").and_then(|c| c.as_str());
+
+    // Build city name: prefer city, fall back to locality
+    let name = city.or(locality)?;
+    Some(format!("{}{}", name, country.map(|c| format!(", {}", c)).unwrap_or_default()))
 }
 
 async fn ws_upgrade(ws: WebSocketUpgrade, State(_s): State<Arc<AppState>>) -> impl IntoResponse {

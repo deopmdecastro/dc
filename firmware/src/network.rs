@@ -517,10 +517,10 @@ fn fetch_weather(health_url: &str, region_index: u8) -> Result<WeatherInfo> {
     })
 }
 
-#[allow(dead_code)]
+/// Reverse geocode coordinates to city name using BigDataFree API
 fn reverse_geocode(lat: f64, lon: f64) -> Option<String> {
     let url = format!(
-        "https://geocoding-api.open-meteo.com/v1/reverse?latitude={}&longitude={}&count=1&language=pt",
+        "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude={}&longitude={}&localityLanguage=pt",
         lat, lon
     );
     log::info!("Geocoding: buscando cidade para {}, {}", lat, lon);
@@ -532,33 +532,22 @@ fn reverse_geocode(lat: f64, lon: f64) -> Option<String> {
     if !(200..300).contains(&status) {
         return None;
     }
-    let mut buf = [0_u8; 512];
-    let bytes_read = io::try_read_full(&mut response, &mut buf)
-        .map_err(|e| e.0)
-        .ok()?;
+    let mut buf = [0_u8; 1024];
+    let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0).ok()?;
     let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
-    let value: GeocodingResponse = serde_json::from_str(body).ok()?;
-    value.results.first().map(|r| {
-        let name = &r.name;
-        if let Some(admin1) = &r.admin1 {
-            format!("{}, {}", name, admin1)
-        } else {
-            name.clone()
-        }
-    })
+
+    // Parse JSON manually to avoid serde issues on embedded
+    let city = extract_json_string(body, "\"city\":\"").or_else(|| extract_json_string(body, "\"locality\":\""));
+    let country = extract_json_string(body, "\"countryName\":\"");
+
+    city.map(|name| format!("{}{}", name, country.map(|c| format!(", {}", c)).unwrap_or_default()))
 }
 
-#[derive(Debug, serde::Deserialize)]
-#[allow(dead_code)]
-struct GeocodingResponse {
-    results: Vec<GeocodingResult>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[allow(dead_code)]
-struct GeocodingResult {
-    name: String,
-    admin1: Option<String>,
+/// Simple JSON string extractor for embedded (no serde needed)
+fn extract_json_string<'a>(json: &'a str, key: &str) -> Option<&'a str> {
+    let start = json.find(key)? + key.len();
+    let end = json[start..].find('"')?;
+    Some(&json[start..start + end])
 }
 
 #[allow(dead_code)]
