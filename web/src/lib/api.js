@@ -21,6 +21,7 @@ export const api = {
 
   // Weather
   weather: (region = 0) => request(`/weather?region=${region}`),
+  weatherByCoords: (lat, lon) => request(`/weather?lat=${lat}&lon=${lon}`),
 
   // Music
   musicState: () => request("/music/state"),

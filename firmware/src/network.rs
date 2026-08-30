@@ -472,11 +472,27 @@ fn api_time_url(health_url: &str, offset_secs: i32) -> String {
 }
 
 fn fetch_weather(health_url: &str, region_index: u8) -> Result<WeatherInfo> {
-    let url = format!(
-        "{}/weather?region={}",
-        api_base(health_url),
-        region_index.min(4)
-    );
+    // Try IP geolocation first for GPS-based weather
+    let coords = ip_geolocation();
+
+    let url = match &coords {
+        Some(loc) => {
+            log::info!("Clima: a usar localização GPS ({}, {})", loc.lat, loc.lon);
+            format!(
+                "{}/weather?lat={}&lon={}",
+                api_base(health_url),
+                loc.lat, loc.lon
+            )
+        }
+        None => {
+            format!(
+                "{}/weather?region={}",
+                api_base(health_url),
+                region_index.min(4)
+            )
+        }
+    };
+
     log::info!("Clima: GET {url}");
     let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let headers = [("accept", "application/json")];
@@ -567,6 +583,52 @@ struct CoreWeatherResponse {
     city: String,
     temperature_c: i64,
     summary: String,
+}
+
+/// IP geolocation result
+#[derive(Debug)]
+struct IpLocation {
+    lat: f64,
+    lon: f64,
+    city: String,
+}
+
+/// Get approximate location based on IP address using ipapi.co (free, no key needed)
+fn ip_geolocation() -> Option<IpLocation> {
+    let url = "https://ipapi.co/json/";
+    log::info!("Clima: a obter localização por IP...");
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config()).ok()?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, url, &headers).ok()?;
+    let mut response = request.submit().ok()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        log::warn!("Clima: IP geolocation retornou HTTP {status}");
+        return None;
+    }
+    let mut buf = [0_u8; 1024];
+    let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0).ok()?;
+    let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
+
+    #[derive(serde::Deserialize)]
+    struct IpApiResponse {
+        latitude: Option<f64>,
+        longitude: Option<f64>,
+        city: Option<String>,
+        region: Option<String>,
+        country_name: Option<String>,
+    }
+
+    let value: IpApiResponse = serde_json::from_str(body).ok()?;
+    let lat = value.latitude?;
+    let lon = value.longitude?;
+    let city = format!(
+        "{}, {}",
+        value.city.unwrap_or_default(),
+        value.region.unwrap_or_default()
+    );
+    log::info!("Clima: localização IP -> {} ({}, {})", city, lat, lon);
+    Some(IpLocation { lat, lon, city })
 }
 
 #[derive(Debug, serde::Deserialize)]

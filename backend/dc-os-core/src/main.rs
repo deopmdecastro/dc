@@ -128,6 +128,8 @@ struct SongShareTracksQuery {
 #[derive(Deserialize)]
 struct WeatherQuery {
     region: Option<u8>,
+    lat: Option<f64>,
+    lon: Option<f64>,
 }
 
 #[derive(Deserialize)]
@@ -448,10 +450,23 @@ async fn weather(
     Query(query): Query<WeatherQuery>,
     State(s): State<Arc<AppState>>,
 ) -> Json<serde_json::Value> {
-    let region = weather_region(query.region.unwrap_or(0));
+    // Use GPS coordinates if provided, otherwise fall back to region index
+    let (latitude, longitude, city) = match (query.lat, query.lon) {
+        (Some(lat), Some(lon)) => {
+            // Reverse geocode to get city name (best effort, fall back to coordinates)
+            let city_name = reverse_geocode(&s.http, lat, lon).await
+                .unwrap_or_else(|| format!("{:.2}°, {:.2}°", lat, lon));
+            (lat, lon, city_name)
+        }
+        _ => {
+            let region = weather_region(query.region.unwrap_or(0));
+            (region.latitude, region.longitude, region.city.to_string())
+        }
+    };
+
     let url = format!(
         "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code&timezone=auto",
-        region.latitude, region.longitude
+        latitude, longitude
     );
 
     match s.http.get(url).send().await {
@@ -476,7 +491,9 @@ async fn weather(
             Json(serde_json::json!({
                 "ok": status.is_success(),
                 "provider": "open-meteo",
-                "city": region.city,
+                "city": city,
+                "latitude": latitude,
+                "longitude": longitude,
                 "temperature_c": temp,
                 "summary": weather_summary(code),
                 "status": status.as_u16()
@@ -485,12 +502,42 @@ async fn weather(
         Err(e) => Json(serde_json::json!({
             "ok": false,
             "provider": "open-meteo",
-            "city": region.city,
+            "city": city,
+            "latitude": latitude,
+            "longitude": longitude,
             "temperature_c": 0,
             "summary": "Indisponivel",
             "error": e.to_string()
         })),
     }
+}
+
+/// Reverse geocode coordinates to city name using Open-Meteo geocoding API
+async fn reverse_geocode(http: &reqwest::Client, lat: f64, lon: f64) -> Option<String> {
+    let url = format!(
+        "https://geocoding-api.open-meteo.com/v1/reverse?latitude={}&longitude={}&count=1&language=pt",
+        lat, lon
+    );
+    let response = http.get(&url).send().await.ok()?;
+    if !response.status().is_success() {
+        return None;
+    }
+    let body: serde_json::Value = response.json().await.ok()?;
+    body.get("results")
+        .and_then(|r| r.as_array())
+        .and_then(|arr| arr.first())
+        .and_then(|place| {
+            let name = place.get("name")?.as_str()?.to_string();
+            let admin1 = place.get("admin1").and_then(|c| c.as_str());
+            let country = place.get("country").and_then(|c| c.as_str());
+            if let Some(admin1) = admin1 {
+                Some(format!("{}, {}", name, admin1))
+            } else if let Some(country) = country {
+                Some(format!("{}, {}", name, country))
+            } else {
+                Some(name)
+            }
+        })
 }
 
 async fn ws_upgrade(ws: WebSocketUpgrade, State(_s): State<Arc<AppState>>) -> impl IntoResponse {
