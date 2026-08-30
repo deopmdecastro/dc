@@ -330,6 +330,17 @@ fn main() -> Result<()> {
         log::info!("UI: orientacao {}", if on { "normal" } else { "invertida" });
         slint_platform::apply_display_rotation(on);
     });
+    app.on_confirm_action(move |action| {
+        if action == 1 {
+            log::info!("UI: desligar dispositivo");
+            slint_platform::power_off();
+        } else if action == 2 {
+            log::info!("UI: repor dispositivo");
+            if let Err(e) = config_store.borrow().factory_reset() {
+                log::warn!("NVS: falha ao repor: {e:?}");
+            }
+        }
+    });
 
     app.show()
         .map_err(|e| anyhow::anyhow!("falha ao exibir AppWindow Slint: {e:?}"))?;

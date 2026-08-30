@@ -87,6 +87,7 @@ export component AppWindow inherits Window {
     callback test-alarm-tone(int);
     callback music-command(string);
     callback delete-note(int);
+    callback confirm-action(int);
     callback save-note(string, int);
     // Emitido pelo Control Center quando o utilizador liga/desliga a
     // rotacao automatica. O Rust ajusta MADCTL no ILI9341V.
@@ -250,6 +251,7 @@ export component AppWindow inherits Window {
                 locale-changed(region, language) => { root.locale-changed(region, language); }
                 volume-changed(v) => { root.set-volume(v); }
                 brightness-changed(v) => { root.set-brightness(v); }
+                confirm-action(action) => { root.confirm-action(action); }
                 network-selected(ssid, password) => {
                     root.wifi-on = true;
                     root.wifi-network-selected(ssid, password);

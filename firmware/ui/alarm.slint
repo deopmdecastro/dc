@@ -59,12 +59,14 @@ export component AlarmPanel inherits Rectangle {
     property <string> hour-label: root.hour < 10 ? "0" + root.hour : "" + root.hour;
     property <string> minute-label: root.minute < 10 ? "0" + root.minute : "" + root.minute;
     property <string> day-label:
-        root.day-mode == 0 ? "Todos os dias" :
-        root.day-mode == 1 ? "Dias uteis" :
-        root.day-mode == 2 ? "Fim de semana" : "Uma vez";
+        root.day-mode == 0 ? (root.language-index == 2 ? "Every day" : root.language-index == 3 ? "Tous les jours" : root.language-index == 4 ? "Todos los dias" : "Todos os dias") :
+        root.day-mode == 1 ? (root.language-index == 2 ? "Weekdays" : root.language-index == 3 ? "Jours ouvrables" : root.language-index == 4 ? "Dias laborables" : "Dias uteis") :
+        root.day-mode == 2 ? (root.language-index == 2 ? "Weekend" : root.language-index == 3 ? "Week-end" : root.language-index == 4 ? "Fin de semana" : "Fim de semana") :
+        (root.language-index == 2 ? "Once" : root.language-index == 3 ? "Une fois" : root.language-index == 4 ? "Una vez" : "Uma vez");
     property <string> tone-label:
-        root.tone-index == 0 ? "Suave" :
-        root.tone-index == 1 ? "Digital" : "Pulso";
+        root.tone-index == 0 ? (root.language-index == 2 ? "Soft" : root.language-index == 3 ? "Doux" : root.language-index == 4 ? "Suave" : "Suave") :
+        root.tone-index == 1 ? (root.language-index == 2 ? "Digital" : root.language-index == 3 ? "Digital" : root.language-index == 4 ? "Digital" : "Digital") :
+        (root.language-index == 2 ? "Pulse" : root.language-index == 3 ? "Impulsion" : root.language-index == 4 ? "Pulso" : "Pulso");
     property <string> title:
         root.language-index == 2 ? "Alarm" :
         root.language-index == 3 ? "Alarme" :
@@ -126,7 +128,7 @@ export component AlarmPanel inherits Rectangle {
 
     AlarmToggle {
         x: 18px; y: 102px; width: 284px; height: 38px;
-        label: "Ativar alarme";
+        label: root.language-index == 2 ? "Enable alarm" : root.language-index == 3 ? "Activer l'alarme" : root.language-index == 4 ? "Activar alarma" : "Ativar alarme";
         checked <=> root.enabled;
         changed(on) => {
             root.enabled = on;
@@ -204,6 +206,6 @@ export component AlarmPanel inherits Rectangle {
         border-width: 1px;
         border-color: Theme.accent;
         test := TouchArea { clicked => { root.test-tone(root.tone-index); } }
-        Text { text: "Testar"; color: Theme.accent-hi; font-size: 9px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
+        Text { text: root.language-index == 2 ? "Test" : root.language-index == 3 ? "Tester" : root.language-index == 4 ? "Probar" : "Testar"; color: Theme.accent-hi; font-size: 9px; font-weight: 800; horizontal-alignment: center; vertical-alignment: center; }
     }
 }

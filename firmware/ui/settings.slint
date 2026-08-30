@@ -488,6 +488,9 @@ export component SettingsPanel inherits Rectangle {
     callback locale-changed(int, int);
     callback volume-changed(float);
     callback brightness-changed(float);
+    callback confirm-action(int);
+
+    property <int> show-confirm: 0; // 0=none, 1=power off, 2=reset
 
     width: 320px;
     height: 216px;
@@ -574,11 +577,12 @@ export component SettingsPanel inherits Rectangle {
     }
     Text {
         x: 0px; y: 0px; width: 320px; height: 34px;
-        text: root.page == 0 ? "Definicoes" :
-              root.page == 1 ? "Conexoes" :
-              root.page == 2 ? "Seguranca" :
-              root.page == 3 ? "Idioma e Regiao" :
-              root.page == 4 ? "Som e Ecra" : "Sistema";
+        text: root.page == 0 ? (root.language-index == 2 ? "Settings" : root.language-index == 3 ? "Reglages" : root.language-index == 4 ? "Ajustes" : "Definicoes") :
+              root.page == 1 ? (root.language-index == 2 ? "Connections" : root.language-index == 3 ? "Connexions" : root.language-index == 4 ? "Conexiones" : "Conexoes") :
+              root.page == 2 ? (root.language-index == 2 ? "Security" : root.language-index == 3 ? "Securite" : root.language-index == 4 ? "Seguridad" : "Seguranca") :
+              root.page == 3 ? (root.language-index == 2 ? "Language & Region" : root.language-index == 3 ? "Langue et region" : root.language-index == 4 ? "Idioma y region" : "Idioma e Regiao") :
+              root.page == 4 ? (root.language-index == 2 ? "Sound & Display" : root.language-index == 3 ? "Son et ecran" : root.language-index == 4 ? "Sonido y pantalla" : "Som e Ecra") :
+              (root.language-index == 2 ? "System" : root.language-index == 3 ? "Systeme" : root.language-index == 4 ? "Sistema" : "Sistema");
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
@@ -603,11 +607,11 @@ export component SettingsPanel inherits Rectangle {
         x: 14px; y: 50px; width: 292px; height: 160px;
         background: #00000000;
         for item[index] in [
-            { title: "Conexoes", detail: root.wifi-on ? "Wi-Fi ligado" : "Wi-Fi desligado", icon: @image-url("assets/icons/wifi.svg"), tint: Theme.accent-blue },
-            { title: "Seguranca", detail: "PIN e protecao", icon: @image-url("assets/icons/shield.svg"), tint: Theme.success },
-            { title: "Idioma e Regiao", detail: root.region-label, icon: @image-url("assets/icons/globe.svg"), tint: Theme.accent-cyan },
-            { title: "Som e Ecra", detail: "Volume e brilho", icon: @image-url("assets/icons/sliders.svg"), tint: Theme.warning },
-            { title: "Sistema", detail: "Estado do DC OS", icon: @image-url("assets/icons/cpu.svg"), tint: Theme.accent-violet },
+            { title: root.language-index == 2 ? "Connections" : root.language-index == 3 ? "Connexions" : root.language-index == 4 ? "Conexiones" : "Conexoes", detail: root.wifi-on ? "Wi-Fi on" : "Wi-Fi off", icon: @image-url("assets/icons/wifi.svg"), tint: Theme.accent-blue },
+            { title: root.language-index == 2 ? "Security" : root.language-index == 3 ? "Securite" : root.language-index == 4 ? "Seguridad" : "Seguranca", detail: "PIN", icon: @image-url("assets/icons/shield.svg"), tint: Theme.success },
+            { title: root.language-index == 2 ? "Language & Region" : root.language-index == 3 ? "Langue et region" : root.language-index == 4 ? "Idioma y region" : "Idioma e Regiao", detail: root.region-label, icon: @image-url("assets/icons/globe.svg"), tint: Theme.accent-cyan },
+            { title: root.language-index == 2 ? "Sound & Display" : root.language-index == 3 ? "Son et ecran" : root.language-index == 4 ? "Sonido y pantalla" : "Som e Ecra", detail: root.language-index == 2 ? "Volume & brightness" : root.language-index == 3 ? "Volume et luminosite" : root.language-index == 4 ? "Volumen y brillo" : "Volume e brilho", icon: @image-url("assets/icons/sliders.svg"), tint: Theme.warning },
+            { title: root.language-index == 2 ? "System" : root.language-index == 3 ? "Systeme" : root.language-index == 4 ? "Sistema" : "Sistema", detail: root.language-index == 2 ? "DC OS status" : root.language-index == 3 ? "Etat DC OS" : root.language-index == 4 ? "Estado DC OS" : "Estado do DC OS", icon: @image-url("assets/icons/cpu.svg"), tint: Theme.accent-violet },
         ] : Rectangle {
             x: 0px; y: index * 31px; width: 292px; height: 28px;
             border-radius: Theme.radius-s;
@@ -665,7 +669,7 @@ export component SettingsPanel inherits Rectangle {
             border-color: Theme.stroke-soft;
             tr := TouchArea { clicked => { root.network-scroll = 0; root.scan-wifi-networks(); } }
             Image { x: 8px; y: 4px; width: 14px; height: 14px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; colorize: Theme.accent; }
-            Text { x: 24px; y: 0px; width: 22px; height: 22px; text: "Upd"; color: Theme.accent; font-size: 7px; font-weight: 700; vertical-alignment: center; }
+            Text { x: 24px; y: 0px; width: 22px; height: 22px; text: root.language-index == 2 ? "Upd" : root.language-index == 3 ? "Act" : root.language-index == 4 ? "Act" : "Atu"; color: Theme.accent; font-size: 7px; font-weight: 700; vertical-alignment: center; }
         }
         if !root.wifi-on: Text {
             x: 0px; y: 112px; width: 292px; height: 40px;
@@ -813,20 +817,99 @@ export component SettingsPanel inherits Rectangle {
 
     // ================= PAGINA 5 — SISTEMA =================
     if root.page == 5: Rectangle {
-        x: 14px; y: 54px; width: 292px; height: 108px;
-        border-radius: Theme.radius-m;
-        background: Theme.panel-soft;
-        border-width: 1px;
-        border-color: Theme.stroke-soft;
+        x: 14px; y: 54px; width: 292px; height: 150px;
+        background: #00000000;
+        // Info card
         Rectangle {
-            x: 14px; y: 14px; width: 34px; height: 34px;
-            border-radius: 10px;
-            background: Theme.accent-tint;
-            Image { x: 8px; y: 8px; width: 18px; height: 18px; source: @image-url("assets/icons/cpu.svg"); image-fit: contain; colorize: Theme.accent; }
+            x: 0px; y: 0px; width: 292px; height: 90px;
+            border-radius: Theme.radius-m;
+            background: Theme.panel-soft;
+            border-width: 1px;
+            border-color: Theme.stroke-soft;
+            Rectangle {
+                x: 14px; y: 14px; width: 34px; height: 34px;
+                border-radius: 10px;
+                background: Theme.accent-tint;
+                Image { x: 8px; y: 8px; width: 18px; height: 18px; source: @image-url("assets/icons/cpu.svg"); image-fit: contain; colorize: Theme.accent; }
+            }
+            Text { x: 56px; y: 14px; width: 220px; height: 16px; text: "DC OS Embedded"; color: Theme.accent; font-size: Theme.font-md; font-weight: 700; }
+            Text { x: 56px; y: 32px; width: 220px; height: 12px; text: "Versao 2.0"; color: Theme.text-muted; font-size: Theme.font-xs; }
+            Text { x: 14px; y: 58px; width: 264px; height: 28px; text: root.language-index == 2 ? "Firmware ESP32-S3 with Slint UI, Wi-Fi, SNTP, NVS and local API." : root.language-index == 3 ? "Firmware ESP32-S3 avec interface Slint, Wi-Fi, SNTP, NVS et API locale." : root.language-index == 4 ? "Firmware ESP32-S3 con interfaz Slint, Wi-Fi, SNTP, NVS y API local." : "Firmware ESP32-S3 com Slint UI, Wi-Fi, SNTP, NVS e API local."; color: Theme.text-secondary; font-size: Theme.font-xs; wrap: word-wrap; }
         }
-        Text { x: 56px; y: 14px; width: 220px; height: 16px; text: "DC OS Embedded"; color: Theme.accent; font-size: Theme.font-md; font-weight: 700; }
-        Text { x: 56px; y: 32px; width: 220px; height: 12px; text: "Versao 2.0"; color: Theme.text-muted; font-size: Theme.font-xs; }
-        Text { x: 14px; y: 58px; width: 264px; height: 38px; text: "Firmware ESP32-S3 com Slint UI, Wi-Fi, SNTP, NVS e API local."; color: Theme.text-secondary; font-size: Theme.font-xs; wrap: word-wrap; }
+        // Botao Desligar
+        Rectangle {
+            x: 0px; y: 100px; width: 140px; height: 38px;
+            border-radius: Theme.radius-m;
+            background: po.pressed ? Theme.danger : Theme.danger-tint;
+            border-width: 1px;
+            border-color: Theme.danger;
+            po := TouchArea { clicked => { root.show-confirm = 1; } }
+            Image { x: 12px; y: 11px; width: 16px; height: 16px; source: @image-url("assets/icons/moon.svg"); image-fit: contain; colorize: Theme.danger; }
+            Text { x: 34px; y: 0px; width: 96px; height: 38px; text: root.language-index == 2 ? "Power off" : root.language-index == 3 ? "Eteindre" : root.language-index == 4 ? "Apagar" : "Desligar"; color: Theme.danger; font-size: Theme.font-sm; font-weight: 700; vertical-alignment: center; }
+        }
+        // Botao Reset
+        Rectangle {
+            x: 152px; y: 100px; width: 140px; height: 38px;
+            border-radius: Theme.radius-m;
+            background: rs.pressed ? Theme.warning : Theme.panel-soft;
+            border-width: 1px;
+            border-color: Theme.warning;
+            rs := TouchArea { clicked => { root.show-confirm = 2; } }
+            Image { x: 12px; y: 11px; width: 16px; height: 16px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; colorize: Theme.warning; }
+            Text { x: 34px; y: 0px; width: 96px; height: 38px; text: root.language-index == 2 ? "Reset" : root.language-index == 3 ? "Reinitialiser" : root.language-index == 4 ? "Restablecer" : "Repor"; color: Theme.warning; font-size: Theme.font-sm; font-weight: 700; vertical-alignment: center; }
+        }
+    }
+
+    // Modal de confirmacao
+    if root.show-confirm > 0: Rectangle {
+        x: 0px; y: 0px; width: 320px; height: 216px;
+        background: #03050EE0;
+        TouchArea { x: 0px; y: 0px; width: 320px; height: 216px; clicked => { } }
+        Rectangle {
+            x: 30px; y: 50px; width: 260px; height: 116px;
+            border-radius: Theme.radius-m;
+            background: Theme.bg-1;
+            border-width: 1px;
+            border-color: root.show-confirm == 1 ? Theme.danger : Theme.warning;
+            // Icone
+            Rectangle {
+                x: 110px; y: 12px; width: 40px; height: 40px;
+                border-radius: 20px;
+                background: root.show-confirm == 1 ? Theme.danger-tint : Theme.panel-soft;
+                Image { x: 10px; y: 10px; width: 20px; height: 20px; source: root.show-confirm == 1 ? @image-url("assets/icons/moon.svg") : @image-url("assets/icons/zap.svg"); image-fit: contain; colorize: root.show-confirm == 1 ? Theme.danger : Theme.warning; }
+            }
+            // Titulo
+            Text {
+                x: 10px; y: 58px; width: 240px; height: 16px;
+                text: root.show-confirm == 1 ?
+                    (root.language-index == 2 ? "Power off?" : root.language-index == 3 ? "Eteindre ?" : root.language-index == 4 ? "Apagar ?" : "Desligar ?") :
+                    (root.language-index == 2 ? "Reset device?" : root.language-index == 3 ? "Reinitialiser ?" : root.language-index == 4 ? "Restablecer ?" : "Repor ?");
+                color: Theme.text-primary;
+                font-size: Theme.font-md;
+                font-weight: 700;
+                horizontal-alignment: center;
+            }
+            // Botao Confirmar
+            Rectangle {
+                x: 30px; y: 82px; width: 90px; height: 26px;
+                border-radius: Theme.radius-s;
+                background: cc.pressed ? (root.show-confirm == 1 ? Theme.danger : Theme.warning) : (root.show-confirm == 1 ? Theme.danger-tint : Theme.panel-soft);
+                border-width: 1px;
+                border-color: root.show-confirm == 1 ? Theme.danger : Theme.warning;
+                cc := TouchArea { clicked => { root.confirm-action(root.show-confirm); root.show-confirm = 0; } }
+                Text { text: root.language-index == 2 ? "Confirm" : root.language-index == 3 ? "Confirmer" : root.language-index == 4 ? "Confirmar" : "Confirmar"; color: root.show-confirm == 1 ? Theme.danger : Theme.warning; font-size: Theme.font-xs; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+            }
+            // Botao Cancelar
+            Rectangle {
+                x: 140px; y: 82px; width: 90px; height: 26px;
+                border-radius: Theme.radius-s;
+                background: cn.pressed ? Theme.panel-elevated : Theme.panel-soft;
+                border-width: 1px;
+                border-color: Theme.stroke;
+                cn := TouchArea { clicked => { root.show-confirm = 0; } }
+                Text { text: root.language-index == 2 ? "Cancel" : root.language-index == 3 ? "Annuler" : root.language-index == 4 ? "Cancelar" : "Cancelar"; color: Theme.text-secondary; font-size: Theme.font-xs; font-weight: 700; horizontal-alignment: center; vertical-alignment: center; }
+            }
+        }
     }
 
     if root.wifi-password-open: WifiPasswordDialog {

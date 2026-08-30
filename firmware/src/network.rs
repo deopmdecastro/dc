@@ -628,6 +628,7 @@ fn music_command_url(health_url: &str) -> String {
 fn http_config() -> esp_idf_svc::http::client::Configuration {
     esp_idf_svc::http::client::Configuration {
         timeout: Some(Duration::from_secs(20)),
+        use_global_ca_store: false,
         ..Default::default()
     }
 }

@@ -159,6 +159,12 @@ impl ConfigStore {
         Ok(())
     }
 
+    pub fn factory_reset(&self) -> Result<()> {
+        self.nvs.erase_all()?;
+        log::info!("NVS: reposicao de fabrica concluida");
+        Ok(())
+    }
+
     fn read_string(&self, key: &str, max_len: usize) -> Option<String> {
         let mut buf = vec![0_u8; max_len + 1];
         match self.nvs.get_str(key, &mut buf) {

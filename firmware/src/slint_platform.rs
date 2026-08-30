@@ -96,6 +96,22 @@ pub fn set_display_brightness(level: f32) {
     });
 }
 
+pub fn set_backlight(on: bool) {
+    DISPLAY.with(|d| {
+        if let Some(display) = d.borrow_mut().as_mut() {
+            let level = if on { 0.6 } else { 0.0 };
+            if let Err(e) = display.set_brightness(level) {
+                log::warn!("Display: falha ao ajustar backlight: {e:?}");
+            }
+        }
+    });
+}
+
+pub fn power_off() {
+    set_backlight(false);
+    log::info!("Sistema: desligado");
+}
+
 /// Adaptador que traduz cada linha renderizada pelo software renderer do
 /// Slint (buffer RGB565 em RAM) para um `write_line_rgb565` no SPI.
 struct SpiLineBuffer<'a> {
