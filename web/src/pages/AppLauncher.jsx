@@ -1,6 +1,22 @@
-import { MessageCircle, Cloud, FileText, Bell, Settings, Zap, Music, Radio } from "lucide-react";
-import { usePolledApi } from "../lib/useApi";
+import {
+  ArrowUpRight,
+  Bell,
+  Cloud,
+  Droplets,
+  FileText,
+  MessageCircle,
+  Music,
+  Play,
+  Settings,
+  SkipBack,
+  SkipForward,
+  SlidersHorizontal,
+  Wind,
+  Zap,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { usePolledApi } from "../lib/useApi";
 
 const SpotifyIcon = (props) => (
   <svg viewBox="0 0 24 24" width={22} height={22} fill="currentColor" {...props}>
@@ -9,116 +25,261 @@ const SpotifyIcon = (props) => (
 );
 
 const SongShareIcon = (props) => (
-  <svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
+  <svg
+    viewBox="0 0 24 24"
+    width={22}
+    height={22}
+    fill="none"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth={2}
+    {...props}
+  >
+    <path d="M9 18V5l12-2v13" />
+    <circle cx="6" cy="18" r="3" />
+    <circle cx="18" cy="16" r="3" />
   </svg>
 );
 
 const apps = [
-  { screen: "assistant", name: "Assistente", desc: "Chat & Voz", icon: MessageCircle, gradient: "from-blue-500 to-cyan-400", bg: "bg-blue-500/10", border: "border-blue-500/30" },
-  { screen: "music", name: "Spotify", desc: "Música", icon: SpotifyIcon, gradient: "from-green-500 to-emerald-400", bg: "bg-green-500/10", border: "border-green-500/30" },
-  { screen: "songshare", name: "SongShare", desc: "Descobrir", icon: SongShareIcon, gradient: "from-orange-500 to-amber-400", bg: "bg-orange-500/10", border: "border-orange-500/30" },
-  { screen: "weather", name: "Clima", desc: "Previsão", icon: Cloud, gradient: "from-teal-500 to-cyan-400", bg: "bg-teal-500/10", border: "border-teal-500/30" },
-  { screen: "features", name: "Recursos", desc: "Sistema", icon: Zap, gradient: "from-violet-500 to-purple-400", bg: "bg-violet-500/10", border: "border-violet-500/30" },
-  { screen: "notes", name: "Notas", desc: "Apontamentos", icon: FileText, gradient: "from-yellow-500 to-orange-400", bg: "bg-yellow-500/10", border: "border-yellow-500/30" },
-  { screen: "alarm", name: "Alarme", desc: "Despertar", icon: Bell, gradient: "from-pink-500 to-rose-400", bg: "bg-pink-500/10", border: "border-pink-500/30" },
-  { screen: "settings", name: "Definições", desc: "Config", icon: Settings, gradient: "from-slate-400 to-slate-500", bg: "bg-slate-500/10", border: "border-slate-500/30" },
+  {
+    screen: "assistant",
+    name: "Assistente",
+    desc: "Chat & Voz",
+    icon: MessageCircle,
+    color: "#13a8ff",
+    tint: "rgba(19, 168, 255, 0.14)",
+  },
+  {
+    screen: "music",
+    name: "Spotify",
+    desc: "Musica",
+    icon: SpotifyIcon,
+    color: "#24e07a",
+    tint: "rgba(36, 224, 122, 0.13)",
+  },
+  {
+    screen: "songshare",
+    name: "SongShare",
+    desc: "Descobrir",
+    icon: SongShareIcon,
+    color: "#fb9709",
+    tint: "rgba(251, 151, 9, 0.14)",
+  },
+  {
+    screen: "weather",
+    name: "Clima",
+    desc: "Previsao",
+    icon: Cloud,
+    color: "#16d0d5",
+    tint: "rgba(22, 208, 213, 0.13)",
+  },
+  {
+    screen: "features",
+    name: "Recursos",
+    desc: "Sistema",
+    icon: Zap,
+    color: "#9a58ff",
+    tint: "rgba(154, 88, 255, 0.14)",
+  },
+  {
+    screen: "notes",
+    name: "Notas",
+    desc: "Apontamentos",
+    icon: FileText,
+    color: "#ffb30a",
+    tint: "rgba(255, 179, 10, 0.14)",
+  },
+  {
+    screen: "alarm",
+    name: "Alarme",
+    desc: "Despertar",
+    icon: Bell,
+    color: "#f23c91",
+    tint: "rgba(242, 60, 145, 0.14)",
+  },
+  {
+    screen: "settings",
+    name: "Definicoes",
+    desc: "Config",
+    icon: Settings,
+    color: "#91a5be",
+    tint: "rgba(145, 165, 190, 0.13)",
+  },
 ];
 
-export default function AppLauncher({ onNavigate }) {
-  const { data: weather, loading: weatherLoading } = usePolledApi(() => api.weather(1), { intervalMs: 60000 });
-  const { data: tracks, loading: tracksLoading } = usePolledApi(() => api.musicTopTracks(true), { intervalMs: 30000 });
-  const { offline } = usePolledApi(() => api.health(), { intervalMs: 15000 });
+function InfoMetric({ icon: Icon, label, value }) {
+  return (
+    <div className="dc-info-metric">
+      <Icon size={15} />
+      <div>
+        <span>{label}</span>
+        <strong>{value}</strong>
+      </div>
+    </div>
+  );
+}
 
-  const temp = Math.round(weather?.temperature_c ?? 0);
+function AppCard({ app, onNavigate }) {
+  return (
+    <button
+      className="dc-app-card"
+      type="button"
+      onClick={() => onNavigate(app.screen)}
+      style={{
+        "--app-color": app.color,
+        "--app-tint": app.tint,
+      }}
+    >
+      <div className="dc-app-icon">
+        <app.icon size={25} />
+      </div>
+      <div className="dc-app-copy">
+        <strong>{app.name}</strong>
+        <span>{app.desc}</span>
+      </div>
+      <div className="dc-app-action">
+        <ArrowUpRight size={16} />
+      </div>
+    </button>
+  );
+}
+
+export default function AppLauncher({ onNavigate, online = true }) {
+  const [gpsCoords, setGpsCoords] = useState(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setGpsCoords({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+        });
+      },
+      () => {
+        setGpsCoords(null);
+      },
+      { enableHighAccuracy: true, maximumAge: 300000, timeout: 10000 },
+    );
+  }, []);
+
+  const weatherFetcher = useCallback(() => {
+    if (gpsCoords) {
+      return api.weatherByCoords(gpsCoords.lat, gpsCoords.lon);
+    }
+    return api.weather(1);
+  }, [gpsCoords]);
+
+  const { data: weather, loading: weatherLoading } = usePolledApi(weatherFetcher, {
+    intervalMs: 60000,
+    deps: [gpsCoords?.lat, gpsCoords?.lon],
+  });
+  const { data: tracks, loading: tracksLoading } = usePolledApi(() => api.songshareTracks(true), {
+    intervalMs: 60000,
+  });
+
+  const temp = Math.round(weather?.temperature_c ?? 22);
   const city = weather?.city ?? "Lisboa";
-  const topTracks = tracks?.body?.items?.slice(0, 3) || [];
+  const humidity = weather?.humidity_percent ?? weather?.humidity;
+  const wind = weather?.wind_kmh ?? weather?.wind_speed_kmh;
+  const topTrack = tracks?.body?.items?.[0];
+  const title = topTrack?.name || "Sem faixa";
+  const subtitle = topTrack?.artists?.map((artist) => artist.name).join(", ") || "SongShare API key";
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto bg-bg-0" style={{ padding: "24px" }}>
-      {/* Welcome section */}
-      <div className="mb-6">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-accent mb-1">DC Assistant</p>
-        <h1 className="font-display text-2xl font-bold text-text-primary sm:text-3xl">Bem-vindo de volta.</h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          8 aplicações · {offline ? <span className="text-danger">Offline</span> : <span className="text-success">Online</span>}
-        </p>
-      </div>
-
-      {/* Quick info cards */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        {/* Weather mini card */}
-        <div
-          className="rounded-2xl p-4"
-          style={{
-            background: "linear-gradient(135deg, var(--accent-tint), var(--panel-soft))",
-            border: "1px solid var(--accent)/20",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-cyan))" }}>
-              <Cloud size={14} style={{ color: "var(--bg-0)" }} />
-            </div>
-            <span className="text-[10px] font-semibold text-text-muted uppercase">Clima</span>
-          </div>
-          {weatherLoading && !weather ? (
-            <div className="h-8 w-16 rounded bg-panel-soft animate-pulse-slow" />
-          ) : (
-            <>
-              <p className="font-display text-2xl font-bold text-text-primary">{temp}°</p>
-              <p className="text-[10px] text-text-muted">{city}</p>
-            </>
-          )}
+    <div className="dc-dashboard">
+      <div className="dc-hero">
+        <div className="dc-hero-wave" aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
 
-        {/* Music mini card */}
-        <div
-          className="rounded-2xl p-4"
-          style={{
-            background: "linear-gradient(135deg, var(--success-tint), var(--panel-soft))",
-            border: "1px solid var(--success)/20",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ background: "linear-gradient(135deg, var(--success), #22c55e)" }}>
-              <Music size={14} style={{ color: "var(--bg-0)" }} />
-            </div>
-            <span className="text-[10px] font-semibold text-text-muted uppercase">Música</span>
-          </div>
-          {tracksLoading && !tracks ? (
-            <div className="h-8 w-16 rounded bg-panel-soft animate-pulse-slow" />
-          ) : topTracks.length > 0 ? (
-            <p className="text-xs font-semibold text-text-primary truncate">{topTracks[0].name}</p>
-          ) : (
-            <p className="text-xs text-text-muted">Sem faixas</p>
-          )}
+        <div className="dc-hero-heading">
+          <h1>Bem-vindo de volta.</h1>
+          <p>
+            8 aplicacoes <span>•</span>{" "}
+            <strong className={online ? "text-success" : "text-danger"}>
+              {online ? "Online" : "Offline"}
+            </strong>
+          </p>
         </div>
-      </div>
 
-      {/* App grid */}
-      <h2 className="text-sm font-semibold text-text-secondary mb-3">Aplicações</h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {apps.map((app) => (
-          <button
-            key={app.screen}
-            onClick={() => onNavigate(app.screen)}
-            className={`group relative flex flex-col items-start gap-3 rounded-2xl border p-4 transition-all duration-150 hover-lift ${app.bg} ${app.border}`}
-          >
-            <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br ${app.gradient}`}>
-              <app.icon size={20} style={{ color: "var(--bg-0)" }} />
+        <div className="dc-quick-grid">
+          <button className="dc-quick-card dc-weather-card" type="button" onClick={() => onNavigate("weather")}>
+            <div className="dc-weather-main">
+              <div className="dc-weather-icon">
+                <Cloud size={30} />
+              </div>
+              <div>
+                <span>Clima atual</span>
+                {weatherLoading && !weather ? (
+                  <div className="dc-skeleton" />
+                ) : (
+                  <>
+                    <strong>{temp}&deg;</strong>
+                    <small>{city}</small>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="text-left">
-              <span className="block text-sm font-semibold text-text-primary">{app.name}</span>
-              <span className="block text-[10px] text-text-muted">{app.desc}</span>
-            </div>
-            <div className="absolute right-3 top-3 opacity-0 transition-opacity group-hover:opacity-100">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--text-dim)" }}>
-                <path d="M7 17L17 7M17 7H7M17 7v10" />
-              </svg>
+            <div className="dc-weather-divider" />
+            <div className="dc-weather-metrics">
+              <InfoMetric icon={Droplets} label="Humidade" value={humidity != null ? `${humidity}%` : "--"} />
+              <InfoMetric icon={Wind} label="Vento" value={wind != null ? `${wind} km/h` : "--"} />
             </div>
           </button>
+
+          <button className="dc-quick-card dc-music-card" type="button" onClick={() => onNavigate("songshare")}>
+            <div className="dc-music-icon">
+              <Music size={31} />
+            </div>
+            <div className="dc-music-copy">
+              <span>Musica</span>
+              {tracksLoading && !tracks ? (
+                <div className="dc-skeleton is-wide" />
+              ) : (
+                <>
+                  <strong>{title}</strong>
+                  <small>{subtitle}</small>
+                </>
+              )}
+            </div>
+            <div className="dc-mini-controls">
+              <span aria-hidden="true">
+                <SkipBack size={17} />
+              </span>
+              <span className="is-play" aria-hidden="true">
+                <Play size={18} fill="currentColor" />
+              </span>
+              <span aria-hidden="true">
+                <SkipForward size={17} />
+              </span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div className="dc-section-head">
+        <h2>Aplicacoes</h2>
+        <button type="button">
+          <SlidersHorizontal size={14} />
+          Personalizar
+        </button>
+      </div>
+
+      <div className="dc-app-grid">
+        {apps.map((app) => (
+          <AppCard key={app.screen} app={app} onNavigate={onNavigate} />
         ))}
       </div>
+
+      <footer className="dc-footer">
+        <span>DC Assistant</span> • Simplifique o seu dia.
+      </footer>
     </div>
   );
 }

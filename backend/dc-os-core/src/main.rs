@@ -9,7 +9,7 @@
 //!   GET  /music/top-tracks    top tracks reais via Spotify Web API
 //!   POST /music/command       play/pause/next/prev (proxy Mopidy JSON-RPC)
 //!   GET  /songshare/tracks    catalogo Songstats/RapidAPI compacto
-//!   GET  /weather             clima atual por regiao via Open-Meteo
+//!   GET  /weather             clima atual por regiao ou coordenadas via Open-Meteo
 
 use axum::{
     extract::{
@@ -108,6 +108,8 @@ struct NoteInput {
 #[derive(Deserialize)]
 struct MusicCommand {
     action: String,
+    uri: Option<String>,
+    uris: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -459,22 +461,44 @@ async fn weather(
     Query(query): Query<WeatherQuery>,
     State(s): State<Arc<AppState>>,
 ) -> Json<serde_json::Value> {
-    // Use GPS coordinates if provided, otherwise fall back to region index
-    let (latitude, longitude, city) = match (query.lat, query.lon) {
+    let (latitude, longitude, city, source) = match (query.lat, query.lon) {
         (Some(lat), Some(lon)) => {
+            if !valid_coordinates(lat, lon) {
+                return Json(serde_json::json!({
+                    "ok": false,
+                    "provider": "open-meteo",
+                    "source": "gps",
+                    "city": "GPS",
+                    "latitude": lat,
+                    "longitude": lon,
+                    "temperature_c": 0,
+                    "humidity": 0,
+                    "humidity_percent": 0,
+                    "wind_kmh": 0,
+                    "wind_speed_kmh": 0,
+                    "summary": "Coordenadas invalidas",
+                    "error": "lat/lon fora do intervalo permitido"
+                }));
+            }
             // Reverse geocode to get city name (best effort, fall back to coordinates)
-            let city_name = reverse_geocode(&s.http, lat, lon).await
+            let city_name = reverse_geocode(&s.http, lat, lon)
+                .await
                 .unwrap_or_else(|| format!("{:.2}°, {:.2}°", lat, lon));
-            (lat, lon, city_name)
+            (lat, lon, city_name, "gps")
         }
         _ => {
             let region = weather_region(query.region.unwrap_or(0));
-            (region.latitude, region.longitude, region.city.to_string())
+            (
+                region.latitude,
+                region.longitude,
+                region.city.to_string(),
+                "region",
+            )
         }
     };
 
     let url = format!(
-        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,weather_code&timezone=auto",
+        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=auto",
         latitude, longitude
     );
 
@@ -491,6 +515,18 @@ async fn weather(
                 .and_then(|value| value.as_f64())
                 .unwrap_or_default()
                 .round() as i64;
+            let humidity = body
+                .get("current")
+                .and_then(|current| current.get("relative_humidity_2m"))
+                .and_then(|value| value.as_f64())
+                .unwrap_or_default()
+                .round() as i64;
+            let wind_kmh = body
+                .get("current")
+                .and_then(|current| current.get("wind_speed_10m"))
+                .and_then(|value| value.as_f64())
+                .unwrap_or_default()
+                .round() as i64;
             let code = body
                 .get("current")
                 .and_then(|current| current.get("weather_code"))
@@ -500,10 +536,15 @@ async fn weather(
             Json(serde_json::json!({
                 "ok": status.is_success(),
                 "provider": "open-meteo",
+                "source": source,
                 "city": city,
                 "latitude": latitude,
                 "longitude": longitude,
                 "temperature_c": temp,
+                "humidity": humidity,
+                "humidity_percent": humidity,
+                "wind_kmh": wind_kmh,
+                "wind_speed_kmh": wind_kmh,
                 "summary": weather_summary(code),
                 "status": status.as_u16()
             }))
@@ -511,14 +552,26 @@ async fn weather(
         Err(e) => Json(serde_json::json!({
             "ok": false,
             "provider": "open-meteo",
+            "source": source,
             "city": city,
             "latitude": latitude,
             "longitude": longitude,
             "temperature_c": 0,
+            "humidity": 0,
+            "humidity_percent": 0,
+            "wind_kmh": 0,
+            "wind_speed_kmh": 0,
             "summary": "Indisponivel",
             "error": e.to_string()
         })),
     }
+}
+
+fn valid_coordinates(lat: f64, lon: f64) -> bool {
+    lat.is_finite()
+        && lon.is_finite()
+        && (-90.0..=90.0).contains(&lat)
+        && (-180.0..=180.0).contains(&lon)
 }
 
 /// Reverse geocode coordinates to city name using BigDataFree API (free, no key needed)
@@ -538,7 +591,11 @@ async fn reverse_geocode(http: &reqwest::Client, lat: f64, lon: f64) -> Option<S
 
     // Build city name: prefer city, fall back to locality
     let name = city.or(locality)?;
-    Some(format!("{}{}", name, country.map(|c| format!(", {}", c)).unwrap_or_default()))
+    Some(format!(
+        "{}{}",
+        name,
+        country.map(|c| format!(", {}", c)).unwrap_or_default()
+    ))
 }
 
 async fn ws_upgrade(ws: WebSocketUpgrade, State(_s): State<Arc<AppState>>) -> impl IntoResponse {
@@ -577,39 +634,41 @@ async fn transcribe(
             .mime_str("audio/wav")
             .unwrap(),
     );
-    Json(match s
-        .http
-        .post(&s.stt_url)
-        .query(&[
-            ("task", "transcribe"),
-            ("language", language),
-            ("output", "json"),
-        ])
-        .multipart(form)
-        .send()
-        .await
-    {
-        Ok(r) => {
-            let status = r.status();
-            let raw = r.text().await.unwrap_or_default();
-            let text = extract_transcript_text(&raw);
-            serde_json::json!({
-                "ok": status.is_success() && !text.trim().is_empty(),
+    Json(
+        match s
+            .http
+            .post(&s.stt_url)
+            .query(&[
+                ("task", "transcribe"),
+                ("language", language),
+                ("output", "json"),
+            ])
+            .multipart(form)
+            .send()
+            .await
+        {
+            Ok(r) => {
+                let status = r.status();
+                let raw = r.text().await.unwrap_or_default();
+                let text = extract_transcript_text(&raw);
+                serde_json::json!({
+                    "ok": status.is_success() && !text.trim().is_empty(),
+                    "provider": "whisper",
+                    "language": language,
+                    "text": text,
+                    "status": status.as_u16(),
+                    "raw": raw
+                })
+            }
+            Err(e) => serde_json::json!({
+                "ok": false,
                 "provider": "whisper",
                 "language": language,
-                "text": text,
-                "status": status.as_u16(),
-                "raw": raw
-            })
-        }
-        Err(e) => serde_json::json!({
-            "ok": false,
-            "provider": "whisper",
-            "language": language,
-            "text": "",
-            "error": e.to_string()
-        }),
-    })
+                "text": "",
+                "error": e.to_string()
+            }),
+        },
+    )
 }
 
 fn stt_language(language_index: u8) -> &'static str {
@@ -820,33 +879,7 @@ fn compact_spotify_tracks(body: &serde_json::Value) -> Vec<serde_json::Value> {
         .map(|items| {
             items
                 .iter()
-                .map(|item| {
-                    let artists = item
-                        .get("artists")
-                        .and_then(|artists| artists.as_array())
-                        .map(|artists| {
-                            artists
-                                .iter()
-                                .filter_map(|artist| {
-                                    artist.get("name").and_then(|name| name.as_str())
-                                })
-                                .map(|name| serde_json::json!({ "name": name }))
-                                .collect::<Vec<_>>()
-                        })
-                        .unwrap_or_default();
-
-                    serde_json::json!({
-                        "name": item.get("name").and_then(|name| name.as_str()).unwrap_or("Sem titulo"),
-                        "artists": artists,
-                        "album": {
-                            "name": item
-                                .get("album")
-                                .and_then(|album| album.get("name"))
-                                .and_then(|name| name.as_str())
-                                .unwrap_or("")
-                        }
-                    })
-                })
+                .map(compact_track)
                 .collect()
         })
         .unwrap_or_default()
@@ -869,7 +902,12 @@ async fn music_playlists(
     Json(
         match spotify_request(&s, reqwest::Method::GET, endpoint, None).await {
             Ok((status, body)) if status.is_success() => {
-                if query.compact.as_deref().map(|v| matches!(v, "1" | "true" | "yes" | "sim")).unwrap_or(false) {
+                if query
+                    .compact
+                    .as_deref()
+                    .map(|v| matches!(v, "1" | "true" | "yes" | "sim"))
+                    .unwrap_or(false)
+                {
                     serde_json::json!({
                         "ok": true,
                         "driver": "spotify",
@@ -1008,11 +1046,20 @@ async fn music_recently_played(
 }
 
 fn compact_track(track: &serde_json::Value) -> serde_json::Value {
-    let artists = track.get("artists").and_then(|a| a.as_array()).map(|a| {
-        a.iter().filter_map(|artist| {
-            artist.get("name").and_then(|name| name.as_str()).map(|name| serde_json::json!({ "name": name }))
-        }).collect::<Vec<_>>()
-    }).unwrap_or_default();
+    let artists = track
+        .get("artists")
+        .and_then(|a| a.as_array())
+        .map(|a| {
+            a.iter()
+                .filter_map(|artist| {
+                    artist
+                        .get("name")
+                        .and_then(|name| name.as_str())
+                        .map(|name| serde_json::json!({ "name": name }))
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
 
     serde_json::json!({
         "id": track.get("id").and_then(|v| v.as_str()).unwrap_or(""),
@@ -1102,11 +1149,18 @@ async fn songshare_tracks(
                         .get("message")
                         .and_then(|message| message.as_str())
                         .unwrap_or("Songstats/RapidAPI recusou o pedido");
+                    let hint = match status.as_u16() {
+                        401 => "Verifica se SONGSTATS_RAPIDAPI_KEY esta correto no backend/.env",
+                        403 => "A chave RapidAPI existe, mas a conta pode nao estar subscrita ao Songstats",
+                        429 => "RapidAPI aplicou rate limit; tenta novamente mais tarde",
+                        _ => "Verifica a configuracao Songstats/RapidAPI",
+                    };
                     serde_json::json!({
                         "ok": false,
                         "driver": "songshare",
                         "status": status.as_u16(),
                         "error": error,
+                        "hint": hint,
                         "body": body
                     })
                 }
@@ -1364,13 +1418,31 @@ async fn spotify_music_command(s: &AppState, action: &str) -> anyhow::Result<ser
     };
 
     let (status, response_body) = spotify_request(s, method, path, body).await?;
+    let hint = spotify_playback_hint(status, &response_body);
     Ok(serde_json::json!({
         "ok": status.is_success() || status == StatusCode::NO_CONTENT,
         "driver": "spotify",
         "action": action,
         "status": status.as_u16(),
+        "hint": hint,
         "body": response_body
     }))
+}
+
+fn spotify_playback_hint(status: StatusCode, body: &serde_json::Value) -> Option<&'static str> {
+    let reason = body
+        .get("error")
+        .and_then(|error| error.get("reason"))
+        .and_then(|reason| reason.as_str());
+
+    match (status.as_u16(), reason) {
+        (404, Some("NO_ACTIVE_DEVICE")) => Some(
+            "Nao ha nenhum dispositivo Spotify ativo. Abre o Spotify no PC/telemovel e escolhe um dispositivo.",
+        ),
+        (403, _) => Some("A conta/token Spotify nao tem permissao para este comando. Refaz /spotify/login."),
+        (401, _) => Some("Sessao Spotify expirada. Refaz /spotify/login."),
+        _ => None,
+    }
 }
 
 async fn spotify_top_track_uris(s: &AppState) -> anyhow::Result<Vec<String>> {
@@ -1453,11 +1525,21 @@ async fn spotify_configured(s: &AppState) -> bool {
 }
 
 async fn spotify_token(s: &AppState) -> anyhow::Result<String> {
-    let token = spotify_token_value(s).await;
-    if !token.is_empty() {
-        return Ok(token);
+    let runtime_token = s.spotify.runtime_token.read().await;
+    if !runtime_token.is_empty() {
+        return Ok(runtime_token.clone());
     }
-    refresh_spotify_token(s).await
+    drop(runtime_token);
+
+    if spotify_can_refresh(s).await {
+        return refresh_spotify_token(s).await;
+    }
+
+    if !s.spotify.access_token.is_empty() {
+        return Ok(s.spotify.access_token.clone());
+    }
+
+    anyhow::bail!("Spotify nao configurado. Visita /spotify/login.")
 }
 
 async fn spotify_token_value(s: &AppState) -> String {

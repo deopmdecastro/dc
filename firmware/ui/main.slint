@@ -65,6 +65,14 @@ export component AppWindow inherits Window {
     in-out property <[string]> spotify-titles: ["Loading..."];
     in-out property <[string]> spotify-artists: [""];
     in-out property <[string]> spotify-albums: [""];
+    in-out property <[string]> spotify-saved-titles: ["Loading..."];
+    in-out property <[string]> spotify-saved-artists: [""];
+    in-out property <[string]> spotify-saved-albums: [""];
+    in-out property <[string]> spotify-recent-titles: ["Loading..."];
+    in-out property <[string]> spotify-recent-artists: [""];
+    in-out property <[string]> spotify-recent-albums: [""];
+    in-out property <[string]> spotify-playlist-names: ["Loading..."];
+    in-out property <[int]> spotify-playlist-counts: [0];
     in-out property <[string]> songshare-titles: ["Loading..."];
     in-out property <[string]> songshare-artists: [""];
     in-out property <[string]> songshare-albums: [""];
@@ -94,6 +102,10 @@ export component AppWindow inherits Window {
     callback delete-note(int);
     callback confirm-action(int);
     callback refresh-weather();
+    callback search-weather(string);
+    callback fetch-spotify-playlists();
+    callback fetch-spotify-saved();
+    callback fetch-spotify-recent();
     callback save-note(string, int);
     // Emitido pelo Control Center quando o utilizador liga/desliga a
     // rotacao automatica. O Rust ajusta MADCTL no ILI9341V.
@@ -185,6 +197,14 @@ export component AppWindow inherits Window {
                 track-titles: root.spotify-titles;
                 track-artists: root.spotify-artists;
                 track-albums: root.spotify-albums;
+                recent-titles: root.spotify-recent-titles;
+                recent-artists: root.spotify-recent-artists;
+                recent-albums: root.spotify-recent-albums;
+                saved-titles: root.spotify-saved-titles;
+                saved-artists: root.spotify-saved-artists;
+                saved-albums: root.spotify-saved-albums;
+                playlist-names: root.spotify-playlist-names;
+                playlist-tracks: root.spotify-playlist-counts;
                 provider-title: "Spotify";
                 provider-icon: @image-url("assets/icons/spotify.svg");
                 provider-color: Theme.success;
@@ -195,6 +215,22 @@ export component AppWindow inherits Window {
                 next => { root.music-command("next"); }
                 prev => { root.music-command("prev"); }
                 back => { root.show-screen(Screen.Launcher); }
+                select-tab(idx) => {
+                    root.music-command("select-tab-" + idx);
+                    if (idx == 1) {
+                        if (root.spotify-recent-titles.length == 0 || (root.spotify-recent-titles.length == 1 && root.spotify-recent-titles[0] == "")) {
+                            root.fetch-spotify-recent();
+                        }
+                    } else if (idx == 2) {
+                        if (root.spotify-saved-titles.length == 0 || (root.spotify-saved-titles.length == 1 && root.spotify-saved-titles[0] == "")) {
+                            root.fetch-spotify-saved();
+                        }
+                    } else if (idx == 3) {
+                        if (root.spotify-playlist-names.length == 0 || (root.spotify-playlist-names.length == 1 && root.spotify-playlist-names[0] == "")) {
+                            root.fetch-spotify-playlists();
+                        }
+                    }
+                }
             }
 
         if root.current-screen == Screen.SongShare:
@@ -221,6 +257,7 @@ export component AppWindow inherits Window {
                 summary: root.weather-summary;
                 language-index: root.language-index;
                 refresh => { root.refresh-weather(); }
+                search(city) => { root.search-weather(city); }
                 back => { root.show-screen(Screen.Launcher); }
             }
 

@@ -7,6 +7,9 @@ pub enum SystemEvent {
     ApiHealthChanged(bool),
     TimeChanged(String),
     SpotifyTracksLoaded(Vec<crate::spotify::SpotifyTrack>),
+    SpotifyPlaylistsLoaded(Vec<crate::spotify::SpotifyPlaylist>),
+    SpotifySavedTracksLoaded(Vec<crate::spotify::SpotifyTrack>),
+    SpotifyRecentlyPlayedLoaded(Vec<crate::spotify::SpotifyTrack>),
     SongShareTracksLoaded(Vec<crate::spotify::SpotifyTrack>),
     WeatherChanged(WeatherInfo),
     VoiceCommandResult {
@@ -52,6 +55,9 @@ pub enum NetworkCommand {
         timezone_offset_secs: i32,
     },
     RefreshWeather,
+    SearchWeatherCity {
+        city: String,
+    },
     VoiceCommand {
         text: String,
         language_index: u8,
@@ -61,6 +67,9 @@ pub enum NetworkCommand {
         language_index: u8,
     },
     MusicCommand(String),
+    FetchSpotifyPlaylists,
+    FetchSpotifySaved,
+    FetchSpotifyRecent,
     CreateNote {
         text: String,
     },

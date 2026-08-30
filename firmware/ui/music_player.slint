@@ -1,44 +1,111 @@
 import { Theme } from "theme.slint";
 
-// MusicPlayer — mostra as top tracks do Spotify. As faixas sao passadas
-// como arrays de strings a partir do Rust (SystemEvent::SpotifyTracksLoaded).
+component TabButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> selected: false;
+    in property <color> tab-color: Theme.success;
+    callback clicked();
+    width: 73px;
+    height: 22px;
+    border-radius: Theme.radius-s;
+    border-width: 1px;
+    border-color: root.selected ? root.tab-color : Theme.stroke-soft;
+    background: root.selected ? root.tab-color : Theme.panel-soft;
+    TouchArea { clicked => { root.clicked(); } }
+    Text {
+        text: root.text;
+        color: root.selected ? Theme.bg-0 : Theme.text-secondary;
+        font-size: 9px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+}
+
+component TrackRow inherits Rectangle {
+    in property <int> index: 0;
+    in property <bool> selected: false;
+    in property <bool> is-playlist: false;
+    in property <string> title: "";
+    in property <string> subtitle: "";
+    callback clicked();
+    width: 296px;
+    height: 14px;
+    background: root.selected ? Theme.accent-tint : #00000000;
+    border-radius: 3px;
+    TouchArea { clicked => { root.clicked(); } }
+    Text {
+        x: 4px; y: 0px; width: 200px; height: 14px;
+        text: root.title;
+        color: root.selected ? Theme.accent : Theme.text-primary;
+        font-size: 8px;
+        font-weight: 600;
+        overflow: elide;
+    }
+    Text {
+        x: 208px; y: 0px; width: 84px; height: 14px;
+        text: root.subtitle;
+        color: Theme.text-muted;
+        font-size: 7px;
+        horizontal-alignment: right;
+        overflow: elide;
+    }
+}
+
 export component MusicPlayer inherits Rectangle {
     in-out property <int> track-index: 0;
     in-out property <float> progress: 0.0;
     in-out property <bool> playing: false;
+    in-out property <int> active-tab: 0; // 0=top, 1=recent, 2=saved, 3=playlists
 
     in property <[string]> track-titles: ["Loading..."];
     in property <[string]> track-artists: [""];
     in property <[string]> track-albums: [""];
+    in property <[string]> recent-titles: [""];
+    in property <[string]> recent-artists: [""];
+    in property <[string]> recent-albums: [""];
+    in property <[string]> saved-titles: [""];
+    in property <[string]> saved-artists: [""];
+    in property <[string]> saved-albums: [""];
+    in property <[string]> playlist-names: [""];
+    in property <[int]> playlist-tracks: [0];
     in property <int> language-index: 0;
     in property <string> provider-title: "";
     in property <image> provider-icon: @image-url("assets/icons/spotify.svg");
     in property <color> provider-color: Theme.success;
-    property <length> bottom-safe: 6px;
+
     property <string> title-label:
         root.provider-title != "" ? root.provider-title :
         (root.language-index == 2 ? "Playing" :
          root.language-index == 3 ? "En lecture" :
          root.language-index == 4 ? "Reproduciendo" : "A tocar");
 
-    property <int> track-count: max(1, root.track-titles.length);
+    // Computed properties based on active tab
+    property <[string]> current-titles:
+        root.active-tab == 1 ? root.recent-titles :
+        root.active-tab == 2 ? root.saved-titles :
+        root.active-tab == 3 ? root.playlist-names :
+        root.track-titles;
+    property <[string]> current-artists:
+        root.active-tab == 1 ? root.recent-artists :
+        root.active-tab == 2 ? root.saved-artists :
+        root.active-tab == 3 ? root.track-artists :
+        root.track-artists;
+    property <bool> is-playlist-tab: root.active-tab == 3;
+
+    property <int> track-count: max(1, root.current-titles.length);
     property <string> track-title:
-        root.track-index < root.track-count ? root.track-titles[root.track-index] :
+        root.track-index < root.track-count ? root.current-titles[root.track-index] :
         (root.language-index == 2 ? "No tracks" : root.language-index == 3 ? "Aucune piste" : root.language-index == 4 ? "Sin pistas" : "Sem faixas");
     property <string> artist:
-        root.track-index < root.track-count ? root.track-artists[root.track-index] : "";
-    property <string> album:
-        root.track-index < root.track-count ? root.track-albums[root.track-index] : "";
-
-    property <string> pos-label:
-        root.progress < 0.34 ? "0:42" :
-        root.progress < 0.67 ? "1:24" : "2:18";
-    property <string> dur-label: "3:20";
+        root.track-index < root.current-artists.length ? root.current-artists[root.track-index] : "";
 
     callback playback-changed(bool);
     callback next();
     callback prev();
     callback back();
+    callback select-tab(int);
+    callback select-track(int);
 
     width: 320px;
     height: 216px;
@@ -53,7 +120,7 @@ export component MusicPlayer inherits Rectangle {
         Image { x: 13px; y: 10px; width: 14px; height: 14px; source: @image-url("assets/icons/chevron-left.svg"); image-fit: contain; colorize: Theme.accent; }
     }
     Text {
-        x: 0px; y: 4px; width: 320px; height: 26px;
+        x: 40px; y: 4px; width: 240px; height: 26px;
         text: root.title-label;
         color: Theme.text-primary;
         font-size: Theme.font-md;
@@ -62,136 +129,104 @@ export component MusicPlayer inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // Capa do album
+    // Tab bar
+    HorizontalLayout {
+        x: 8px; y: 38px; width: 304px; height: 22px;
+        spacing: 4px;
+        TabButton { text: "Top"; selected: root.active-tab == 0; tab-color: root.provider-color; clicked => { root.select-tab(0); } }
+        TabButton { text: "Recent"; selected: root.active-tab == 1; tab-color: root.provider-color; clicked => { root.select-tab(1); } }
+        TabButton { text: "Saved"; selected: root.active-tab == 2; tab-color: root.provider-color; clicked => { root.select-tab(2); } }
+        TabButton { text: "Lists"; selected: root.active-tab == 3; tab-color: root.provider-color; clicked => { root.select-tab(3); } }
+    }
+
+    // Track list area
     Rectangle {
-        x: 16px; y: 40px; width: 96px; height: 96px;
-        border-radius: Theme.radius-m;
-        background: Theme.panel-elevated;
+        x: 8px; y: 64px; width: 304px; height: 120px;
+        background: Theme.panel;
+        border-radius: Theme.radius-s;
         border-width: 1px;
         border-color: Theme.stroke-soft;
         clip: true;
-        Rectangle { x: 0px; y: 0px; width: 96px; height: 96px; background: @linear-gradient(135deg, Theme.accent-deep 0%, Theme.panel 80%); }
-        Rectangle {
-            x: 31px; y: 27px; width: 42px; height: 42px;
-            border-radius: 21px;
-            background: root.provider-color;
-            Image { x: 10px; y: 10px; width: 22px; height: 22px; source: root.provider-icon; image-fit: contain; colorize: Theme.bg-0; }
+
+        VerticalLayout {
+            padding: 4px;
+            spacing: 2px;
+
+            for index in min(8, root.track-count):
+                TrackRow {
+                    index: index;
+                    selected: root.track-index == index;
+                    is-playlist: root.is-playlist-tab;
+                    title: root.current-titles[index];
+                    subtitle: root.is-playlist-tab ?
+                        (root.playlist-tracks[index] + " tracks") :
+                        (index < root.current-artists.length ? root.current-artists[index] : "");
+                    clicked => { root.select-track(index); }
+                }
         }
     }
 
-    // Info da faixa
-    Text {
-        x: 124px; y: 48px; width: 172px; height: 20px;
-        text: root.track-title;
-        color: Theme.text-primary;
-        font-size: Theme.font-lg;
-        font-weight: 700;
-        overflow: elide;
-    }
-    Text {
-        x: 124px; y: 70px; width: 172px; height: 16px;
-        text: root.artist;
-        color: Theme.text-secondary;
-        font-size: Theme.font-sm;
-        overflow: elide;
-    }
-    Text {
-        x: 124px; y: 88px; width: 172px; height: 14px;
-        text: root.album;
-        color: Theme.text-muted;
-        font-size: 9px;
-        overflow: elide;
-    }
-    // Badge de contador
+    // Mini player at bottom
     Rectangle {
-        x: 124px; y: 108px; width: 54px; height: 18px;
-        border-radius: 9px;
-        background: Theme.accent-tint;
+        x: 8px; y: 188px; width: 304px; height: 24px;
+        background: Theme.panel-soft;
+        border-radius: Theme.radius-s;
         border-width: 1px;
-        border-color: Theme.accent-deep;
-        Text {
-            text: (root.track-index + 1) + " / " + root.track-count;
-            color: Theme.accent;
-            font-size: 8px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
-    }
-    Image { x: 284px; y: 60px; width: 18px; height: 18px; source: @image-url("assets/icons/heart.svg"); image-fit: contain; colorize: root.provider-color; }
+        border-color: Theme.stroke-soft;
 
-    // Barra de progresso
-    Rectangle {
-        x: 16px; y: 150px; width: 288px; height: 5px;
-        border-radius: 2.5px;
-        background: Theme.bg-2;
         Rectangle {
-            width: parent.width * root.progress; height: 100%;
-            border-radius: 2.5px;
+            x: 4px; y: 4px; width: 16px; height: 16px;
+            border-radius: 3px;
             background: root.provider-color;
+            Image { x: 3px; y: 3px; width: 10px; height: 10px; source: root.provider-icon; image-fit: contain; colorize: Theme.bg-0; }
         }
-    }
-    Text { x: 16px; y: 158px; width: 40px; height: 11px; text: root.pos-label; color: Theme.text-muted; font-size: 8px; }
-    Text {
-        x: 264px; y: 158px; width: 40px; height: 11px;
-        text: root.dur-label;
-        color: Theme.text-muted;
-        font-size: 8px;
-        horizontal-alignment: right;
-    }
 
-    // Controlos
-    HorizontalLayout {
-        x: 18px; y: 216px - root.bottom-safe - 42px; width: 284px; height: 42px;
-        alignment: space-between;
-        Image { width: 15px; height: 15px; source: @image-url("assets/icons/shuffle.svg"); image-fit: contain; colorize: Theme.text-muted; }
-        Rectangle {
-            width: 42px; height: 42px; border-radius: 21px; background: tb.pressed ? Theme.panel-elevated : #00000000;
-            tb := TouchArea {
-                clicked => {
-                    if (root.track-count > 1) {
-                        root.track-index = root.track-index == 0 ? root.track-count - 1 : root.track-index - 1;
-                        root.progress = 0.0;
-                        root.prev();
+        Text {
+            x: 24px; y: 4px; width: 180px; height: 16px;
+            text: root.track-title;
+            color: Theme.text-primary;
+            font-size: 9px;
+            font-weight: 700;
+            overflow: elide;
+        }
+
+        HorizontalLayout {
+            x: 210px; y: 2px; width: 88px; height: 20px;
+            alignment: end;
+            spacing: 4px;
+
+            Rectangle {
+                width: 20px; height: 20px; border-radius: 10px;
+                background: pb.pressed ? Theme.panel-elevated : #00000000;
+                pb := TouchArea { clicked => { root.prev(); } }
+                Image { x: 4px; y: 4px; width: 12px; height: 12px; source: @image-url("assets/icons/skip-back.svg"); image-fit: contain; colorize: Theme.text-primary; }
+            }
+            Rectangle {
+                width: 20px; height: 20px; border-radius: 10px;
+                background: root.provider-color;
+                TouchArea {
+                    clicked => {
+                        root.playing = !root.playing;
+                        root.playback-changed(root.playing);
                     }
                 }
-            }
-            Image { x: 13px; y: 13px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-back.svg"); image-fit: contain; colorize: Theme.text-primary; }
-        }
-        Rectangle {
-            width: 52px; height: 42px;
-            border-radius: 21px;
-            background: tpl.pressed ? Theme.accent-hi : Theme.success;
-            tpl := TouchArea {
-                clicked => {
-                    root.playing = !root.playing;
-                    root.playback-changed(root.playing);
+                Image {
+                    visible: root.playing;
+                    x: 4px; y: 4px; width: 12px; height: 12px;
+                    source: @image-url("assets/icons/pause.svg"); image-fit: contain; colorize: Theme.bg-0;
+                }
+                Image {
+                    visible: !root.playing;
+                    x: 4px; y: 4px; width: 12px; height: 12px;
+                    source: @image-url("assets/icons/play.svg"); image-fit: contain; colorize: Theme.bg-0;
                 }
             }
-            Image {
-                visible: root.playing;
-                x: 17px; y: 11px; width: 20px; height: 20px;
-                source: @image-url("assets/icons/pause.svg"); image-fit: contain; colorize: Theme.bg-0;
-            }
-            Image {
-                visible: !root.playing;
-                x: 18px; y: 11px; width: 20px; height: 20px;
-                source: @image-url("assets/icons/play.svg"); image-fit: contain; colorize: Theme.bg-0;
+            Rectangle {
+                width: 20px; height: 20px; border-radius: 10px;
+                background: nb.pressed ? Theme.panel-elevated : #00000000;
+                nb := TouchArea { clicked => { root.next(); } }
+                Image { x: 4px; y: 4px; width: 12px; height: 12px; source: @image-url("assets/icons/skip-forward.svg"); image-fit: contain; colorize: Theme.text-primary; }
             }
         }
-        Rectangle {
-            width: 42px; height: 42px; border-radius: 21px; background: tf.pressed ? Theme.panel-elevated : #00000000;
-            tf := TouchArea {
-                clicked => {
-                    if (root.track-count > 1) {
-                        root.track-index = root.track-index == root.track-count - 1 ? 0 : root.track-index + 1;
-                        root.progress = 0.0;
-                        root.next();
-                    }
-                }
-            }
-            Image { x: 13px; y: 13px; width: 16px; height: 16px; source: @image-url("assets/icons/skip-forward.svg"); image-fit: contain; colorize: Theme.text-primary; }
-        }
-        Image { width: 15px; height: 15px; source: @image-url("assets/icons/repeat.svg"); image-fit: contain; colorize: Theme.text-muted; }
     }
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, RefreshCw, MapPin, Navigation, Loader2 } from "lucide-react";
+import { ArrowLeft, RefreshCw, MapPin, Navigation, Loader2, Droplets, Wind } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolledApi } from "../lib/useApi";
 
@@ -68,6 +68,8 @@ export default function Weather({ onBack }) {
   const temp = Math.round(weather?.temperature_c ?? 0);
   const city = weather?.city ?? "A localizar...";
   const summary = weather?.summary ?? "—";
+  const humidity = weather?.humidity_percent ?? weather?.humidity;
+  const wind = weather?.wind_kmh ?? weather?.wind_speed_kmh;
   const weatherOk = weather?.ok !== false;
 
   return (
@@ -220,6 +222,19 @@ export default function Weather({ onBack }) {
 
           {/* Summary */}
           <p className="text-sm text-text-secondary font-medium">{summary}</p>
+
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-2xl p-3" style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)" }}>
+              <Droplets size={16} className="mx-auto mb-1" style={{ color: "var(--accent)" }} />
+              <p className="text-[10px] text-text-muted">Humidade</p>
+              <p className="text-sm font-bold text-text-primary">{humidity != null ? `${humidity}%` : "--"}</p>
+            </div>
+            <div className="rounded-2xl p-3" style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)" }}>
+              <Wind size={16} className="mx-auto mb-1" style={{ color: "var(--accent)" }} />
+              <p className="text-[10px] text-text-muted">Vento</p>
+              <p className="text-sm font-bold text-text-primary">{wind != null ? `${wind} km/h` : "--"}</p>
+            </div>
+          </div>
 
           {/* Status badge */}
           {!weatherOk && (

@@ -1,5 +1,16 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
+function query(params) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== false) {
+      search.set(key, value === true ? "true" : String(value));
+    }
+  });
+  const text = search.toString();
+  return text ? `?${text}` : "";
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: { "Content-Type": "application/json" },
@@ -20,20 +31,20 @@ export const api = {
   time: (offsetSecs) => request(`/time${offsetSecs != null ? `?offset_secs=${offsetSecs}` : ""}`),
 
   // Weather
-  weather: (region = 0) => request(`/weather?region=${region}`),
-  weatherByCoords: (lat, lon) => request(`/weather?lat=${lat}&lon=${lon}`),
+  weather: (region = 0) => request(`/weather${query({ region })}`),
+  weatherByCoords: (lat, lon) => request(`/weather${query({ lat, lon })}`),
 
   // Music
   musicState: () => request("/music/state"),
   musicDevices: () => request("/music/devices"),
-  musicTopTracks: (compact = true, limit = 20) => request(`/music/top-tracks${compact ? "?compact=true" : ""}${limit ? `&limit=${limit}` : ""}`),
-  musicPlaylists: (compact = true) => request(`/music/playlists${compact ? "?compact=true" : ""}`),
-  musicSavedTracks: (compact = true, limit = 50) => request(`/music/saved-tracks${compact ? "?compact=true" : ""}${limit ? `&limit=${limit}` : ""}`),
-  musicRecentlyPlayed: (compact = true, limit = 20) => request(`/music/recently-played${compact ? "?compact=true" : ""}${limit ? `&limit=${limit}` : ""}`),
+  musicTopTracks: (compact = true, limit = 20) => request(`/music/top-tracks${query({ compact, limit })}`),
+  musicPlaylists: (compact = true) => request(`/music/playlists${query({ compact })}`),
+  musicSavedTracks: (compact = true, limit = 50) => request(`/music/saved-tracks${query({ compact, limit })}`),
+  musicRecentlyPlayed: (compact = true, limit = 20) => request(`/music/recently-played${query({ compact, limit })}`),
   musicCommand: (action) => request("/music/command", { method: "POST", body: JSON.stringify({ action }) }),
 
   // SongShare
-  songshareTracks: (compact = true) => request(`/songshare/tracks${compact ? "?compact=true" : ""}`),
+  songshareTracks: (compact = true) => request(`/songshare/tracks${query({ compact })}`),
 
   // Voice
   voiceCommand: (text, language = 0) => request("/voice/command", { method: "POST", body: JSON.stringify({ text, language }) }),

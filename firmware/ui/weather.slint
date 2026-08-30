@@ -5,14 +5,21 @@ export component WeatherPanel inherits Rectangle {
     in property <int> temperature: 0;
     in property <string> summary: "Loading weather";
     in property <int> language-index: 0;
+    in-out property <bool> search-visible: false;
+    in-out property <string> search-text: "";
     callback back();
     callback refresh();
+    callback search(string);
 
     property <string> title:
         root.language-index == 2 ? "Weather" :
         root.language-index == 3 ? "Meteo" :
         root.language-index == 4 ? "Clima" : "Clima";
     property <string> temp-label: root.temperature + "°C";
+    property <string> search-placeholder:
+        root.language-index == 2 ? "Search city..." :
+        root.language-index == 3 ? "Chercher ville..." :
+        root.language-index == 4 ? "Buscar ciudad..." : "Buscar cidade...";
 
     width: 320px;
     height: 216px;
@@ -36,7 +43,7 @@ export component WeatherPanel inherits Rectangle {
         vertical-alignment: center;
     }
     Rectangle {
-        x: 278px; y: 6px; width: 30px; height: 24px;
+        x: 246px; y: 6px; width: 30px; height: 24px;
         border-radius: Theme.radius-s;
         background: rf.pressed ? Theme.panel-elevated : Theme.panel-soft;
         border-width: 1px;
@@ -44,51 +51,104 @@ export component WeatherPanel inherits Rectangle {
         rf := TouchArea { clicked => { root.refresh(); } }
         Image { x: 8px; y: 5px; width: 14px; height: 14px; source: @image-url("assets/icons/rotate-cw.svg"); image-fit: contain; colorize: Theme.accent; }
     }
+    Rectangle {
+        x: 282px; y: 6px; width: 30px; height: 24px;
+        border-radius: Theme.radius-s;
+        background: sc.pressed ? Theme.panel-elevated : Theme.panel-soft;
+        border-width: 1px;
+        border-color: Theme.stroke-soft;
+        sc := TouchArea { clicked => { root.search-visible = !root.search-visible; } }
+        Image { x: 8px; y: 5px; width: 14px; height: 14px; source: @image-url("assets/icons/search.svg"); image-fit: contain; colorize: Theme.accent; }
+    }
+
+    // Search bar (collapsible)
+    Rectangle {
+        visible: root.search-visible;
+        x: 18px; y: 40px; width: 284px; height: 28px;
+        border-radius: Theme.radius-s;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.accent;
+        TextInput {
+            x: 8px; y: 4px; width: 230px; height: 20px;
+            text: root.search-text;
+            color: Theme.text-primary;
+            font-size: Theme.font-sm;
+            horizontal-alignment: left;
+            single-line: true;
+            accepted => {
+                if (root.search-text != "") {
+                    root.search(root.search-text);
+                    root.search-text = "";
+                    root.search-visible = false;
+                }
+            }
+        }
+        Rectangle {
+            x: 244px; y: 4px; width: 20px; height: 20px;
+            border-radius: 10px;
+            background: sb.pressed ? Theme.panel-elevated : Theme.accent-tint;
+            sb := TouchArea {
+                clicked => {
+                    if (root.search-text != "") {
+                        root.search(root.search-text);
+                        root.search-text = "";
+                        root.search-visible = false;
+                    }
+                }
+            }
+            Image { x: 4px; y: 4px; width: 12px; height: 12px; source: @image-url("assets/icons/search.svg"); image-fit: contain; colorize: Theme.accent; }
+        }
+    }
 
     Rectangle {
-        x: 18px; y: 48px; width: 284px; height: 126px;
+        x: 18px; y: root.search-visible ? 76px : 48px;
+        width: 284px; height: 106px;
         border-radius: Theme.radius-m;
         background: Theme.panel;
         border-width: 1px;
         border-color: Theme.stroke-soft;
+        animate y { duration: 150ms; easing: ease-out; }
         Rectangle {
-            x: 18px; y: 18px; width: 54px; height: 54px;
-            border-radius: 16px;
+            x: 18px; y: 14px; width: 46px; height: 46px;
+            border-radius: 14px;
             background: Theme.accent-tint;
-            Image { x: 13px; y: 13px; width: 28px; height: 28px; source: @image-url("assets/icons/cloud.svg"); image-fit: contain; colorize: Theme.accent-hi; }
+            Image { x: 9px; y: 9px; width: 28px; height: 28px; source: @image-url("assets/icons/cloud.svg"); image-fit: contain; colorize: Theme.accent-hi; }
         }
         Text {
-            x: 88px; y: 20px; width: 170px; height: 22px;
+            x: 76px; y: 16px; width: 190px; height: 20px;
             text: root.city;
             color: Theme.text-primary;
-            font-size: Theme.font-lg;
+            font-size: Theme.font-md;
             font-weight: 800;
             overflow: elide;
         }
         Text {
-            x: 88px; y: 47px; width: 170px; height: 38px;
+            x: 76px; y: 38px; width: 190px; height: 32px;
             text: root.temp-label;
             color: Theme.accent-hi;
-            font-size: 34px;
+            font-size: 28px;
             font-weight: 800;
             vertical-alignment: center;
         }
         Text {
-            x: 88px; y: 88px; width: 170px; height: 16px;
+            x: 76px; y: 72px; width: 190px; height: 14px;
             text: root.summary;
             color: Theme.text-secondary;
-            font-size: Theme.font-md;
+            font-size: Theme.font-sm;
             font-weight: 700;
             overflow: elide;
         }
     }
 
     Text {
-        x: 18px; y: 184px; width: 284px; height: 18px;
+        x: 18px; y: root.search-visible ? 190px : 184px;
+        width: 284px; height: 18px;
         text: "Open-Meteo";
         color: Theme.text-muted;
         font-size: Theme.font-xs;
         horizontal-alignment: center;
         vertical-alignment: center;
+        animate y { duration: 150ms; easing: ease-out; }
     }
 }

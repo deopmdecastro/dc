@@ -162,6 +162,22 @@ fn run_network(
                     next_weather_in = 0;
                     log::info!("Clima: atualizacao imediata pedida pela UI");
                 }
+                NetworkCommand::SearchWeatherCity { ref city } => {
+                    next_weather_in = 0;
+                    if let Some(loc) = geocode_city(city) {
+                        log::info!("Clima: cidade '{}' -> ({}, {})", city, loc.lat, loc.lon);
+                        match fetch_weather_coords(&cfg.api_health_url, loc.lat, loc.lon) {
+                            Ok(weather) => {
+                                let _ = event_tx.send(SystemEvent::WeatherChanged(weather));
+                            }
+                            Err(e) => {
+                                log::warn!("Clima: falha ao obter clima para '{}': {e:?}", city);
+                            }
+                        }
+                    } else {
+                        log::warn!("Clima: nao foi possivel geocodificar '{}'", city);
+                    }
+                }
                 NetworkCommand::VoiceCommand {
                     text,
                     language_index,
@@ -244,6 +260,27 @@ fn run_network(
                         }
                     } else {
                         log::warn!("API: comando de musica ignorado sem Wi-Fi");
+                    }
+                }
+                NetworkCommand::FetchSpotifyPlaylists => {
+                    if connected {
+                        crate::spotify::fetch_playlists(&cfg.api_health_url, &event_tx);
+                    } else {
+                        log::warn!("Spotify: buscar playlists ignorado sem Wi-Fi");
+                    }
+                }
+                NetworkCommand::FetchSpotifySaved => {
+                    if connected {
+                        crate::spotify::fetch_saved_tracks(&cfg.api_health_url, &event_tx);
+                    } else {
+                        log::warn!("Spotify: buscar faixas guardadas ignorado sem Wi-Fi");
+                    }
+                }
+                NetworkCommand::FetchSpotifyRecent => {
+                    if connected {
+                        crate::spotify::fetch_recently_played(&cfg.api_health_url, &event_tx);
+                    } else {
+                        log::warn!("Spotify: buscar faixas recentes ignorado sem Wi-Fi");
                     }
                 }
             }
@@ -618,6 +655,100 @@ fn ip_geolocation() -> Option<IpLocation> {
     );
     log::info!("Clima: localização IP -> {} ({}, {})", city, lat, lon);
     Some(IpLocation { lat, lon, city })
+}
+
+/// Geocode a city name to coordinates using Open-Meteo Geocoding API (free, no key needed)
+fn geocode_city(city: &str) -> Option<IpLocation> {
+    let encoded = url_encode(city);
+    let url = format!(
+        "https://geocoding-api.open-meteo.com/v1/search?name={}&count=1&language=pt",
+        encoded
+    );
+    log::info!("Clima: geocodificando '{}'...", city);
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config()).ok()?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, &url, &headers).ok()?;
+    let mut response = request.submit().ok()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        log::warn!("Clima: geocoding retornou HTTP {status}");
+        return None;
+    }
+    let mut buf = [0_u8; 2048];
+    let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0).ok()?;
+    let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
+
+    // Parse JSON manually to extract first result
+    let results_start = body.find("\"results\":[")? + 11;
+    let results_body = &body[results_start..];
+    let lat = extract_json_f64(results_body, "\"latitude\":")?;
+    let lon = extract_json_f64(results_body, "\"longitude\":")?;
+    let name = extract_json_string(results_body, "\"name\":\"").unwrap_or(city);
+    let country = extract_json_string(results_body, "\"country\":\"");
+    let city_name = match country {
+        Some(c) => format!("{name}, {c}"),
+        None => name.to_string(),
+    };
+    log::info!("Clima: geocoding OK -> {} ({}, {})", city_name, lat, lon);
+    Some(IpLocation { lat, lon, city: city_name })
+}
+
+/// Fetch weather by coordinates (used after geocoding a city name)
+fn fetch_weather_coords(health_url: &str, lat: f64, lon: f64) -> Result<WeatherInfo> {
+    let url = format!(
+        "{}/weather?lat={}&lon={}",
+        api_base(health_url),
+        lat, lon
+    );
+    log::info!("Clima: GET {url}");
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, &url, &headers)?;
+    let mut response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("dc-os-core /weather retornou HTTP {status}"));
+    }
+    let mut buf = [0_u8; 1024];
+    let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0)?;
+    let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
+    let value: CoreWeatherResponse = serde_json::from_str(body)?;
+    if !value.ok {
+        return Err(anyhow!("dc-os-core /weather ok=false: {}", value.summary));
+    }
+
+    Ok(WeatherInfo {
+        city: value.city,
+        temperature_c: value.temperature_c as i32,
+        summary: value.summary,
+    })
+}
+
+/// Simple URL encoding for city names
+fn url_encode(s: &str) -> String {
+    let mut result = String::new();
+    for c in s.chars() {
+        match c {
+            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => result.push(c),
+            ' ' => result.push('+'),
+            _ => {
+                let mut buf = [0u8; 4];
+                let bytes = c.encode_utf8(&mut buf).as_bytes();
+                for b in bytes {
+                    result.push_str(&format!("%{:02X}", b));
+                }
+            }
+        }
+    }
+    result
+}
+
+/// Extract a f64 value from JSON (simple parser for embedded)
+fn extract_json_f64<'a>(json: &'a str, key: &str) -> Option<f64> {
+    let start = json.find(key)? + key.len();
+    let end = json[start..].find(|c: char| c == ',' || c == '}' || c == ']')?;
+    let value_str = &json[start..start + end];
+    value_str.trim().parse::<f64>().ok()
 }
 
 #[derive(Debug, serde::Deserialize)]

@@ -16,6 +16,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 
 static DISPLAY_INVERTED: AtomicBool = AtomicBool::new(false);
+static HIBERNATING: AtomicBool = AtomicBool::new(false);
+
+const HIBERNATION_TIMEOUT_MS: u64 = 5 * 60 * 1000; // 5 minutos
+const TICK_MS: u32 = 100; // tick do loop principal
 
 // O display e a janela ficam em thread-locals porque o `Platform` registado
 // no Slint (via `set_platform`) só é acedido internamente pela lib — mas o
@@ -54,7 +58,7 @@ pub fn init_platform(window: Rc<MinimalSoftwareWindow>, display: Display<'static
     WINDOW.with(|w| *w.borrow_mut() = Some(window.clone()));
 
     slint::platform::set_platform(Box::new(EspSlintPlatform { window }))
-        .expect("Slint platform já registrada");
+        .expect("Slint platform ja registrada");
 }
 
 pub fn set_app_window(app: &crate::AppWindow) {
@@ -167,47 +171,94 @@ impl<'a> LineBufferProvider for SpiLineBuffer<'a> {
 
 /// Roda o loop de eventos Slint (bloqueante).
 pub fn run_event_loop(touch_rx: Receiver<TouchEvent>, system_rx: Receiver<SystemEvent>) -> ! {
-    // A janela raiz (`AppWindow`) é criada e mostrada pelo main.rs.
+    // A janela raiz (AppWindow) e criada e mostrada pelo main.rs.
     let mut frame_count: u32 = 0;
     let mut idle_ticks: u32 = 0;
+    let mut idle_ms: u64 = 0;
+    let mut last_tick = current_time_ms();
 
     loop {
+        let now = current_time_ms();
+        let elapsed = now - last_tick;
+        last_tick = now;
+
         dispatch_pending_system_events(&system_rx);
-        dispatch_pending_touch_events(&touch_rx);
+        let had_touch = dispatch_pending_touch_events(&touch_rx);
+
+        // Reset idle timer on any touch activity
+        if had_touch {
+            if HIBERNATING.load(Ordering::Relaxed) {
+                wake_from_hibernation();
+            }
+            idle_ms = 0;
+        } else {
+            idle_ms += elapsed;
+        }
+
+        // Enter hibernation after timeout
+        if idle_ms >= HIBERNATION_TIMEOUT_MS && !HIBERNATING.load(Ordering::Relaxed) {
+            enter_hibernation();
+        }
+
         slint::platform::update_timers_and_animations();
 
-        WINDOW.with(|w| {
-            if let Some(window) = w.borrow().as_ref() {
-                if window.draw_if_needed(|renderer| {
-                    DISPLAY.with(|d| {
-                        if let Some(display) = d.borrow_mut().as_mut() {
-                            renderer.render_by_line(SpiLineBuffer { display });
-                        }
-                    });
-                }) {
-                    frame_count = frame_count.wrapping_add(1);
-                    idle_ticks = 0;
+        if !HIBERNATING.load(Ordering::Relaxed) {
+            WINDOW.with(|w| {
+                if let Some(window) = w.borrow().as_ref() {
+                    if window.draw_if_needed(|renderer| {
+                        DISPLAY.with(|d| {
+                            if let Some(display) = d.borrow_mut().as_mut() {
+                                renderer.render_by_line(SpiLineBuffer { display });
+                            }
+                        })
+                    }) {
+                        frame_count = frame_count.wrapping_add(1);
+                        idle_ticks = 0;
 
-                    if frame_count <= 3 || frame_count % 60 == 0 {
-                        log::info!("Slint: frame {} enviado ao display", frame_count);
-                    }
-                } else {
-                    idle_ticks = idle_ticks.wrapping_add(1);
-                    if idle_ticks == 1000 {
-                        log::warn!("Slint: 1000 ciclos sem redraw pendente");
+                        if frame_count <= 3 || frame_count % 60 == 0 {
+                            log::info!("Slint: frame {} enviado ao display", frame_count);
+                        }
+                    } else {
+                        idle_ticks = idle_ticks.wrapping_add(1);
+                        if idle_ticks == 1000 {
+                            log::warn!("Slint: 1000 ciclos sem redraw pendente");
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
 
         unsafe {
-            esp_idf_sys::vTaskDelay(1);
+            esp_idf_sys::vTaskDelay(TICK_MS);
         }
     }
 }
 
-fn dispatch_pending_touch_events(touch_rx: &Receiver<TouchEvent>) {
+fn enter_hibernation() {
+    log::info!("Sistema: entrar em hibernacao (5 min inativo)");
+    set_backlight(false);
+    HIBERNATING.store(true, Ordering::Relaxed);
+}
+
+fn wake_from_hibernation() {
+    log::info!("Sistema: acordar da hibernacao");
+    set_backlight(true);
+    HIBERNATING.store(false, Ordering::Relaxed);
+    WINDOW.with(|w| {
+        if let Some(window) = w.borrow().as_ref() {
+            window.request_redraw();
+        }
+    });
+}
+
+fn current_time_ms() -> u64 {
+    unsafe { esp_idf_sys::esp_timer_get_time() as u64 / 1000 }
+}
+
+fn dispatch_pending_touch_events(touch_rx: &Receiver<TouchEvent>) -> bool {
+    let mut had_event = false;
     while let Ok(event) = touch_rx.try_recv() {
+        had_event = true;
         WINDOW.with(|w| {
             if let Some(window) = w.borrow().as_ref() {
                 let window_event = match event {
@@ -244,6 +295,7 @@ fn dispatch_pending_touch_events(touch_rx: &Receiver<TouchEvent>) {
             }
         });
     }
+    had_event
 }
 
 fn point_to_position(point: crate::touch::Point) -> LogicalPosition {
@@ -320,6 +372,42 @@ fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {
                     app.set_spotify_artists(slint::ModelRc::from(artists.as_slice()));
                     app.set_spotify_albums(slint::ModelRc::from(albums.as_slice()));
                     log::info!("UI: {} faixas Spotify carregadas", tracks.len());
+                }
+                SystemEvent::SpotifyPlaylistsLoaded(playlists) => {
+                    let names: Vec<slint::SharedString> =
+                        playlists.iter().map(|p| p.name.as_str().into()).collect();
+                    let counts: Vec<i32> = playlists.iter().map(|p| p.tracks as i32).collect();
+                    app.set_spotify_playlist_names(slint::ModelRc::from(names.as_slice()));
+                    app.set_spotify_playlist_counts(slint::ModelRc::from(counts.as_slice()));
+                    log::info!("UI: {} playlists Spotify carregadas", playlists.len());
+                }
+                SystemEvent::SpotifySavedTracksLoaded(tracks) => {
+                    let titles: Vec<slint::SharedString> =
+                        tracks.iter().map(|t| t.name.as_str().into()).collect();
+                    let artists: Vec<slint::SharedString> = tracks
+                        .iter()
+                        .map(|t| t.artist_names().as_str().into())
+                        .collect();
+                    let albums: Vec<slint::SharedString> =
+                        tracks.iter().map(|t| t.album_name().into()).collect();
+                    app.set_spotify_saved_titles(slint::ModelRc::from(titles.as_slice()));
+                    app.set_spotify_saved_artists(slint::ModelRc::from(artists.as_slice()));
+                    app.set_spotify_saved_albums(slint::ModelRc::from(albums.as_slice()));
+                    log::info!("UI: {} faixas guardadas Spotify carregadas", tracks.len());
+                }
+                SystemEvent::SpotifyRecentlyPlayedLoaded(tracks) => {
+                    let titles: Vec<slint::SharedString> =
+                        tracks.iter().map(|t| t.name.as_str().into()).collect();
+                    let artists: Vec<slint::SharedString> = tracks
+                        .iter()
+                        .map(|t| t.artist_names().as_str().into())
+                        .collect();
+                    let albums: Vec<slint::SharedString> =
+                        tracks.iter().map(|t| t.album_name().into()).collect();
+                    app.set_spotify_recent_titles(slint::ModelRc::from(titles.as_slice()));
+                    app.set_spotify_recent_artists(slint::ModelRc::from(artists.as_slice()));
+                    app.set_spotify_recent_albums(slint::ModelRc::from(albums.as_slice()));
+                    log::info!("UI: {} faixas recentes Spotify carregadas", tracks.len());
                 }
                 SystemEvent::SongShareTracksLoaded(tracks) => {
                     let titles: Vec<slint::SharedString> =

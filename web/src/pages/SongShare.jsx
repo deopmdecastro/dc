@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Play, Heart, Search, Loader2, Music, ExternalLink } from "lucide-react";
+import { ArrowLeft, Play, Heart, Search, Loader2, Music } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolledApi } from "../lib/useApi";
 
@@ -26,6 +26,7 @@ export default function SongShare({ onBack }) {
 
   const apiTracks = songshareData?.body?.items || [];
   const isOffline = songshareData?.ok === false;
+  const apiError = songshareData?.hint || songshareData?.error;
 
   // Fallback demo tracks when API unavailable
   const demoTracks = [
@@ -80,6 +81,11 @@ export default function SongShare({ onBack }) {
             className="flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-dim"
           />
         </div>
+        {apiError && (
+          <p className="mt-2 rounded-xl px-3 py-2 text-[11px]" style={{ background: "var(--warning-tint)", color: "var(--warning)" }}>
+            {apiError}
+          </p>
+        )}
       </div>
 
       {/* Track list */}

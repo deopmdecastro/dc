@@ -401,6 +401,34 @@ fn main() -> Result<()> {
             let _ = tx.send(NetworkCommand::RefreshWeather);
         });
     }
+    {
+        let tx = network_cmd_tx.clone();
+        app.on_search_weather(move |city| {
+            log::info!("UI: buscar clima para '{}'", city);
+            let _ = tx.send(NetworkCommand::SearchWeatherCity { city: city.to_string() });
+        });
+    }
+    {
+        let tx = network_cmd_tx.clone();
+        app.on_fetch_spotify_playlists(move || {
+            log::info!("UI: buscar playlists Spotify");
+            let _ = tx.send(NetworkCommand::FetchSpotifyPlaylists);
+        });
+    }
+    {
+        let tx = network_cmd_tx.clone();
+        app.on_fetch_spotify_saved(move || {
+            log::info!("UI: buscar faixas guardadas Spotify");
+            let _ = tx.send(NetworkCommand::FetchSpotifySaved);
+        });
+    }
+    {
+        let tx = network_cmd_tx.clone();
+        app.on_fetch_spotify_recent(move || {
+            log::info!("UI: buscar faixas recentes Spotify");
+            let _ = tx.send(NetworkCommand::FetchSpotifyRecent);
+        });
+    }
 
     app.show()
         .map_err(|e| anyhow::anyhow!("falha ao exibir AppWindow Slint: {e:?}"))?;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ArrowLeft, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Heart, Loader2, Music, ListMusic, Clock, Disc3 } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolledApi } from "../lib/useApi";
@@ -56,11 +56,13 @@ export default function MusicPlayer({ onBack }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(30);
   const [controlling, setControlling] = useState(false);
+  const [commandError, setCommandError] = useState("");
 
   const { data: topTracks, loading: topLoading } = usePolledApi(() => api.musicTopTracks(true, 20), { intervalMs: 30000 });
   const { data: recentlyPlayed, loading: recentLoading } = usePolledApi(() => api.musicRecentlyPlayed(true, 20), { intervalMs: 60000 });
   const { data: savedTracks, loading: savedLoading } = usePolledApi(() => api.musicSavedTracks(true, 50), { intervalMs: 60000 });
   const { data: playlists, loading: playlistsLoading } = usePolledApi(() => api.musicPlaylists(true), { intervalMs: 120000 });
+  const { data: devices } = usePolledApi(() => api.musicDevices(), { intervalMs: 15000 });
 
   const trackLists = {
     top: topTracks?.body?.items || [],
@@ -73,18 +75,29 @@ export default function MusicPlayer({ onBack }) {
   const currentTrack = currentTracks[currentIdx] || null;
   const hasTracks = currentTracks.length > 0;
   const isLoading = (activeTab === "top" && topLoading) || (activeTab === "recent" && recentLoading) || (activeTab === "saved" && savedLoading) || (activeTab === "playlists" && playlistsLoading);
+  const deviceCount = devices?.body?.devices?.length ?? 0;
+  const deviceWarning = devices?.ok && deviceCount === 0
+    ? "Nenhum dispositivo Spotify ativo. Abre o Spotify no PC ou telemovel e deixa uma faixa pronta."
+    : "";
+  const visibleError = commandError || deviceWarning;
 
   const sendCommand = async (action) => {
     if (controlling) return;
     setControlling(true);
+    setCommandError("");
     try {
-      await api.musicCommand(action);
+      const result = await api.musicCommand(action);
+      if (!result?.ok) {
+        const message = result?.hint || result?.body?.error?.message || result?.error || "Comando recusado pelo Spotify";
+        setCommandError(message);
+        return;
+      }
       if (action === "play") setPlaying(true);
       if (action === "pause") setPlaying(false);
       if (action === "next") { setCurrentIdx((i) => (i + 1) % Math.max(currentTracks.length, 1)); setProgress(0); }
       if (action === "prev") { setCurrentIdx((i) => (i - 1 + Math.max(currentTracks.length, 1)) % Math.max(currentTracks.length, 1)); setProgress(0); }
-    } catch {
-      // silent
+    } catch (error) {
+      setCommandError(error.message || "Falha ao contactar o backend");
     } finally {
       setTimeout(() => setControlling(false), 300);
     }
@@ -119,6 +132,12 @@ export default function MusicPlayer({ onBack }) {
           </button>
         ))}
       </div>
+
+      {visibleError && (
+        <div className="mx-4 mb-2 rounded-xl px-3 py-2 text-[11px]" style={{ background: "var(--warning-tint)", color: "var(--warning)" }}>
+          {visibleError}
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">

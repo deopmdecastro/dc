@@ -123,6 +123,138 @@ fn core_top_tracks_url(api_health_url: &str) -> String {
     format!("{base}/music/top-tracks?compact=true")
 }
 
+pub fn fetch_playlists(api_health_url: &str, event_tx: &Sender<SystemEvent>) {
+    match fetch_playlists_from_core(api_health_url) {
+        Ok(playlists) => {
+            log::info!("Spotify: {} playlists carregadas", playlists.len());
+            let _ = event_tx.send(SystemEvent::SpotifyPlaylistsLoaded(playlists));
+        }
+        Err(e) => {
+            log::warn!("Spotify: falha ao obter playlists: {e:?}");
+            let _ = event_tx.send(SystemEvent::SpotifyPlaylistsLoaded(vec![]));
+        }
+    }
+}
+
+fn fetch_playlists_from_core(api_health_url: &str) -> Result<Vec<SpotifyPlaylist>> {
+    let base = api_health_url
+        .strip_suffix("/health")
+        .unwrap_or_else(|| api_health_url.trim_end_matches('/'));
+    let url = format!("{base}/music/playlists?compact=true");
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, &url, &headers)?;
+    let mut response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("dc-os-core retornou HTTP {status}"));
+    }
+    let body = read_response_body(&mut response)?;
+    let playlists: CorePlaylistsResponse =
+        serde_json::from_str(&body).map_err(|e| anyhow!("parse JSON dc-os-core: {e}"))?;
+    if !playlists.ok {
+        return Err(anyhow!(
+            "dc-os-core reportou ok=false: {}",
+            playlists.error.unwrap_or_else(|| "sem detalhe".to_owned())
+        ));
+    }
+
+    Ok(playlists
+        .body
+        .ok_or_else(|| anyhow!("dc-os-core respondeu sem body.items"))?
+        .items)
+}
+
+pub fn fetch_saved_tracks(api_health_url: &str, event_tx: &Sender<SystemEvent>) {
+    match fetch_saved_tracks_from_core(api_health_url) {
+        Ok(tracks) => {
+            log::info!("Spotify: {} faixas guardadas carregadas", tracks.len());
+            let _ = event_tx.send(SystemEvent::SpotifySavedTracksLoaded(tracks));
+        }
+        Err(e) => {
+            log::warn!("Spotify: falha ao obter faixas guardadas: {e:?}");
+            let _ = event_tx.send(SystemEvent::SpotifySavedTracksLoaded(vec![]));
+        }
+    }
+}
+
+fn fetch_saved_tracks_from_core(api_health_url: &str) -> Result<Vec<SpotifyTrack>> {
+    let base = api_health_url
+        .strip_suffix("/health")
+        .unwrap_or_else(|| api_health_url.trim_end_matches('/'));
+    let url = format!("{base}/music/saved-tracks?compact=true");
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, &url, &headers)?;
+    let mut response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("dc-os-core retornou HTTP {status}"));
+    }
+    let body = read_response_body(&mut response)?;
+    let saved: CoreSavedTracksResponse =
+        serde_json::from_str(&body).map_err(|e| anyhow!("parse JSON dc-os-core: {e}"))?;
+    if !saved.ok {
+        return Err(anyhow!(
+            "dc-os-core reportou ok=false: {}",
+            saved.error.unwrap_or_else(|| "sem detalhe".to_owned())
+        ));
+    }
+
+    Ok(saved
+        .body
+        .ok_or_else(|| anyhow!("dc-os-core respondeu sem body.items"))?
+        .items
+        .into_iter()
+        .filter_map(|item| item.track)
+        .collect())
+}
+
+pub fn fetch_recently_played(api_health_url: &str, event_tx: &Sender<SystemEvent>) {
+    match fetch_recently_played_from_core(api_health_url) {
+        Ok(tracks) => {
+            log::info!("Spotify: {} faixas recentes carregadas", tracks.len());
+            let _ = event_tx.send(SystemEvent::SpotifyRecentlyPlayedLoaded(tracks));
+        }
+        Err(e) => {
+            log::warn!("Spotify: falha ao obter faixas recentes: {e:?}");
+            let _ = event_tx.send(SystemEvent::SpotifyRecentlyPlayedLoaded(vec![]));
+        }
+    }
+}
+
+fn fetch_recently_played_from_core(api_health_url: &str) -> Result<Vec<SpotifyTrack>> {
+    let base = api_health_url
+        .strip_suffix("/health")
+        .unwrap_or_else(|| api_health_url.trim_end_matches('/'));
+    let url = format!("{base}/music/recently-played?compact=true");
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
+    let headers = [("accept", "application/json")];
+    let request = client.request(Method::Get, &url, &headers)?;
+    let mut response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("dc-os-core retornou HTTP {status}"));
+    }
+    let body = read_response_body(&mut response)?;
+    let recent: CoreRecentTracksResponse =
+        serde_json::from_str(&body).map_err(|e| anyhow!("parse JSON dc-os-core: {e}"))?;
+    if !recent.ok {
+        return Err(anyhow!(
+            "dc-os-core reportou ok=false: {}",
+            recent.error.unwrap_or_else(|| "sem detalhe".to_owned())
+        ));
+    }
+
+    Ok(recent
+        .body
+        .ok_or_else(|| anyhow!("dc-os-core respondeu sem body.items"))?
+        .items
+        .into_iter()
+        .filter_map(|item| item.track)
+        .collect())
+}
+
 fn http_config() -> esp_idf_svc::http::client::Configuration {
     esp_idf_svc::http::client::Configuration {
         timeout: Some(Duration::from_secs(6)),
@@ -166,29 +298,93 @@ struct CoreTopTracksResponse {
     error: Option<String>,
 }
 
-impl SpotifyTrack {
-    fn status(name: &str, detail: &str) -> Self {
-        Self {
-            name: name.to_owned(),
-            artists: vec![Artist {
-                name: detail.to_owned(),
-            }],
-            album: None,
+#[derive(Debug, serde::Deserialize)]
+struct CoreSavedTracksResponse {
+    ok: bool,
+    #[serde(default)]
+    body: Option<CoreSavedTracksBody>,
+    #[serde(default)]
+    error: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CoreSavedTracksBody {
+    items: Vec<CoreSavedTrackItem>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CoreSavedTrackItem {
+    track: Option<SpotifyTrack>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CoreRecentTracksResponse {
+    ok: bool,
+    #[serde(default)]
+    body: Option<CoreRecentTracksBody>,
+    #[serde(default)]
+    error: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CoreRecentTracksBody {
+    items: Vec<CoreRecentTrackItem>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct CoreRecentTrackItem {
+    track: Option<SpotifyTrack>,
+}
+
+    impl SpotifyTrack {
+        fn status(name: &str, detail: &str) -> Self {
+            Self {
+                name: name.to_owned(),
+                artists: vec![Artist {
+                    name: detail.to_owned(),
+                }],
+                album: None,
+            }
+        }
+
+        pub fn artist_names(&self) -> String {
+            self.artists
+                .iter()
+                .map(|a| a.name.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+
+        pub fn album_name(&self) -> &str {
+            self.album
+                .as_ref()
+                .map(|album| album.name.as_str())
+                .unwrap_or("")
         }
     }
 
-    pub fn artist_names(&self) -> String {
-        self.artists
-            .iter()
-            .map(|a| a.name.clone())
-            .collect::<Vec<_>>()
-            .join(", ")
+    #[derive(Debug, Clone, serde::Deserialize)]
+    pub struct SpotifyPlaylist {
+        pub id: String,
+        pub name: String,
+        pub tracks: u64,
     }
 
-    pub fn album_name(&self) -> &str {
-        self.album
-            .as_ref()
-            .map(|album| album.name.as_str())
-            .unwrap_or("")
+    #[derive(Debug, serde::Deserialize)]
+    struct PlaylistsResponse {
+        items: Vec<SpotifyPlaylist>,
     }
-}
+
+    #[derive(Debug, serde::Deserialize)]
+    struct CorePlaylistsResponse {
+        ok: bool,
+        #[serde(default)]
+        body: Option<CorePlaylistsBody>,
+        #[serde(default)]
+        error: Option<String>,
+    }
+
+    #[derive(Debug, serde::Deserialize)]
+    struct CorePlaylistsBody {
+        items: Vec<SpotifyPlaylist>,
+    }
