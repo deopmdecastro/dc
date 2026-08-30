@@ -24,8 +24,24 @@ export default function SongShare({ onBack }) {
   const [selectedTrack, setSelectedTrack] = useState(null);
   const { data: songshareData, loading } = usePolledApi(() => api.songshareTracks(true), { intervalMs: 60000 });
 
-  const tracks = songshareData?.body?.items || [];
+  const apiTracks = songshareData?.body?.items || [];
   const isOffline = songshareData?.ok === false;
+
+  // Fallback demo tracks when API unavailable
+  const demoTracks = [
+    { id: "d1", name: "Blinding Lights", artists: [{ name: "The Weeknd" }], album: { name: "After Hours" } },
+    { id: "d2", name: "Levitating", artists: [{ name: "Dua Lipa" }], album: { name: "Future Nostalgia" } },
+    { id: "d3", name: "Save Your Tears", artists: [{ name: "The Weeknd" }], album: { name: "After Hours" } },
+    { id: "d4", name: "Stay", artists: [{ name: "Kid LAROI" }, { name: "Justin Bieber" }], album: { name: "F*CK LOVE 3" } },
+    { id: "d5", name: "Good 4 U", artists: [{ name: "Olivia Rodrigo" }], album: { name: "SOUR" } },
+    { id: "d6", name: "Montero", artists: [{ name: "Lil Nas X" }], album: { name: "MONTERO" } },
+    { id: "d7", name: "Peaches", artists: [{ name: "Justin Bieber" }], album: { name: "Justice" } },
+    { id: "d8", name: "Kiss Me More", artists: [{ name: "Doja Cat" }, { name: "SZA" }], album: { name: "Planet Her" } },
+    { id: "d9", name: "drivers license", artists: [{ name: "Olivia Rodrigo" }], album: { name: "SOUR" } },
+    { id: "d10", name: "Butter", artists: [{ name: "BTS" }], album: { name: "Butter" } },
+  ];
+
+  const tracks = isOffline ? demoTracks : apiTracks;
 
   const filteredTracks = searchQuery
     ? tracks.filter(
@@ -46,6 +62,11 @@ export default function SongShare({ onBack }) {
           <h1 className="font-display text-base font-bold text-text-primary">SongShare</h1>
           <p className="text-[10px] text-text-muted">Descobre música nova</p>
         </div>
+        {isOffline && (
+          <div className="ml-auto rounded-full px-2 py-0.5 text-[9px] font-medium" style={{ background: "var(--warning-tint)", color: "var(--warning)" }}>
+            Demo
+          </div>
+        )}
       </div>
 
       {/* Search */}
@@ -66,11 +87,6 @@ export default function SongShare({ onBack }) {
         {loading && !songshareData ? (
           <div className="flex items-center justify-center h-32">
             <Loader2 size={20} className="animate-spin" style={{ color: "var(--accent)" }} />
-          </div>
-        ) : isOffline ? (
-          <div className="flex flex-col items-center justify-center h-32 text-center">
-            <p className="text-sm text-text-secondary">SongShare indisponível</p>
-            <p className="text-[11px] text-text-dim mt-1">Configura SONGSTATS_RAPIDAPI_KEY no backend</p>
           </div>
         ) : filteredTracks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-center">
