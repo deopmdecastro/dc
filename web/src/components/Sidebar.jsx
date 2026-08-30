@@ -26,46 +26,67 @@ const items = [
   { to: "/definicoes", label: "Definições", icon: Settings, color: "text-text-secondary" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ open = false, onClose = () => {} }) {
   return (
-    <nav className="flex w-[220px] shrink-0 flex-col gap-1 border-r border-stroke-soft bg-bg-1/60 p-3">
-      {items.map(({ to, label, icon: Icon, color }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={to === "/"}
-          className={({ isActive }) =>
-            [
-              "group flex items-center gap-3 rounded-m px-3 py-2.5 text-sm transition-colors",
-              isActive
-                ? "bg-panel-elevated text-text-primary"
-                : "text-text-secondary hover:bg-panel hover:text-text-primary",
-            ].join(" ")
-          }
+    <>
+      {/* Backdrop — só em mobile, quando a drawer está aberta */}
+      {open && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-30 bg-bg-0/70 backdrop-blur-sm md:hidden"
+          aria-hidden="true"
+        />
+      )}
+
+      <nav
+        className={[
+          "fixed inset-y-0 left-0 z-40 flex w-[240px] shrink-0 flex-col gap-1 border-r border-stroke-soft bg-bg-1 p-3 transition-transform duration-200 ease-out",
+          "md:static md:z-auto md:w-[220px] md:translate-x-0 md:bg-bg-1/60",
+          open ? "translate-x-0" : "-translate-x-full",
+        ].join(" ")}
+      >
+        {items.map(({ to, label, icon: Icon, color }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === "/"}
+            onClick={onClose}
+            className={({ isActive }) =>
+              [
+                "group flex items-center gap-3 rounded-m px-3 py-2.5 text-sm transition-colors",
+                isActive
+                  ? "bg-panel-elevated text-text-primary"
+                  : "text-text-secondary hover:bg-panel hover:text-text-primary",
+              ].join(" ")
+            }
+            style={{ borderRadius: "var(--radius-m)" }}
+          >
+            {({ isActive }) => (
+              <>
+                <span
+                  className={[
+                    "flex h-8 w-8 items-center justify-center rounded-s border transition-colors",
+                    isActive ? "border-current bg-panel-elevated" : "border-stroke-soft bg-panel",
+                    color,
+                  ].join(" ")}
+                  style={{ borderRadius: "var(--radius-s)" }}
+                >
+                  <Icon size={17} />
+                </span>
+                <span className="font-medium">{label}</span>
+              </>
+            )}
+          </NavLink>
+        ))}
+
+        <div
+          className="mt-auto rounded-m border border-stroke-soft bg-panel/60 p-3 text-xs text-text-muted"
           style={{ borderRadius: "var(--radius-m)" }}
         >
-          {({ isActive }) => (
-            <>
-              <span
-                className={[
-                  "flex h-8 w-8 items-center justify-center rounded-s border transition-colors",
-                  isActive ? "border-current bg-panel-elevated" : "border-stroke-soft bg-panel",
-                  color,
-                ].join(" ")}
-                style={{ borderRadius: "var(--radius-s)" }}
-              >
-                <Icon size={17} />
-              </span>
-              <span className="font-medium">{label}</span>
-            </>
-          )}
-        </NavLink>
-      ))}
-
-      <div className="mt-auto rounded-m border border-stroke-soft bg-panel/60 p-3 text-xs text-text-muted" style={{ borderRadius: "var(--radius-m)" }}>
-        <p className="font-semibold text-text-secondary">ES3C28P</p>
-        <p>ESP32-S3 · 320×240 IPS</p>
-      </div>
-    </nav>
+          <p className="font-semibold text-text-secondary">ES3C28P</p>
+          <p>ESP32-S3 · 320×240 IPS</p>
+        </div>
+      </nav>
+    </>
   );
 }

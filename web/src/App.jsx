@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import StatusBar from "./components/StatusBar";
 import Home from "./pages/Home";
@@ -14,13 +15,18 @@ import { usePolledApi } from "./lib/useApi";
 
 export default function App() {
   const { offline } = usePolledApi(() => api.health(), { intervalMs: 15000 });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  // Fecha a drawer mobile sempre que a rota muda
+  useEffect(() => setMenuOpen(false), [location.pathname]);
 
   return (
     <div className="flex h-screen flex-col bg-bg-0 text-text-primary">
-      <StatusBar online={!offline} />
+      <StatusBar online={!offline} onMenuClick={() => setMenuOpen((v) => !v)} />
       <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <main className="min-h-0 flex-1 overflow-y-auto p-6">
+        <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
           <div className="mx-auto h-full max-w-5xl">
             <Routes>
               <Route path="/" element={<Home />} />
