@@ -96,10 +96,10 @@ export default function SongShare({ onBack }) {
         ) : (
           <div className="space-y-2">
             {filteredTracks.map((track, idx) => (
-              <button
+              <div
                 key={track.id || idx}
                 onClick={() => setSelectedTrack(selectedTrack?.id === track.id ? null : track)}
-                className="flex w-full items-center gap-3 rounded-xl p-3 transition-all duration-150"
+                className="flex w-full items-center gap-3 rounded-xl p-3 transition-all duration-150 cursor-pointer"
                 style={{
                   background: selectedTrack?.id === track.id ? "var(--accent-tint)" : "var(--panel-soft)",
                   border: `1px solid ${selectedTrack?.id === track.id ? "var(--accent)/40" : "var(--stroke-soft)"}`,
@@ -119,15 +119,23 @@ export default function SongShare({ onBack }) {
                 {/* Actions */}
                 {selectedTrack?.id === track.id && (
                   <div className="flex gap-1 animate-fade-in">
-                    <button className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: "var(--accent)", cursor: "pointer" }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full"
+                      style={{ background: "var(--accent)", cursor: "pointer" }}
+                    >
                       <Play size={12} style={{ color: "var(--bg-0)", marginLeft: "1px" }} />
                     </button>
-                    <button className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: "var(--panel-elevated)", cursor: "pointer" }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); }}
+                      className="flex h-7 w-7 items-center justify-center rounded-full"
+                      style={{ background: "var(--panel-elevated)", cursor: "pointer" }}
+                    >
                       <Heart size={12} style={{ color: "var(--accent-pink)" }} />
                     </button>
                   </div>
                 )}
-              </button>
+              </div>
             ))}
           </div>
         )}
