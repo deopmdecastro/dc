@@ -23,7 +23,8 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 # ---- Networking ----
 CONFIG_LWIP_MAX_SOCKETS=10
 CONFIG_ESP_WIFI_ENABLED=y
-# HTTPS (necessario para Spotify API em api.spotify.com)
+# Spotify/clima passam pelo dc-os-core em HTTP local; o backend e que fala com
+# APIs externas por TLS. Evita depender de CA bundle no firmware.
 CONFIG_ESP_HTTPS_SERVER_ENABLE=y
 CONFIG_ESP_TLS_USE_DS_PERIPHERAL=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=n

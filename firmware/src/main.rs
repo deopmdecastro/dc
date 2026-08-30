@@ -74,11 +74,10 @@ fn main() -> Result<()> {
     let touch_rx = touch::spawn_touch_task(peripherals.i2c0)?;
     let (network_cmd_tx, network_cmd_rx) = mpsc::channel();
     let (system_event_tx, system_event_rx) = mpsc::channel();
+    audio::set_volume(app_config.volume);
     // Liga o amplificador de audio
     audio::enable_amplifier();
-    audio::spawn_audio_task(
-        |_lvl| { /* atualizar audio-level da UI */ },
-    )?;
+    audio::spawn_audio_task(|_lvl| { /* atualizar audio-level da UI */ })?;
     network::spawn_network_task(
         modem,
         sysloop,
@@ -143,6 +142,7 @@ fn main() -> Result<()> {
         app.on_set_volume(move |v| {
             let v = v.clamp(0.0, 1.0);
             log::info!("UI: volume {:.0}%", v * 100.0);
+            audio::set_volume(percent_u8(v));
             if let Err(e) = store.borrow().save_volume(percent_u8(v)) {
                 log::warn!("NVS: falha ao guardar volume: {e:?}");
             }
@@ -191,12 +191,18 @@ fn main() -> Result<()> {
     {
         let tx = network_cmd_tx.clone();
         app.on_save_note(move |text, _idx| {
-            let _ = tx.send(NetworkCommand::CreateNote { text: text.to_string() });
+            let _ = tx.send(NetworkCommand::CreateNote {
+                text: text.to_string(),
+            });
         });
     }
     {
         let tx = network_cmd_tx.clone();
-        app.on_delete_note(move |idx| { let _ = tx.send(NetworkCommand::DeleteNote { id: (idx + 1) as u64 }); });
+        app.on_delete_note(move |idx| {
+            let _ = tx.send(NetworkCommand::DeleteNote {
+                id: (idx + 1) as u64,
+            });
+        });
     }
     app.on_launch_app(|idx| log::info!("UI: launch_app({})", idx));
     {
@@ -211,7 +217,11 @@ fn main() -> Result<()> {
         app.on_locale_changed(move |region, language| {
             let region = region.clamp(0, 4) as u8;
             let language = language.clamp(0, 4) as u8;
-            log::info!("Idioma/Regiao: a guardar region={} language={}", region, language);
+            log::info!(
+                "Idioma/Regiao: a guardar region={} language={}",
+                region,
+                language
+            );
             if let Err(e) = store.borrow().save_locale(region, language) {
                 log::warn!("NVS: falha ao guardar idioma/regiao: {e:?}");
             } else {
@@ -343,12 +353,13 @@ fn main() -> Result<()> {
             }
         }
     });
-    app.on_refresh_weather(|| {
-        log::info!("UI: atualizar clima");
-        // Forca o clima a ser atualizado no proximo ciclo
-        // O network task verifica next_weather_in e faz fetch quando chega a 0
-        // Aqui podemos enviar um comando para forcar o update imediato
-    });
+    {
+        let tx = network_cmd_tx.clone();
+        app.on_refresh_weather(move || {
+            log::info!("UI: atualizar clima");
+            let _ = tx.send(NetworkCommand::RefreshWeather);
+        });
+    }
 
     app.show()
         .map_err(|e| anyhow::anyhow!("falha ao exibir AppWindow Slint: {e:?}"))?;

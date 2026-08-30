@@ -13,7 +13,9 @@ use std::io::Write;
 use std::path::Path;
 
 const API_BASE: &str = "https://api.fish.audio";
-mod generated { include!(concat!(env!("OUT_DIR"), "/fish_audio_key.rs")); }
+mod generated {
+    include!(concat!(env!("OUT_DIR"), "/fish_audio_key.rs"));
+}
 const API_KEY: &str = generated::FISH_AUDIO_API_KEY;
 const SOUND_DIR: &str = "sound";
 
@@ -80,7 +82,9 @@ pub fn network_diagnostics() {
 
 /// Verifica se ha conectividade com a internet (usando Open-Meteo que ja funciona).
 pub fn check_internet() -> bool {
-    test_connection("https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m")
+    test_connection(
+        "https://api.open-meteo.com/v1/forecast?latitude=0&longitude=0&current=temperature_2m",
+    )
 }
 
 /// Gera TTS (texto para voz) e guarda o ficheiro de audio.
@@ -91,7 +95,11 @@ pub fn tts(text: &str, voice_id: Option<&str>) -> Result<String> {
     }
     let voice = voice_id.unwrap_or("7f2844ae83a14f5682cf382304f1a7fc");
     let url = format!("{}/v1/tts", API_BASE);
-    let payload = format!(r#"{{"text":{},"reference_id":{},"model":"s2.1-pro-free","format":"wav","sample_rate":16000}}"#, serde_json::to_string(text)?, serde_json::to_string(voice)?);
+    let payload = format!(
+        r#"{{"text":{},"reference_id":{},"model":"s2.1-pro-free","format":"wav","sample_rate":16000}}"#,
+        serde_json::to_string(text)?,
+        serde_json::to_string(voice)?
+    );
     log::info!("Fish Audio TTS: {} caracteres", text.len());
 
     let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
@@ -135,14 +143,22 @@ pub fn tts(text: &str, voice_id: Option<&str>) -> Result<String> {
         total_bytes += bytes_read;
     }
 
-    log::info!("Fish Audio TTS: {} bytes guardados em {}", total_bytes, path);
+    log::info!(
+        "Fish Audio TTS: {} bytes guardados em {}",
+        total_bytes,
+        path
+    );
     Ok(path)
 }
 
 /// Procura efeitos sonoros por nome/tag.
 /// Retorna lista de IDs e nomes de sons.
 pub fn search_sound_effects(query: &str) -> Result<Vec<SoundEffect>> {
-    let url = format!("{}/v1/sound-effects/search?q={}", API_BASE, url_encode(query));
+    let url = format!(
+        "{}/v1/sound-effects/search?q={}",
+        API_BASE,
+        url_encode(query)
+    );
     log::info!("Fish Audio: procurando efeitos '{}'", query);
 
     let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
@@ -162,11 +178,10 @@ pub fn search_sound_effects(query: &str) -> Result<Vec<SoundEffect>> {
     let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0)?;
     let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("[]");
 
-    let results: Vec<SoundEffect> = serde_json::from_str(body)
-        .map_err(|e| {
-            log::warn!("Fish Audio: erro na resposta: {}", body);
-            anyhow!("Fish Audio: erro ao parsear resposta: {e}")
-        })?;
+    let results: Vec<SoundEffect> = serde_json::from_str(body).map_err(|e| {
+        log::warn!("Fish Audio: erro na resposta: {}", body);
+        anyhow!("Fish Audio: erro ao parsear resposta: {e}")
+    })?;
 
     log::info!("Fish Audio: {} efeitos encontrados", results.len());
     Ok(results)
@@ -214,7 +229,11 @@ pub fn download_sound_effect(effect_id: &str, name: Option<&str>) -> Result<Stri
         total_bytes += bytes_read;
     }
 
-    log::info!("Fish Audio: {} bytes descarregados para {}", total_bytes, path);
+    log::info!(
+        "Fish Audio: {} bytes descarregados para {}",
+        total_bytes,
+        path
+    );
     Ok(path)
 }
 
@@ -281,5 +300,3 @@ pub struct SoundEffect {
     pub duration: Option<f64>,
     pub tags: Option<Vec<String>>,
 }
-
-

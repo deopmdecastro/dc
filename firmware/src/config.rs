@@ -63,6 +63,17 @@ impl ConfigStore {
             .filter(|value| !value.is_empty());
         let fallback_api = "http://192.168.1.50:8081/health";
         let stored_api = self.read_string(KEY_API_HEALTH, MAX_URL);
+        let build_api = build_api.filter(|api| {
+            if is_https_url(api) {
+                log::warn!("Config: DC_CORE_HTTP https:// ignorado no ESP; usa http://<IP-do-PC>:8081/health");
+                false
+            } else if is_localhost_url(api) {
+                log::warn!("Config: DC_CORE_HTTP local/localhost ignorado no ESP; usa o IP LAN do PC");
+                false
+            } else {
+                true
+            }
+        });
         let api_health_url = match (build_api, stored_api) {
             (Some(api), Some(stored)) if stored != api => {
                 log::info!("Config: DC_CORE_HTTP do build substitui api antiga guardada em NVS");
@@ -134,7 +145,11 @@ impl ConfigStore {
     }
 
     pub fn save_locale(&self, region_index: u8, language_index: u8) -> Result<()> {
-        log::info!("NVS: save_locale region={} language={}", region_index, language_index);
+        log::info!(
+            "NVS: save_locale region={} language={}",
+            region_index,
+            language_index
+        );
         self.nvs.set_u8(KEY_REGION, region_index.min(4))?;
         self.nvs.set_u8(KEY_LANGUAGE, language_index.min(4))?;
         log::info!("NVS: save_locale concluido");

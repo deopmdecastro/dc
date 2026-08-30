@@ -45,7 +45,12 @@ pub enum NetworkCommand {
         region_index: u8,
         timezone_offset_secs: i32,
     },
+    RefreshWeather,
     MusicCommand(String),
-    CreateNote { text: String },
-    DeleteNote { id: u64 },
+    CreateNote {
+        text: String,
+    },
+    DeleteNote {
+        id: u64,
+    },
 }

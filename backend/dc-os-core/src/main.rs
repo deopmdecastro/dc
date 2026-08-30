@@ -90,7 +90,9 @@ struct Note {
 }
 
 #[derive(Deserialize)]
-struct NoteInput { text: String }
+struct NoteInput {
+    text: String,
+}
 
 #[derive(Deserialize)]
 struct MusicCommand {
@@ -113,7 +115,9 @@ struct WeatherQuery {
 }
 
 #[derive(Deserialize)]
-struct VoiceCommandInput { text: String }
+struct VoiceCommandInput {
+    text: String,
+}
 
 #[derive(Deserialize)]
 struct SpotifyTokenRefreshResponse {
@@ -227,7 +231,6 @@ async fn time_now(Query(query): Query<TimeQuery>) -> Json<serde_json::Value> {
     }))
 }
 
-
 async fn list_notes(State(s): State<Arc<AppState>>) -> Json<Vec<Note>> {
     Json(s.notes.read().await.clone())
 }
@@ -240,7 +243,10 @@ async fn create_note(
     let note = Note {
         id: notes.last().map(|n| n.id + 1).unwrap_or(1),
         text: input.text.trim().to_owned(),
-        created_at: SystemTime::now().duration_since(UNIX_EPOCH).map(|v| v.as_secs()).unwrap_or_default(),
+        created_at: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|v| v.as_secs())
+            .unwrap_or_default(),
     };
     notes.push(note.clone());
     (StatusCode::CREATED, Json(note))
@@ -253,18 +259,30 @@ async fn delete_note(
     let mut notes = s.notes.write().await;
     let old_len = notes.len();
     notes.retain(|note| note.id != id);
-    if notes.len() == old_len { StatusCode::NOT_FOUND } else { StatusCode::NO_CONTENT }
+    if notes.len() == old_len {
+        StatusCode::NOT_FOUND
+    } else {
+        StatusCode::NO_CONTENT
+    }
 }
 
 async fn voice_command(Json(input): Json<VoiceCommandInput>) -> Json<serde_json::Value> {
     let text = input.text.to_lowercase();
-    let app = if text.contains("nota") { Some(4) }
-        else if text.contains("clima") || text.contains("tempo") { Some(2) }
-        else if text.contains("música") || text.contains("spotify") { Some(1) }
-        else if text.contains("alarme") { Some(5) }
-        else if text.contains("config") || text.contains("defini") { Some(6) }
-        else if text.contains("app") || text.contains("aplic") { Some(0) }
-        else { None };
+    let app = if text.contains("nota") {
+        Some(4)
+    } else if text.contains("clima") || text.contains("tempo") {
+        Some(2)
+    } else if text.contains("música") || text.contains("spotify") {
+        Some(1)
+    } else if text.contains("alarme") {
+        Some(5)
+    } else if text.contains("config") || text.contains("defini") {
+        Some(6)
+    } else if text.contains("app") || text.contains("aplic") {
+        Some(0)
+    } else {
+        None
+    };
     Json(serde_json::json!({"ok": app.is_some(), "app_index": app, "text": input.text}))
 }
 
@@ -808,8 +826,13 @@ async fn spotify_can_refresh(s: &AppState) -> bool {
 
 async fn refresh_spotify_token(s: &AppState) -> anyhow::Result<String> {
     let refresh_token = active_refresh_token(s).await;
-    if refresh_token.is_empty() || s.spotify.client_id.is_empty() || s.spotify.client_secret.is_empty() {
-        anyhow::bail!("Spotify token expirado e refresh token nao configurado. Visita /spotify/login.");
+    if refresh_token.is_empty()
+        || s.spotify.client_id.is_empty()
+        || s.spotify.client_secret.is_empty()
+    {
+        anyhow::bail!(
+            "Spotify token expirado e refresh token nao configurado. Visita /spotify/login."
+        );
     }
 
     let response = s
@@ -949,7 +972,11 @@ async fn spotify_callback(
     let status = response.status();
     let text = response.text().await.unwrap_or_default();
     if !status.is_success() {
-        tracing::warn!("Spotify: troca do code falhou HTTP {}: {}", status.as_u16(), text);
+        tracing::warn!(
+            "Spotify: troca do code falhou HTTP {}: {}",
+            status.as_u16(),
+            text
+        );
         return Html(format!(
             "<p>A Spotify recusou a troca do codigo (HTTP {}). Confirma client id/secret \
              e se o Redirect URI <code>{}</code> esta registado na app do Spotify Developer \
@@ -962,7 +989,9 @@ async fn spotify_callback(
 
     let body: SpotifyTokenRefreshResponse = match serde_json::from_str(&text) {
         Ok(body) => body,
-        Err(e) => return Html(format!("<p>Resposta inesperada da Spotify: {e}</p>")).into_response(),
+        Err(e) => {
+            return Html(format!("<p>Resposta inesperada da Spotify: {e}</p>")).into_response()
+        }
     };
 
     {

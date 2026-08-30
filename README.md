@@ -233,20 +233,29 @@ cargo build --release --locked
 Dentro de `.env.local`:
 
 ```text
+DC_CORE_HTTP="http://192.168.1.50:8081/health"
+DC_WIFI_SSID="MinhaRede"
+DC_WIFI_PASS="MinhaSenha"
 SPOTIFY_TOKEN="BQ..."
 ```
 
-Tambem podes usar variavel de ambiente so nessa sessao:
+`DC_CORE_HTTP` deve usar o IP LAN do PC/container onde corre o backend. Nao uses
+`localhost`, `127.0.0.1` ou `https://` no firmware. O firmware fala com o
+backend por HTTP local, e o backend e que consome Spotify/Open-Meteo pela
+Internet.
+
+Tambem podes usar variaveis de ambiente so nessa sessao:
 
 ```powershell
 cd C:\DC\dc\firmware
+$env:DC_CORE_HTTP = "http://192.168.1.50:8081/health"
 $env:SPOTIFY_TOKEN = "BQ..."
 cargo build --release --locked
 ```
 
-O token e incorporado no binario em build-time. Sempre que trocares o token,
-recompila e faz flash novamente. Sem token, o player mostra "A carregar..." e
-funciona em modo offline.
+O token do firmware e apenas fallback. O caminho recomendado para Spotify e o
+backend OAuth abaixo, porque o access token expira e o ESP nao deve depender de
+HTTPS direto para a API Spotify.
 
 Para o backend tocar musica de verdade pelo Spotify Web API, configura tambem
 `backend/.env`:
@@ -350,8 +359,8 @@ auto-rotação real por posição física.
 ## Clima, Notas e Alarmes
 
 O backend expoe `GET /weather?region=<0..4>`, usando Open-Meteo para clima
-atual sem chave de API. O firmware chama esse endpoint quando o Wi-Fi conecta e
-sempre que a regiao muda.
+atual sem chave de API. O firmware chama esse endpoint quando o Wi-Fi conecta,
+sempre que a regiao muda e quando o botao de atualizar clima e tocado.
 
 Mapeamento de regioes usado por hora e clima:
 
@@ -363,8 +372,8 @@ Mapeamento de regioes usado por hora e clima:
 
 A tela de Notas permite criar notas locais da sessao pelo teclado compacto. O
 Alarme guarda ligado/desligado, hora, minuto, perfil de dias e tipo de toque em
-NVS. O botao `Testar` ja emite callback para o firmware; a reproducao real fica
-dependente da implementacao I2S em `audio.rs`, que ainda e stub.
+NVS. O botao `Testar` emite um tom local pelo I2S; o volume da UI tambem escala
+o audio local.
 
 ## Limpeza / Rebuild Completo
 
@@ -419,10 +428,11 @@ Ver [docs/PINOUT.md](docs/PINOUT.md) para a tabela completa.
   `user-top-read`, `user-read-playback-state`, `user-modify-playback-state` e
   `user-read-currently-playing`; confirma tambem `SPOTIFY_REFRESH_TOKEN`,
   `SPOTIFY_CLIENT_ID` e `SPOTIFY_CLIENT_SECRET` no `backend/.env`.
-- Spotify funciona no PC mas no ESP mostra indisponivel: confirma que o build
-  foi feito com `$env:DC_CORE_HTTP = "http://<IP-do-PC>:8081/health"`. Nao uses
-  `localhost` nem `127.0.0.1`, porque no ESP esses enderecos apontam para o
-  proprio ESP, nao para o computador.
+- Spotify/clima funcionam no PC mas no ESP mostram indisponivel: confirma que
+  `firmware/.env.local` ou a sessao de build tem
+  `DC_CORE_HTTP = "http://<IP-do-PC>:8081/health"`. Nao uses `localhost`,
+  `127.0.0.1` nem `https://`, porque no ESP esses enderecos/protocolo nao
+  apontam corretamente para o backend local.
 
 ### Erro `ESP_ERR_HTTP_CONNECT` / `Software caused connection abort` (socket 113 / ECONNABORTED)
 

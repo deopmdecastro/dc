@@ -156,14 +156,24 @@ fn run_network(
                         offset_secs
                     );
                 }
+                NetworkCommand::RefreshWeather => {
+                    next_weather_in = 0;
+                    log::info!("Clima: atualizacao imediata pedida pela UI");
+                }
                 NetworkCommand::CreateNote { text } => {
                     if connected {
-                        if let Err(e) = post_note(&cfg.api_health_url, &text) { log::warn!("API: criar nota falhou: {e:?}"); }
-                    } else { log::warn!("API: criar nota ignorada sem Wi-Fi"); }
+                        if let Err(e) = post_note(&cfg.api_health_url, &text) {
+                            log::warn!("API: criar nota falhou: {e:?}");
+                        }
+                    } else {
+                        log::warn!("API: criar nota ignorada sem Wi-Fi");
+                    }
                 }
                 NetworkCommand::DeleteNote { id } => {
                     if connected {
-                        if let Err(e) = delete_note(&cfg.api_health_url, id) { log::warn!("API: apagar nota falhou: {e:?}"); }
+                        if let Err(e) = delete_note(&cfg.api_health_url, id) {
+                            log::warn!("API: apagar nota falhou: {e:?}");
+                        }
                     }
                 }
                 NetworkCommand::MusicCommand(action) => {
@@ -390,48 +400,37 @@ fn api_time_url(health_url: &str, offset_secs: i32) -> String {
     format!("{base}/time?offset_secs={offset_secs}")
 }
 
-fn fetch_weather(_health_url: &str, region_index: u8) -> Result<WeatherInfo> {
-    let (lat, lon) = match region_index {
-        0 => (-15.78, -47.93),
-        1 => (38.72, -9.14),
-        2 => (-8.84, 13.23),
-        3 => (-25.97, 32.57),
-        _ => (40.71, -74.01),
-    };
-    let city = reverse_geocode(lat, lon).unwrap_or_else(|| match region_index {
-        0 => "Brasil".to_string(),
-        1 => "Portugal".to_string(),
-        2 => "Angola".to_string(),
-        3 => "Mocambique".to_string(),
-        _ => "Estados Unidos".to_string(),
-    });
+fn fetch_weather(health_url: &str, region_index: u8) -> Result<WeatherInfo> {
     let url = format!(
-        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,wind_speed_10m,weather_code",
-        lat, lon
+        "{}/weather?region={}",
+        api_base(health_url),
+        region_index.min(4)
     );
-    log::info!("Clima: consumindo Open-Meteo para {}", city);
+    log::info!("Clima: GET {url}");
     let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let headers = [("accept", "application/json")];
     let request = client.request(Method::Get, &url, &headers)?;
     let mut response = request.submit()?;
     let status = response.status();
     if !(200..300).contains(&status) {
-        return Err(anyhow!("Open-Meteo retornou HTTP {status}"));
+        return Err(anyhow!("dc-os-core /weather retornou HTTP {status}"));
     }
-    let mut buf = [0_u8; 4096];
+    let mut buf = [0_u8; 1024];
     let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0)?;
     let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
-    let value: OpenMeteoResponse = serde_json::from_str(body)?;
-    let temp = value.current.temperature_2m as i32;
-    let wind = value.current.wind_speed_10m as i32;
-    let summary = weather_summary(value.current.weather_code, temp, wind);
+    let value: CoreWeatherResponse = serde_json::from_str(body)?;
+    if !value.ok {
+        return Err(anyhow!("dc-os-core /weather ok=false: {}", value.summary));
+    }
+
     Ok(WeatherInfo {
-        city,
-        temperature_c: temp,
-        summary,
+        city: value.city,
+        temperature_c: value.temperature_c as i32,
+        summary: value.summary,
     })
 }
 
+#[allow(dead_code)]
 fn reverse_geocode(lat: f64, lon: f64) -> Option<String> {
     let url = format!(
         "https://geocoding-api.open-meteo.com/v1/reverse?latitude={}&longitude={}&count=1&language=pt",
@@ -447,7 +446,9 @@ fn reverse_geocode(lat: f64, lon: f64) -> Option<String> {
         return None;
     }
     let mut buf = [0_u8; 512];
-    let bytes_read = io::try_read_full(&mut response, &mut buf).map_err(|e| e.0).ok()?;
+    let bytes_read = io::try_read_full(&mut response, &mut buf)
+        .map_err(|e| e.0)
+        .ok()?;
     let body = core::str::from_utf8(&buf[..bytes_read]).unwrap_or("");
     let value: GeocodingResponse = serde_json::from_str(body).ok()?;
     value.results.first().map(|r| {
@@ -461,16 +462,19 @@ fn reverse_geocode(lat: f64, lon: f64) -> Option<String> {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)]
 struct GeocodingResponse {
     results: Vec<GeocodingResult>,
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)]
 struct GeocodingResult {
     name: String,
     admin1: Option<String>,
 }
 
+#[allow(dead_code)]
 fn weather_summary(code: i32, temp: i32, wind: i32) -> String {
     let condition = match code {
         0 => "Ceu limpo",
@@ -487,11 +491,21 @@ fn weather_summary(code: i32, temp: i32, wind: i32) -> String {
 }
 
 #[derive(Debug, serde::Deserialize)]
+struct CoreWeatherResponse {
+    ok: bool,
+    city: String,
+    temperature_c: i64,
+    summary: String,
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)]
 struct OpenMeteoResponse {
     current: OpenMeteoCurrent,
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[allow(dead_code)]
 struct OpenMeteoCurrent {
     temperature_2m: f64,
     wind_speed_10m: f64,
@@ -595,16 +609,18 @@ fn scan_wifi(
     Ok(unique)
 }
 
-
 fn post_note(health_url: &str, text: &str) -> Result<()> {
     let url = api_base(health_url) + "/notes";
     let body = serde_json::json!({"text": text});
     let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
-    let mut request = client.request(Method::Post, &url, &[("Content-Type", "application/json")])?;
+    let mut request =
+        client.request(Method::Post, &url, &[("Content-Type", "application/json")])?;
     request.write_all(body.to_string().as_bytes())?;
     let response = request.submit()?;
     let status = response.status();
-    if !(200..300).contains(&status) { return Err(anyhow!("POST /notes retornou HTTP {status}")); }
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("POST /notes retornou HTTP {status}"));
+    }
     Ok(())
 }
 
@@ -613,7 +629,9 @@ fn delete_note(health_url: &str, id: u64) -> Result<()> {
     let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
     let response = client.request(Method::Delete, &url, &[])?.submit()?;
     let status = response.status();
-    if !(200..300).contains(&status) { return Err(anyhow!("DELETE /notes/{id} retornou HTTP {status}")); }
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("DELETE /notes/{id} retornou HTTP {status}"));
+    }
     Ok(())
 }
 

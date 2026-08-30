@@ -7,6 +7,9 @@ fn main() {
     println!("cargo:rerun-if-changed=sdkconfig.defaults");
     println!("cargo:rerun-if-env-changed=SPOTIFY_TOKEN");
     println!("cargo:rerun-if-env-changed=FISH_AUDIO_API_KEY");
+    println!("cargo:rerun-if-env-changed=DC_CORE_HTTP");
+    println!("cargo:rerun-if-env-changed=DC_WIFI_SSID");
+    println!("cargo:rerun-if-env-changed=DC_WIFI_PASS");
     println!("cargo:rerun-if-changed=.env");
     println!("cargo:rerun-if-changed=.env.local");
     println!("cargo:rerun-if-changed=ui/main.slint");
@@ -26,6 +29,9 @@ fn main() {
     println!("cargo:rerun-if-changed=ui/assets/branding/dc-assistant-logo-white.png");
     println!("cargo:rerun-if-changed=ui/assets/icons");
 
+    set_build_env_from_files("DC_CORE_HTTP");
+    set_build_env_from_files("DC_WIFI_SSID");
+    set_build_env_from_files("DC_WIFI_PASS");
     write_generated_spotify_token();
     write_generated_fish_audio_key();
 
@@ -37,6 +43,22 @@ fn main() {
     .expect("Falha ao compilar arquivos .slint");
 
     embuild::espidf::sysenv::output();
+}
+
+fn set_build_env_from_files(key: &str) {
+    if env::var(key)
+        .ok()
+        .filter(|value| !value.trim().is_empty())
+        .is_some()
+    {
+        return;
+    }
+
+    if let Some(value) = read_env_value(".env.local", key).or_else(|| read_env_value(".env", key)) {
+        if !value.trim().is_empty() {
+            println!("cargo:rustc-env={key}={}", value.trim());
+        }
+    }
 }
 
 fn write_generated_spotify_token() {
