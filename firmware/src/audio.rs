@@ -39,6 +39,8 @@ pub fn disable_amplifier() {
 /// Emite um beep curto no DAC/amp I2S para validar o caminho de audio.
 pub fn play_test_tone(tone: u8) {
     std::thread::spawn(move || {
+        stop_listening();
+        std::thread::sleep(std::time::Duration::from_millis(40));
         if let Err(e) = write_tone(tone) {
             log::warn!("Audio I2S: teste falhou: {e:?}");
         }
@@ -53,6 +55,7 @@ unsafe fn init_i2s_tx() -> Result<()> {
     let port = esp_idf_sys::i2s_port_t_I2S_NUM_0;
     // Se ja esta inicializado em modo RX, desinstalar primeiro
     if I2S_INITIALIZED.load(Ordering::SeqCst) && !I2S_TX_MODE.load(Ordering::SeqCst) {
+        I2S_LISTENING.store(false, Ordering::SeqCst);
         esp_idf_sys::i2s_driver_uninstall(port);
         I2S_INITIALIZED.store(false, Ordering::SeqCst);
     }
@@ -178,16 +181,26 @@ fn write_tone(tone: u8) -> Result<()> {
 
 /// Inicia a captura de audio do microfone.
 pub fn start_listening(callback: Box<dyn Fn(&[i16]) + Send>) -> Result<()> {
-    unsafe {
-        init_i2s_rx()?;
+    if I2S_LISTENING
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        log::info!("Audio I2S: captura ja ativa; ignorando novo pedido");
+        return Ok(());
     }
+
+    if let Err(e) = unsafe { init_i2s_rx() } {
+        I2S_LISTENING.store(false, Ordering::SeqCst);
+        return Err(e);
+    }
+
     {
         let mut cb = AUDIO_CALLBACK
             .lock()
             .map_err(|_| anyhow!("lock poisoned"))?;
         *cb = Some(callback);
     }
-    I2S_LISTENING.store(true, Ordering::SeqCst);
+
     std::thread::spawn(move || {
         log::info!("Audio I2S: captura iniciada");
         let mut buffer = vec![0i16; BUFFER_SIZE];
@@ -238,6 +251,29 @@ pub fn calculate_rms(samples: &[i16]) -> f32 {
         .sum();
     let rms = (sum_sq / samples.len() as f64).sqrt();
     (rms / 32768.0).min(1.0) as f32
+}
+
+pub fn pcm16_to_wav(samples: &[i16]) -> Vec<u8> {
+    let data_len = samples.len() * 2;
+    let riff_len = 36 + data_len;
+    let mut wav = Vec::with_capacity(44 + data_len);
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&(riff_len as u32).to_le_bytes());
+    wav.extend_from_slice(b"WAVE");
+    wav.extend_from_slice(b"fmt ");
+    wav.extend_from_slice(&16_u32.to_le_bytes());
+    wav.extend_from_slice(&1_u16.to_le_bytes());
+    wav.extend_from_slice(&(CHANNELS as u16).to_le_bytes());
+    wav.extend_from_slice(&SAMPLE_RATE.to_le_bytes());
+    wav.extend_from_slice(&(SAMPLE_RATE * CHANNELS as u32 * (BITS as u32 / 8)).to_le_bytes());
+    wav.extend_from_slice(&((CHANNELS as u16) * (BITS as u16 / 8)).to_le_bytes());
+    wav.extend_from_slice(&(BITS as u16).to_le_bytes());
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&(data_len as u32).to_le_bytes());
+    for sample in samples {
+        wav.extend_from_slice(&sample.to_le_bytes());
+    }
+    wav
 }
 
 /// Inicializa o caminho de audio.

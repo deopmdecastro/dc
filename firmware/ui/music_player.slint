@@ -11,7 +11,15 @@ export component MusicPlayer inherits Rectangle {
     in property <[string]> track-artists: [""];
     in property <[string]> track-albums: [""];
     in property <int> language-index: 0;
+    in property <string> provider-title: "";
+    in property <image> provider-icon: @image-url("assets/icons/spotify.svg");
+    in property <color> provider-color: Theme.success;
     property <length> bottom-safe: 6px;
+    property <string> title-label:
+        root.provider-title != "" ? root.provider-title :
+        (root.language-index == 2 ? "Playing" :
+         root.language-index == 3 ? "En lecture" :
+         root.language-index == 4 ? "Reproduciendo" : "A tocar");
 
     property <int> track-count: max(1, root.track-titles.length);
     property <string> track-title:
@@ -46,9 +54,7 @@ export component MusicPlayer inherits Rectangle {
     }
     Text {
         x: 0px; y: 4px; width: 320px; height: 26px;
-        text: root.language-index == 2 ? "Playing" :
-              root.language-index == 3 ? "En lecture" :
-              root.language-index == 4 ? "Reproduciendo" : "A tocar";
+        text: root.title-label;
         color: Theme.text-primary;
         font-size: Theme.font-md;
         font-weight: 700;
@@ -68,8 +74,8 @@ export component MusicPlayer inherits Rectangle {
         Rectangle {
             x: 31px; y: 27px; width: 42px; height: 42px;
             border-radius: 21px;
-            background: Theme.success;
-            Image { x: 10px; y: 10px; width: 22px; height: 22px; source: @image-url("assets/icons/spotify.svg"); image-fit: contain; colorize: Theme.bg-0; }
+            background: root.provider-color;
+            Image { x: 10px; y: 10px; width: 22px; height: 22px; source: root.provider-icon; image-fit: contain; colorize: Theme.bg-0; }
         }
     }
 
@@ -112,7 +118,7 @@ export component MusicPlayer inherits Rectangle {
             vertical-alignment: center;
         }
     }
-    Image { x: 284px; y: 60px; width: 18px; height: 18px; source: @image-url("assets/icons/heart.svg"); image-fit: contain; colorize: Theme.accent-pink; }
+    Image { x: 284px; y: 60px; width: 18px; height: 18px; source: @image-url("assets/icons/heart.svg"); image-fit: contain; colorize: root.provider-color; }
 
     // Barra de progresso
     Rectangle {
@@ -122,7 +128,7 @@ export component MusicPlayer inherits Rectangle {
         Rectangle {
             width: parent.width * root.progress; height: 100%;
             border-radius: 2.5px;
-            background: Theme.success;
+            background: root.provider-color;
         }
     }
     Text { x: 16px; y: 158px; width: 40px; height: 11px; text: root.pos-label; color: Theme.text-muted; font-size: 8px; }

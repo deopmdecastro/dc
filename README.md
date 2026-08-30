@@ -136,7 +136,9 @@ Os icones de marca (ex.: Spotify) continuam a vir da biblioteca Simple Icons:
 - Biblioteca: https://iconstack.io/library/simple
 - Pacote SVG: https://github.com/simple-icons/simple-icons
 
-O icone do Spotify usa `firmware/ui/assets/icons/spotify.svg`.
+O icone do Spotify usa `firmware/ui/assets/icons/spotify.svg`. A app
+SongShare reaproveita o mesmo player visual, mas recebe catalogo via
+`dc-os-core` em `/songshare/tracks?compact=true`.
 
 ## Tema / Design System
 

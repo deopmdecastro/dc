@@ -52,6 +52,8 @@ html,
 body,
 #root {
   height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
@@ -59,6 +61,7 @@ body {
   color: var(--color-text-primary);
   font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
 
 ::selection {
@@ -79,13 +82,9 @@ body {
   border: 2px solid var(--color-bg-0);
 }
 
-.glow-ring {
-  box-shadow: 0 0 0 1px var(--color-stroke-soft), 0 0 40px -10px rgba(56, 189, 248, 0.25);
-}
-
-.bg-noise {
-  background-image: radial-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px);
-  background-size: 22px 22px;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-panel-elevated) transparent;
 }
 
 @keyframes pulse-slow {
@@ -94,4 +93,64 @@ body {
 }
 .animate-pulse-slow {
   animation: pulse-slow 2.4s ease-in-out infinite;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+.glow-ring {
+  box-shadow: 0 0 0 1px var(--color-stroke-soft), 0 0 40px -10px rgba(56, 189, 248, 0.25);
+}
+
+.bg-noise {
+  background-image: radial-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.03) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.gradient-mesh {
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(167, 139, 250, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(45, 212, 191, 0.05) 0%, transparent 50%);
+}
+
+.hover-lift {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+button, a, input, select {
+  transition: all 0.15s ease;
+}
+
+button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }

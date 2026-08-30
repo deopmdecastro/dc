@@ -24,6 +24,10 @@ services:
       SPOTIFY_CLIENT_ID:     ${SPOTIFY_CLIENT_ID:-}
       SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET:-}
       SPOTIFY_DEVICE_ID:     ${SPOTIFY_DEVICE_ID:-}
+      SONGSTATS_RAPIDAPI_KEY:  ${SONGSTATS_RAPIDAPI_KEY:-}
+      SONGSTATS_RAPIDAPI_HOST: ${SONGSTATS_RAPIDAPI_HOST:-songstats.p.rapidapi.com}
+      SONGSTATS_LABEL_ID:      ${SONGSTATS_LABEL_ID:-7gk4yfc9}
+      BEATPORT_LABEL_ID:       ${BEATPORT_LABEL_ID:-74932}
       # URL que a Spotify chama depois do login (tem de estar registado tal
       # e qual na app do Spotify Developer Dashboard).
       SPOTIFY_REDIRECT_URI:  ${SPOTIFY_REDIRECT_URI:-http://localhost:8081/spotify/callback}

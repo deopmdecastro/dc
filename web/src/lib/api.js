@@ -27,6 +27,10 @@ export const api = {
     request("/music/command", { method: "POST", body: JSON.stringify({ action }) }),
   spotifyStatus: () => request("/spotify/status"),
   spotifyLoginUrl: () => `${BASE_URL}/spotify/login`,
+  notes: () => request("/notes"),
+  createNote: (text) =>
+    request("/notes", { method: "POST", body: JSON.stringify({ text }) }),
+  deleteNote: (id) => request(`/notes/${id}`, { method: "DELETE" }),
 };
 
 export default api;

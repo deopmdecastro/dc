@@ -70,6 +70,9 @@ impl ConfigStore {
             } else if is_localhost_url(api) {
                 log::warn!("Config: DC_CORE_HTTP local/localhost ignorado no ESP; usa o IP LAN do PC");
                 false
+            } else if is_placeholder_url(api) {
+                log::warn!("Config: DC_CORE_HTTP placeholder ignorado; substitui <IP-do-PC> pelo IP LAN real");
+                false
             } else {
                 true
             }
@@ -86,6 +89,10 @@ impl ConfigStore {
             // connection abort" (socket 113, ECONNABORTED) antes de qualquer resposta.
             (None, Some(api)) if is_https_url(&api) => {
                 log::warn!("Config: api_health_url https:// ignorado - backend e HTTP simples; TLS contra HTTP causa ESP_ERR_HTTP_CONNECT / connection abort");
+                fallback_api.to_owned()
+            }
+            (None, Some(api)) if is_placeholder_url(&api) => {
+                log::warn!("Config: api_health_url placeholder ignorado; substitui <IP-do-PC> pelo IP LAN real");
                 fallback_api.to_owned()
             }
             (None, Some(api)) if !is_localhost_url(&api) => api,
@@ -228,4 +235,9 @@ fn is_localhost_url(value: &str) -> bool {
 
 fn is_https_url(value: &str) -> bool {
     value.trim().to_ascii_lowercase().starts_with("https://")
+}
+
+fn is_placeholder_url(value: &str) -> bool {
+    let value = value.trim().to_ascii_lowercase();
+    value.contains("<ip-do-pc>") || value.contains("<ip") || value.contains(">")
 }

@@ -1,71 +1,123 @@
-import { useState } from "react";
-import { Cloud, Droplets, Wind } from "lucide-react";
-import Panel from "../components/Panel";
+import { ArrowLeft, Cloud, RefreshCw, Droplets, Wind } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolledApi } from "../lib/useApi";
 
-const REGIONS = ["Padrão", "Norte", "Centro", "Sul", "Ilhas"];
+export default function Weather({ onBack }) {
+  const { data: weather, loading, offline, refresh } = usePolledApi(() => api.weather(0), { intervalMs: 60000 });
 
-export default function Weather() {
-  const [region, setRegion] = useState(0);
-  const { data, offline, loading } = usePolledApi(() => api.weather(region), {
-    intervalMs: 60000,
-    deps: [region],
-  });
+  const temp = Math.round(weather?.temperature ?? weather?.temp ?? 0);
+  const city = weather?.city ?? "Lisboa";
+  const summary = weather?.summary ?? "Parcialmente nublado";
+  const humidity = weather?.humidity ?? 65;
+  const wind = weather?.wind_speed ?? 12;
 
   return (
-    <div className="space-y-6">
-      <Panel
-        eyebrow="Open-Meteo"
-        title="Clima atual"
-        action={
-          <select
-            value={region}
-            onChange={(e) => setRegion(Number(e.target.value))}
-            className="rounded-s border border-stroke-soft bg-panel-soft px-2 py-1.5 text-xs text-text-secondary outline-none"
-            style={{ borderRadius: "var(--radius-s)" }}
-          >
-            {REGIONS.map((r, i) => (
-              <option key={r} value={i}>
-                {r}
-              </option>
-            ))}
-          </select>
-        }
+    <div className="flex h-full flex-col bg-bg-0">
+      {/* Header */}
+      <div
+        className="flex items-center gap-3"
+        style={{
+          height: "56px",
+          padding: "0 16px",
+          background: "linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%)",
+          borderBottom: "1px solid var(--stroke-soft)",
+        }}
       >
-        {offline && (
-          <p className="mb-4 rounded-s border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning" style={{ borderRadius: "var(--radius-s)" }}>
-            Sem ligação ao backend — liga o <code>dc-os-core</code> (porta 8081) para dados reais.
-          </p>
-        )}
+        <button
+          onClick={onBack}
+          className="flex h-9 w-9 items-center justify-center rounded-xl"
+          style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)", cursor: "pointer" }}
+        >
+          <ArrowLeft size={16} style={{ color: "var(--text-secondary)" }} />
+        </button>
+        <div className="flex-1">
+          <h1 className="font-display text-base font-bold text-text-primary">Clima</h1>
+        </div>
+        <button
+          onClick={refresh}
+          className="flex h-9 w-9 items-center justify-center rounded-xl"
+          style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)", cursor: "pointer" }}
+        >
+          <RefreshCw size={14} style={{ color: "var(--text-muted)" }} />
+        </button>
+      </div>
 
-        {loading && !data ? (
-          <p className="text-sm text-text-muted">A carregar…</p>
-        ) : (
-          <div className="flex flex-col items-center gap-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
-              <Cloud className="text-accent-cyan" size={56} />
-              <div>
-                <p className="font-display text-5xl font-semibold text-text-primary">
-                  {data ? Math.round(data.temperature ?? data.temp ?? 0) : "--"}°
-                </p>
-                <p className="text-sm text-text-secondary">{data?.city ?? "Cidade indisponível"}</p>
-              </div>
+      {/* Weather card */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
+        <div
+          className="w-full rounded-3xl p-6 text-center"
+          style={{
+            background: "linear-gradient(135deg, var(--accent-tint), rgba(56, 189, 248, 0.05))",
+            border: "1px solid var(--accent)/20",
+            boxShadow: "0 20px 60px -15px rgba(56, 189, 248, 0.2)",
+          }}
+        >
+          {/* Icon */}
+          <div
+            className="mx-auto flex items-center justify-center"
+            style={{
+              width: "80px",
+              height: "80px",
+              borderRadius: "24px",
+              background: "linear-gradient(135deg, var(--accent), var(--accent-cyan))",
+              marginBottom: "16px",
+            }}
+          >
+            <Cloud size={40} style={{ color: "var(--bg-0)" }} />
+          </div>
+
+          {/* City */}
+          <p className="font-display text-lg font-bold text-text-primary">{city}</p>
+
+          {/* Temperature */}
+          <p
+            className="font-display font-extrabold"
+            style={{ fontSize: "64px", color: "var(--accent-hi)", lineHeight: 1.1 }}
+          >
+            {temp}°
+          </p>
+
+          {/* Summary */}
+          <p className="text-sm text-text-secondary font-medium">{summary}</p>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-2 gap-3 w-full mt-4">
+          <div
+            className="flex items-center gap-3 rounded-2xl p-4"
+            style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)" }}
+          >
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl"
+              style={{ background: "linear-gradient(135deg, var(--accent-blue), #60a5fa)" }}
+            >
+              <Droplets size={18} style={{ color: "var(--bg-0)" }} />
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm text-text-secondary">
-              <div className="flex items-center gap-2">
-                <Droplets size={16} className="text-accent-blue" />
-                {data?.humidity != null ? `${data.humidity}% humidade` : "—"}
-              </div>
-              <div className="flex items-center gap-2">
-                <Wind size={16} className="text-accent-cyan" />
-                {data?.wind_speed != null ? `${data.wind_speed} km/h` : "—"}
-              </div>
+            <div>
+              <p className="text-lg font-bold text-text-primary">{humidity}%</p>
+              <p className="text-[10px] text-text-muted">Humidade</p>
             </div>
           </div>
-        )}
-        {data?.summary && <p className="mt-4 text-sm text-text-secondary">{data.summary}</p>}
-      </Panel>
+          <div
+            className="flex items-center gap-3 rounded-2xl p-4"
+            style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)" }}
+          >
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl"
+              style={{ background: "linear-gradient(135deg, var(--accent-cyan), #5eead4)" }}
+            >
+              <Wind size={18} style={{ color: "var(--bg-0)" }} />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-text-primary">{wind} km/h</p>
+              <p className="text-[10px] text-text-muted">Vento</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Attribution */}
+      <p className="text-center text-[10px] text-text-dim py-3">Open-Meteo</p>
     </div>
   );
 }

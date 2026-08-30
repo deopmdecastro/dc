@@ -7,7 +7,13 @@ pub enum SystemEvent {
     ApiHealthChanged(bool),
     TimeChanged(String),
     SpotifyTracksLoaded(Vec<crate::spotify::SpotifyTrack>),
+    SongShareTracksLoaded(Vec<crate::spotify::SpotifyTrack>),
     WeatherChanged(WeatherInfo),
+    VoiceCommandResult {
+        text: String,
+        app_index: Option<u8>,
+        app_name: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -46,6 +52,14 @@ pub enum NetworkCommand {
         timezone_offset_secs: i32,
     },
     RefreshWeather,
+    VoiceCommand {
+        text: String,
+        language_index: u8,
+    },
+    VoiceAudio {
+        wav: Vec<u8>,
+        language_index: u8,
+    },
     MusicCommand(String),
     CreateNote {
         text: String,

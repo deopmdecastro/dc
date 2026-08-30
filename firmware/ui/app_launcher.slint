@@ -15,6 +15,7 @@ export component AppLauncher inherits Rectangle {
         { name: "Notas",      icon: @image-url("assets/icons/file-text.svg"),      color: Theme.warning },
         { name: "Alarme",     icon: @image-url("assets/icons/bell.svg"),           color: Theme.accent-pink },
         { name: "Definicoes", icon: @image-url("assets/icons/settings.svg"),       color: Theme.text-secondary },
+        { name: "SongShare",  icon: @image-url("assets/icons/music.svg"),          color: Theme.accent },
     ];
 
     callback app-clicked(int);
@@ -43,7 +44,7 @@ export component AppLauncher inherits Rectangle {
     // Contador de apps
     Text {
         x: 220px; y: 10px; width: 84px; height: 20px;
-        text: "7 apps";
+        text: "8 apps";
         color: Theme.text-muted;
         font-size: Theme.font-xs;
         horizontal-alignment: right;
@@ -51,11 +52,10 @@ export component AppLauncher inherits Rectangle {
     }
 
     // Grid 4 colunas x 2 linhas
-    for row[index] in [[0,1,2,3],[4,5,6,0]] : HorizontalLayout {
+    for row[index] in [[0,1,2,3],[4,5,6,7]] : HorizontalLayout {
         x: 12px; y: 40px + index * 86px; width: 296px; height: 80px;
         spacing: 8px;
         for i[row-index] in row : Rectangle {
-            visible: !(index == 1 && row-index == 3);
             width: 68px; height: 80px;
             border-radius: Theme.radius-m;
             background: t.pressed ? Theme.panel-elevated : Theme.panel;
@@ -84,11 +84,11 @@ export component AppLauncher inherits Rectangle {
                 x: 2px; y: 48px; width: 64px; height: 26px;
                 text:
                     root.language-index == 2 ?
-                        (i == 0 ? "Assistant" : i == 1 ? "Spotify" : i == 2 ? "Weather" : i == 3 ? "Features" : i == 4 ? "Notes" : i == 5 ? "Alarm" : "Settings") :
+                        (i == 0 ? "Assistant" : i == 1 ? "Spotify" : i == 2 ? "Weather" : i == 3 ? "Features" : i == 4 ? "Notes" : i == 5 ? "Alarm" : i == 6 ? "Settings" : "SongShare") :
                     root.language-index == 3 ?
-                        (i == 0 ? "Assistant" : i == 1 ? "Spotify" : i == 2 ? "Meteo" : i == 3 ? "Fonctions" : i == 4 ? "Notes" : i == 5 ? "Alarme" : "Reglages") :
+                        (i == 0 ? "Assistant" : i == 1 ? "Spotify" : i == 2 ? "Meteo" : i == 3 ? "Fonctions" : i == 4 ? "Notes" : i == 5 ? "Alarme" : i == 6 ? "Reglages" : "SongShare") :
                     root.language-index == 4 ?
-                        (i == 0 ? "Asistente" : i == 1 ? "Spotify" : i == 2 ? "Clima" : i == 3 ? "Funciones" : i == 4 ? "Notas" : i == 5 ? "Alarma" : "Ajustes") :
+                        (i == 0 ? "Asistente" : i == 1 ? "Spotify" : i == 2 ? "Clima" : i == 3 ? "Funciones" : i == 4 ? "Notas" : i == 5 ? "Alarma" : i == 6 ? "Ajustes" : "SongShare") :
                     root.apps[i].name;
                 color: Theme.text-secondary;
                 font-size: 9px;

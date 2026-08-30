@@ -8,6 +8,7 @@
 //!   GET  /music/devices       dispositivos Spotify disponiveis
 //!   GET  /music/top-tracks    top tracks reais via Spotify Web API
 //!   POST /music/command       play/pause/next/prev (proxy Mopidy JSON-RPC)
+//!   GET  /songshare/tracks    catalogo Songstats/RapidAPI compacto
 //!   GET  /weather             clima atual por regiao via Open-Meteo
 
 use axum::{
@@ -35,6 +36,7 @@ use tower_http::cors::CorsLayer;
 /// raramente, mas o firmware sonda este endpoint a cada 60s; sem cache isso
 /// gasta a quota da API e aumenta o risco de HTTP 429 (rate limit).
 const TOP_TRACKS_CACHE_TTL: Duration = Duration::from_secs(300);
+const SONGSHARE_CACHE_TTL: Duration = Duration::from_secs(300);
 
 const SPOTIFY_AUTH_URL: &str = "https://accounts.spotify.com/authorize";
 const SPOTIFY_TOKEN_URL: &str = "https://accounts.spotify.com/api/token";
@@ -48,6 +50,8 @@ struct AppState {
     http: reqwest::Client,
     notes: RwLock<Vec<Note>>,
     top_tracks_cache: RwLock<Option<CachedTopTracks>>,
+    songshare: SongShareConfig,
+    songshare_cache: RwLock<Option<CachedTopTracks>>,
 }
 
 struct CachedTopTracks {
@@ -73,6 +77,13 @@ struct SpotifyAuth {
     /// Valor de `state` do ultimo pedido `/spotify/login`, para validar o
     /// callback e mitigar CSRF.
     oauth_state: RwLock<Option<String>>,
+}
+
+struct SongShareConfig {
+    rapidapi_key: String,
+    rapidapi_host: String,
+    songstats_label_id: String,
+    beatport_label_id: String,
 }
 
 #[derive(Serialize)]
@@ -110,6 +121,11 @@ struct MusicTopTracksQuery {
 }
 
 #[derive(Deserialize)]
+struct SongShareTracksQuery {
+    compact: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct WeatherQuery {
     region: Option<u8>,
 }
@@ -117,6 +133,12 @@ struct WeatherQuery {
 #[derive(Deserialize)]
 struct VoiceCommandInput {
     text: String,
+    language: Option<u8>,
+}
+
+#[derive(Deserialize)]
+struct VoiceTranscribeQuery {
+    language: Option<u8>,
 }
 
 #[derive(Deserialize)]
@@ -173,6 +195,15 @@ async fn main() -> anyhow::Result<()> {
         http: reqwest::Client::new(),
         notes: RwLock::new(Vec::new()),
         top_tracks_cache: RwLock::new(None),
+        songshare: SongShareConfig {
+            rapidapi_key: env::var("SONGSTATS_RAPIDAPI_KEY").unwrap_or_default(),
+            rapidapi_host: env::var("SONGSTATS_RAPIDAPI_HOST")
+                .unwrap_or_else(|_| "songstats.p.rapidapi.com".to_owned()),
+            songstats_label_id: env::var("SONGSTATS_LABEL_ID")
+                .unwrap_or_else(|_| "7gk4yfc9".to_owned()),
+            beatport_label_id: env::var("BEATPORT_LABEL_ID").unwrap_or_else(|_| "74932".to_owned()),
+        },
+        songshare_cache: RwLock::new(None),
     });
 
     let app = Router::new()
@@ -184,6 +215,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/music/devices", get(music_devices))
         .route("/music/top-tracks", get(music_top_tracks))
         .route("/music/command", post(music_command))
+        .route("/songshare/tracks", get(songshare_tracks))
         .route("/spotify/login", get(spotify_login))
         .route("/spotify/callback", get(spotify_callback))
         .route("/spotify/status", get(spotify_status))
@@ -267,23 +299,149 @@ async fn delete_note(
 }
 
 async fn voice_command(Json(input): Json<VoiceCommandInput>) -> Json<serde_json::Value> {
-    let text = input.text.to_lowercase();
-    let app = if text.contains("nota") {
-        Some(4)
-    } else if text.contains("clima") || text.contains("tempo") {
-        Some(2)
-    } else if text.contains("música") || text.contains("spotify") {
-        Some(1)
-    } else if text.contains("alarme") {
-        Some(5)
-    } else if text.contains("config") || text.contains("defini") {
-        Some(6)
-    } else if text.contains("app") || text.contains("aplic") {
-        Some(0)
-    } else {
-        None
-    };
-    Json(serde_json::json!({"ok": app.is_some(), "app_index": app, "text": input.text}))
+    let normalized = normalize_voice_text(&input.text);
+    let app = classify_voice_command(&normalized);
+    Json(serde_json::json!({
+        "ok": app.is_some(),
+        "app_index": app.map(|app| app.index),
+        "app_name": app.map(|app| app.name),
+        "language": input.language,
+        "text": input.text.clone(),
+        "normalized": normalized
+    }))
+}
+
+#[derive(Clone, Copy)]
+struct VoiceApp {
+    index: u8,
+    name: &'static str,
+}
+
+fn classify_voice_command(text: &str) -> Option<VoiceApp> {
+    if contains_any(
+        text,
+        &["songshare", "song share", "songstats", "song stats"],
+    ) {
+        return Some(VoiceApp {
+            index: 7,
+            name: "SongShare",
+        });
+    }
+    if contains_any(
+        text,
+        &["spotify", "musica", "music", "musique", "cancion", "cancao"],
+    ) {
+        return Some(VoiceApp {
+            index: 1,
+            name: "Spotify",
+        });
+    }
+    if contains_any(
+        text,
+        &[
+            "clima", "tempo", "previsao", "weather", "forecast", "meteo", "tiempo",
+        ],
+    ) {
+        return Some(VoiceApp {
+            index: 2,
+            name: "Clima",
+        });
+    }
+    if contains_any(text, &["nota", "notas", "note", "notes"]) {
+        return Some(VoiceApp {
+            index: 4,
+            name: "Notas",
+        });
+    }
+    if contains_any(
+        text,
+        &["alarme", "alarma", "alarm", "reveil", "despertador"],
+    ) {
+        return Some(VoiceApp {
+            index: 5,
+            name: "Alarme",
+        });
+    }
+    if contains_any(
+        text,
+        &[
+            "config",
+            "definicoes",
+            "definicao",
+            "settings",
+            "setup",
+            "reglages",
+            "parametres",
+            "ajustes",
+            "configuracion",
+        ],
+    ) {
+        return Some(VoiceApp {
+            index: 6,
+            name: "Definicoes",
+        });
+    }
+    if contains_any(
+        text,
+        &[
+            "app",
+            "apps",
+            "aplicacao",
+            "aplicacoes",
+            "application",
+            "applications",
+            "aplicacion",
+            "aplicaciones",
+            "menu",
+        ],
+    ) {
+        return Some(VoiceApp {
+            index: 0,
+            name: "Launcher",
+        });
+    }
+    None
+}
+
+fn contains_any(text: &str, terms: &[&str]) -> bool {
+    terms.iter().any(|term| text.contains(term))
+}
+
+fn normalize_voice_text(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            '\u{00e1}' | '\u{00e0}' | '\u{00e3}' | '\u{00e2}' | '\u{00e4}' => 'a',
+            '\u{00e9}' | '\u{00e8}' | '\u{00ea}' | '\u{00eb}' => 'e',
+            '\u{00ed}' | '\u{00ec}' | '\u{00ee}' | '\u{00ef}' => 'i',
+            '\u{00f3}' | '\u{00f2}' | '\u{00f5}' | '\u{00f4}' | '\u{00f6}' => 'o',
+            '\u{00fa}' | '\u{00f9}' | '\u{00fb}' | '\u{00fc}' => 'u',
+            '\u{00e7}' => 'c',
+            '\u{00f1}' => 'n',
+            _ => c,
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{classify_voice_command, normalize_voice_text};
+
+    #[test]
+    fn classifies_commands_in_configured_languages() {
+        let cases = [
+            ("abrir clima", Some(2)),
+            ("abrir defini\u{00e7}\u{00f5}es", Some(6)),
+            ("open spotify", Some(1)),
+            ("ouvrir les notes", Some(4)),
+            ("abrir alarma", Some(5)),
+        ];
+
+        for (text, expected) in cases {
+            let app = classify_voice_command(&normalize_voice_text(text));
+            assert_eq!(app.map(|app| app.index), expected, "text={text}");
+        }
+    }
 }
 
 async fn weather(
@@ -358,7 +516,12 @@ async fn handle_socket(mut socket: WebSocket) {
     tracing::info!("WS: firmware desconectado");
 }
 
-async fn transcribe(State(s): State<Arc<AppState>>, body: bytes::Bytes) -> impl IntoResponse {
+async fn transcribe(
+    Query(query): Query<VoiceTranscribeQuery>,
+    State(s): State<Arc<AppState>>,
+    body: bytes::Bytes,
+) -> Json<serde_json::Value> {
+    let language = stt_language(query.language.unwrap_or(0));
     let form = reqwest::multipart::Form::new().part(
         "audio_file",
         reqwest::multipart::Part::bytes(body.to_vec())
@@ -366,9 +529,78 @@ async fn transcribe(State(s): State<Arc<AppState>>, body: bytes::Bytes) -> impl 
             .mime_str("audio/wav")
             .unwrap(),
     );
-    match s.http.post(&s.stt_url).multipart(form).send().await {
-        Ok(r) => r.text().await.unwrap_or_default(),
-        Err(e) => format!("{{\"error\":\"{e}\"}}"),
+    Json(match s
+        .http
+        .post(&s.stt_url)
+        .query(&[
+            ("task", "transcribe"),
+            ("language", language),
+            ("output", "json"),
+        ])
+        .multipart(form)
+        .send()
+        .await
+    {
+        Ok(r) => {
+            let status = r.status();
+            let raw = r.text().await.unwrap_or_default();
+            let text = extract_transcript_text(&raw);
+            serde_json::json!({
+                "ok": status.is_success() && !text.trim().is_empty(),
+                "provider": "whisper",
+                "language": language,
+                "text": text,
+                "status": status.as_u16(),
+                "raw": raw
+            })
+        }
+        Err(e) => serde_json::json!({
+            "ok": false,
+            "provider": "whisper",
+            "language": language,
+            "text": "",
+            "error": e.to_string()
+        }),
+    })
+}
+
+fn stt_language(language_index: u8) -> &'static str {
+    match language_index.min(4) {
+        0 | 1 => "pt",
+        2 => "en",
+        3 => "fr",
+        4 => "es",
+        _ => "pt",
+    }
+}
+
+fn extract_transcript_text(raw: &str) -> String {
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(raw) {
+        if let Some(text) = find_transcript_text(&value) {
+            return text;
+        }
+    }
+    raw.trim().to_owned()
+}
+
+fn find_transcript_text(value: &serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::String(text) => Some(text.trim().to_owned()).filter(|v| !v.is_empty()),
+        serde_json::Value::Array(items) => items.iter().find_map(find_transcript_text),
+        serde_json::Value::Object(map) => {
+            for key in ["text", "transcription", "transcript"] {
+                if let Some(text) = map
+                    .get(key)
+                    .and_then(|value| value.as_str())
+                    .map(str::trim)
+                    .filter(|text| !text.is_empty())
+                {
+                    return Some(text.to_owned());
+                }
+            }
+            map.values().find_map(find_transcript_text)
+        }
+        _ => None,
     }
 }
 
@@ -579,6 +811,201 @@ impl MusicTopTracksQuery {
             .map(|value| matches!(value, "1" | "true" | "yes" | "sim"))
             .unwrap_or(false)
     }
+}
+
+impl SongShareTracksQuery {
+    fn compact(&self) -> bool {
+        self.compact
+            .as_deref()
+            .map(|value| matches!(value, "1" | "true" | "yes" | "sim"))
+            .unwrap_or(false)
+    }
+}
+
+async fn songshare_tracks(
+    Query(query): Query<SongShareTracksQuery>,
+    State(s): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    if s.songshare.rapidapi_key.trim().is_empty() {
+        return Json(serde_json::json!({
+            "ok": false,
+            "driver": "songshare",
+            "error": "SONGSTATS_RAPIDAPI_KEY nao configurado no backend/.env"
+        }));
+    }
+
+    if let Some(cached) = read_songshare_cache(&s).await {
+        return Json(songshare_response(cached, query.compact(), true));
+    }
+
+    let url = format!(
+        "https://{}/labels/songshare?songstats_label_id={}&beatport_label_id={}",
+        s.songshare.rapidapi_host, s.songshare.songstats_label_id, s.songshare.beatport_label_id
+    );
+
+    Json(
+        match s
+            .http
+            .get(url)
+            .header("accept", "application/json")
+            .header("content-type", "application/json")
+            .header("x-rapidapi-host", &s.songshare.rapidapi_host)
+            .header("x-rapidapi-key", &s.songshare.rapidapi_key)
+            .send()
+            .await
+        {
+            Ok(response) => {
+                let status = response.status();
+                let body = response
+                    .json::<serde_json::Value>()
+                    .await
+                    .unwrap_or_default();
+                if status.is_success() {
+                    write_songshare_cache(&s, body.clone()).await;
+                    songshare_response(body, query.compact(), false)
+                } else {
+                    let error = body
+                        .get("message")
+                        .and_then(|message| message.as_str())
+                        .unwrap_or("Songstats/RapidAPI recusou o pedido");
+                    serde_json::json!({
+                        "ok": false,
+                        "driver": "songshare",
+                        "status": status.as_u16(),
+                        "error": error,
+                        "body": body
+                    })
+                }
+            }
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "driver": "songshare",
+                "error": e.to_string()
+            }),
+        },
+    )
+}
+
+fn songshare_response(body: serde_json::Value, compact: bool, cached: bool) -> serde_json::Value {
+    if compact {
+        serde_json::json!({
+            "ok": true,
+            "driver": "songshare",
+            "cached": cached,
+            "body": {
+                "items": compact_songshare_tracks(&body)
+            }
+        })
+    } else {
+        serde_json::json!({
+            "ok": true,
+            "driver": "songshare",
+            "cached": cached,
+            "body": body
+        })
+    }
+}
+
+async fn read_songshare_cache(s: &AppState) -> Option<serde_json::Value> {
+    let cache = s.songshare_cache.read().await;
+    let entry = cache.as_ref()?;
+    (entry.fetched_at.elapsed() < SONGSHARE_CACHE_TTL).then(|| entry.value.clone())
+}
+
+async fn write_songshare_cache(s: &AppState, value: serde_json::Value) {
+    let mut cache = s.songshare_cache.write().await;
+    *cache = Some(CachedTopTracks {
+        fetched_at: Instant::now(),
+        value,
+    });
+}
+
+fn compact_songshare_tracks(body: &serde_json::Value) -> Vec<serde_json::Value> {
+    let mut tracks = Vec::new();
+    collect_songshare_tracks(body, &mut tracks);
+    dedupe_tracks(tracks).into_iter().take(8).collect()
+}
+
+fn collect_songshare_tracks(value: &serde_json::Value, out: &mut Vec<serde_json::Value>) {
+    match value {
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_songshare_tracks(item, out);
+            }
+        }
+        serde_json::Value::Object(map) => {
+            let title = string_field(
+                map,
+                &["title", "name", "track_name", "song_name", "release_title"],
+            );
+            let artist = string_field(
+                map,
+                &[
+                    "artist",
+                    "artist_name",
+                    "artists",
+                    "primary_artist",
+                    "creator_name",
+                ],
+            );
+            let album = string_field(map, &["album", "album_name", "release", "release_name"]);
+            let looks_like_track = map.contains_key("isrc")
+                || map.contains_key("track")
+                || map.contains_key("song")
+                || artist.is_some();
+
+            if let Some(title) = title {
+                if looks_like_track {
+                    out.push(serde_json::json!({
+                        "name": title,
+                        "artists": [{ "name": artist.unwrap_or_else(|| "Songstats".to_owned()) }],
+                        "album": { "name": album.unwrap_or_default() }
+                    }));
+                }
+            }
+
+            for child in map.values() {
+                collect_songshare_tracks(child, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn string_field(map: &serde_json::Map<String, serde_json::Value>, keys: &[&str]) -> Option<String> {
+    for key in keys {
+        if let Some(value) = map.get(*key) {
+            if let Some(text) = json_string(value) {
+                return Some(text);
+            }
+        }
+    }
+    None
+}
+
+fn json_string(value: &serde_json::Value) -> Option<String> {
+    match value {
+        serde_json::Value::String(text) => Some(text.trim().to_owned()).filter(|v| !v.is_empty()),
+        serde_json::Value::Array(items) => items.first().and_then(json_string),
+        serde_json::Value::Object(map) => string_field(map, &["name", "title"]),
+        _ => None,
+    }
+}
+
+fn dedupe_tracks(tracks: Vec<serde_json::Value>) -> Vec<serde_json::Value> {
+    let mut unique = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for track in tracks {
+        let key = track
+            .get("name")
+            .and_then(|name| name.as_str())
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        if seen.insert(key) {
+            unique.push(track);
+        }
+    }
+    unique
 }
 
 struct WeatherRegion {

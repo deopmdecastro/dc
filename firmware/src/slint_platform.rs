@@ -321,10 +321,75 @@ fn dispatch_pending_system_events(system_rx: &Receiver<SystemEvent>) {
                     app.set_spotify_albums(slint::ModelRc::from(albums.as_slice()));
                     log::info!("UI: {} faixas Spotify carregadas", tracks.len());
                 }
+                SystemEvent::SongShareTracksLoaded(tracks) => {
+                    let titles: Vec<slint::SharedString> =
+                        tracks.iter().map(|t| t.name.as_str().into()).collect();
+                    let artists: Vec<slint::SharedString> = tracks
+                        .iter()
+                        .map(|t| t.artist_names().as_str().into())
+                        .collect();
+                    let albums: Vec<slint::SharedString> =
+                        tracks.iter().map(|t| t.album_name().into()).collect();
+                    app.set_songshare_titles(slint::ModelRc::from(titles.as_slice()));
+                    app.set_songshare_artists(slint::ModelRc::from(artists.as_slice()));
+                    app.set_songshare_albums(slint::ModelRc::from(albums.as_slice()));
+                    log::info!("UI: {} faixas SongShare carregadas", tracks.len());
+                }
                 SystemEvent::WeatherChanged(weather) => {
                     app.set_weather_city(weather.city.into());
                     app.set_weather_temp(weather.temperature_c);
                     app.set_weather_summary(weather.summary.into());
+                }
+                SystemEvent::VoiceCommandResult {
+                    text,
+                    app_index,
+                    app_name,
+                } => {
+                    // 1. Mostrar texto reconhecido e entrar em "A falar..."
+                    app.set_listening(false);
+                    app.set_speaking(true);
+                    let display_text = if let Some(name) = app_name.as_deref() {
+                        format!("{text} -> {name}")
+                    } else {
+                        text.clone()
+                    };
+                    app.set_assistant_captured_text(display_text.clone().into());
+                    log::info!("UI: texto reconhecido: {display_text}");
+
+                    // 2. Apos 2.5s, termina "A falar..." e navega para a app
+                    if let Some(index) = app_index {
+                        log::info!("UI: abrir app por comando de voz index={index}");
+                        let weak_nav = app.as_weak();
+                        slint::Timer::single_shot(
+                            std::time::Duration::from_millis(2500),
+                            move || {
+                                if let Some(app) = weak_nav.upgrade() {
+                                    app.set_speaking(false);
+                                    match index {
+                                        1 => app.set_current_screen(crate::Screen::Music),
+                                        2 => app.set_current_screen(crate::Screen::Weather),
+                                        3 => app.set_current_screen(crate::Screen::Features),
+                                        4 => app.set_current_screen(crate::Screen::Notes),
+                                        5 => app.set_current_screen(crate::Screen::Alarm),
+                                        6 => app.set_current_screen(crate::Screen::Settings),
+                                        7 => app.set_current_screen(crate::Screen::SongShare),
+                                        _ => app.set_current_screen(crate::Screen::Launcher),
+                                    }
+                                }
+                            },
+                        );
+                    } else {
+                        // Sem app para abrir, apenas termina o estado de falar
+                        let weak_done = app.as_weak();
+                        slint::Timer::single_shot(
+                            std::time::Duration::from_millis(2500),
+                            move || {
+                                if let Some(app) = weak_done.upgrade() {
+                                    app.set_speaking(false);
+                                }
+                            },
+                        );
+                    }
                 }
             }
         });

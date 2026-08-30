@@ -5,6 +5,7 @@ export component ChatView inherits Rectangle {
     in property <bool> listening: false;
     in property <bool> speaking: false;
     in property <int> language-index: 0;
+    in property <string> captured-text: "";
     callback mic-tapped();
     callback menu-tapped();
 
@@ -13,6 +14,10 @@ export component ChatView inherits Rectangle {
     property <float> anim-phase: 0;
     property <int> state: 0; // 0=idle, 1=listening, 2=thinking, 3=speaking
     property <length> bottom-safe: 6px;
+    property <string> capture-placeholder:
+        root.language-index == 2 ? "Capturing speech..." :
+        root.language-index == 3 ? "Capture de la voix..." :
+        root.language-index == 4 ? "Capturando voz..." : "A captar voz...";
 
     width: 320px;
     height: 216px;
@@ -98,16 +103,37 @@ export component ChatView inherits Rectangle {
         animate color { duration: 200ms; }
     }
 
+    Rectangle {
+        x: 28px; y: 101px; width: 264px; height: 24px;
+        visible: root.listening || root.speaking || root.captured-text != "";
+        border-radius: Theme.radius-s;
+        background: root.speaking ? Theme.success-tint : Theme.panel-soft;
+        border-width: 1px;
+        border-color: root.speaking ? Theme.success : Theme.stroke-soft;
+        animate background { duration: 160ms; }
+        animate border-color { duration: 160ms; }
+        Text {
+            x: 9px; y: 0px; width: 246px; height: 24px;
+            text: root.captured-text != "" ? root.captured-text : root.capture-placeholder;
+            color: root.speaking ? Theme.success : Theme.text-secondary;
+            font-size: Theme.font-xs;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+
     // Visualizador de audio (barras simetricas) - melhorado
     HorizontalLayout {
-        x: 30px; y: 112px; width: 260px; height: 44px;
+        x: 30px; y: 130px; width: 260px; height: 28px;
         alignment: center;
         spacing: 3px;
         for i in 32 : Rectangle {
             property <int> dist: i < 16 ? 15 - i : i - 16;
             width: 4px;
             height: root.listening || root.speaking
-                ? (dist < 3 ? 30px * root.pulse : dist < 7 ? 20px * root.pulse : dist < 11 ? 14px * root.pulse : 8px * root.pulse)
+                ? (dist < 3 ? 24px * root.pulse : dist < 7 ? 17px * root.pulse : dist < 11 ? 12px * root.pulse : 7px * root.pulse)
                 : (dist < 5 ? 8px : dist < 10 ? 6px : 4px);
             border-radius: 2px;
             y: (parent.height - self.height) / 2;

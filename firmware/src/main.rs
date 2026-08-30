@@ -17,6 +17,7 @@ mod fish_audio;
 mod network;
 mod pinout;
 mod slint_platform;
+mod songshare;
 mod spotify;
 mod system;
 mod touch;
@@ -25,7 +26,11 @@ use anyhow::Result;
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_svc::{eventloop::EspSystemEventLoop, nvs::EspDefaultNvsPartition};
 use slint::platform::software_renderer::{MinimalSoftwareWindow, RepaintBufferType};
-use std::{cell::RefCell, rc::Rc, sync::mpsc};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{mpsc, Arc, Mutex},
+};
 use system::NetworkCommand;
 
 // Módulo gerado a partir de ui/main.slint.
@@ -149,35 +154,71 @@ fn main() -> Result<()> {
         });
     }
     let weak_app = app.as_weak();
+    let network_cmd_tx_for_wake = network_cmd_tx.clone();
     app.on_wake_word_triggered(move || {
         log::info!("UI: comando de voz: iniciar interacao");
         if let Some(app) = weak_app.upgrade() {
+            if app.get_listening() || app.get_speaking() {
+                log::info!("UI: comando de voz ignorado; interacao ja ativa");
+                return;
+            }
+            app.set_assistant_captured_text("".into());
             app.set_listening(true);
             app.set_speaking(false);
         }
         let weak = weak_app.clone();
+        let captured_samples = Arc::new(Mutex::new(Vec::<i16>::with_capacity(
+            audio::SAMPLE_RATE as usize * 3,
+        )));
+        let samples_for_callback = captured_samples.clone();
         let _ = audio::start_listening(Box::new(move |samples| {
             let level = audio::calculate_rms(samples);
             if let Some(app) = weak.upgrade() {
                 app.set_audio_level(level);
             }
+            if let Ok(mut capture) = samples_for_callback.lock() {
+                let max_samples = audio::SAMPLE_RATE as usize * 4;
+                let remaining = max_samples.saturating_sub(capture.len());
+                if remaining > 0 {
+                    capture.extend_from_slice(&samples[..samples.len().min(remaining)]);
+                }
+            }
         }));
-        // Simular: 3s a ouvir -> 1s a processar -> 2s a falar
+        // 3s a ouvir -> transcrever no backend -> abrir app reconhecida.
         let weak_thinking = weak_app.clone();
+        let voice_tx = network_cmd_tx_for_wake.clone();
+        let samples_for_transcribe = captured_samples.clone();
         slint::Timer::single_shot(std::time::Duration::from_secs(3), move || {
             audio::stop_listening();
             if let Some(app) = weak_thinking.upgrade() {
                 app.set_listening(false);
                 app.set_audio_level(0.0);
+                app.set_assistant_captured_text(transcribing_label(app.get_language_index()).into());
                 log::info!("UI: comando de voz: a processar...");
-            }
-        });
-        let weak_speaking = weak_app.clone();
-        slint::Timer::single_shot(std::time::Duration::from_secs(4), move || {
-            if let Some(app) = weak_speaking.upgrade() {
-                app.set_speaking(true);
-                log::info!("UI: comando de voz: a responder...");
-                audio::play_test_tone(2);
+                let language_index = app.get_language_index().clamp(0, 4) as u8;
+                let samples = samples_for_transcribe
+                    .lock()
+                    .map(|capture| capture.clone())
+                    .unwrap_or_default();
+                if samples.is_empty() {
+                    let fallback = simulated_voice_capture(app.get_language_index());
+                    log::warn!("UI: microfone sem amostras; fallback para comando simulado");
+                    let _ = voice_tx.send(NetworkCommand::VoiceCommand {
+                        text: fallback.to_owned(),
+                        language_index,
+                    });
+                } else {
+                    let wav = audio::pcm16_to_wav(&samples);
+                    log::info!(
+                        "UI: audio captado para STT: {} samples, {} bytes WAV",
+                        samples.len(),
+                        wav.len()
+                    );
+                    let _ = voice_tx.send(NetworkCommand::VoiceAudio {
+                        wav,
+                        language_index,
+                    });
+                }
             }
         });
         let weak_done = weak_app.clone();
@@ -376,6 +417,26 @@ fn timezone_offset_secs(region_index: u8) -> i32 {
         3 => 2 * 3600,  // Mocambique
         4 => -4 * 3600, // EUA Eastern em horario de verao
         _ => 0,
+    }
+}
+
+fn simulated_voice_capture(language_index: i32) -> &'static str {
+    match language_index.clamp(0, 4) {
+        0 => "Abrir clima",
+        1 => "Abrir definicoes",
+        2 => "Open Spotify",
+        3 => "Ouvrir les notes",
+        4 => "Abrir alarma",
+        _ => "Abrir clima",
+    }
+}
+
+fn transcribing_label(language_index: i32) -> &'static str {
+    match language_index.clamp(0, 4) {
+        2 => "Transcribing...",
+        3 => "Transcription...",
+        4 => "Transcribiendo...",
+        _ => "A transcrever...",
     }
 }
 

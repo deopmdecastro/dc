@@ -36,6 +36,7 @@ const CLOCK_INTERVAL_SECS: u64 = 1;
 const API_TIME_INTERVAL_SECS: u64 = 30;
 const WIFI_SCAN_INTERVAL_SECS: u64 = 45;
 const SPOTIFY_RETRY_INTERVAL_SECS: u64 = 60;
+const SONGSHARE_RETRY_INTERVAL_SECS: u64 = 120;
 const WEATHER_INTERVAL_SECS: u64 = 600;
 const MAX_WIFI_NETWORKS: usize = 10;
 
@@ -83,6 +84,7 @@ fn run_network(
     let mut next_api_time_in = 0_u64;
     let mut next_scan_in = 0_u64;
     let mut next_spotify_in = 0_u64;
+    let mut next_songshare_in = 0_u64;
     let mut next_weather_in = 0_u64;
     let mut last_api_time = "--:--".to_owned();
 
@@ -160,6 +162,65 @@ fn run_network(
                     next_weather_in = 0;
                     log::info!("Clima: atualizacao imediata pedida pela UI");
                 }
+                NetworkCommand::VoiceCommand {
+                    text,
+                    language_index,
+                } => {
+                    handle_voice_text(
+                        connected,
+                        &cfg.api_health_url,
+                        text,
+                        language_index,
+                        &event_tx,
+                    );
+                }
+                NetworkCommand::VoiceAudio {
+                    wav,
+                    language_index,
+                } => {
+                    if !connected {
+                        log::warn!("Voz: transcricao ignorada sem Wi-Fi");
+                        let _ = event_tx.send(SystemEvent::VoiceCommandResult {
+                            text: "Voz indisponivel: sem Wi-Fi".to_owned(),
+                            app_index: None,
+                            app_name: None,
+                        });
+                    } else if wav.len() <= 44 {
+                        log::warn!("Voz: audio vazio");
+                        let _ = event_tx.send(SystemEvent::VoiceCommandResult {
+                            text: "Nao ouvi audio suficiente".to_owned(),
+                            app_index: None,
+                            app_name: None,
+                        });
+                    } else {
+                        if !probe_api_fast(&cfg.api_health_url) {
+                            log::warn!("Voz: backend inacessivel (probe falhou)");
+                            let _ = event_tx.send(SystemEvent::VoiceCommandResult {
+                                text: "Backend inacessivel".to_owned(),
+                                app_index: None,
+                                app_name: None,
+                            });
+                        } else {
+                            match post_voice_transcribe(&cfg.api_health_url, &wav, language_index) {
+                                Ok(text) => handle_voice_text(
+                                    true,
+                                    &cfg.api_health_url,
+                                    text,
+                                    language_index,
+                                    &event_tx,
+                                ),
+                                Err(e) => {
+                                    log::warn!("Voz: /voice/transcribe falhou: {e:?}");
+                                    let _ = event_tx.send(SystemEvent::VoiceCommandResult {
+                                        text: "Transcricao indisponivel".to_owned(),
+                                        app_index: None,
+                                        app_name: None,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
                 NetworkCommand::CreateNote { text } => {
                     if connected {
                         if let Err(e) = post_note(&cfg.api_health_url, &text) {
@@ -223,6 +284,7 @@ fn run_network(
                     next_clock_in = 0;
                     next_api_time_in = 0;
                     next_spotify_in = 0;
+                    next_songshare_in = 0;
                     next_weather_in = 0;
                 }
                 Err(e) => {
@@ -243,6 +305,7 @@ fn run_network(
             let _ = event_tx.send(SystemEvent::ApiHealthChanged(false));
             let _ = event_tx.send(SystemEvent::WifiNetworksChanged(Vec::new()));
             next_spotify_in = 0;
+            next_songshare_in = 0;
         }
 
         if connected {
@@ -289,6 +352,14 @@ fn run_network(
                 next_spotify_in = SPOTIFY_RETRY_INTERVAL_SECS;
             } else {
                 next_spotify_in = next_spotify_in.saturating_sub(1);
+            }
+
+            if next_songshare_in == 0 {
+                log::info!("SongShare: a pedir musicas via {}", cfg.api_health_url);
+                crate::songshare::fetch_tracks(&cfg.api_health_url, &event_tx);
+                next_songshare_in = SONGSHARE_RETRY_INTERVAL_SECS;
+            } else {
+                next_songshare_in = next_songshare_in.saturating_sub(1);
             }
 
             if next_weather_in == 0 {
@@ -635,6 +706,116 @@ fn delete_note(health_url: &str, id: u64) -> Result<()> {
     Ok(())
 }
 
+fn handle_voice_text(
+    connected: bool,
+    api_health_url: &str,
+    text: String,
+    language_index: u8,
+    event_tx: &Sender<SystemEvent>,
+) {
+    if !connected {
+        log::warn!("Voz: comando ignorado sem Wi-Fi");
+        let _ = event_tx.send(SystemEvent::VoiceCommandResult {
+            text: "Voz indisponivel: sem Wi-Fi".to_owned(),
+            app_index: None,
+            app_name: None,
+        });
+        return;
+    }
+
+    match post_voice_command(api_health_url, &text, language_index) {
+        Ok(result) => {
+            log::info!("Voz: comando '{}' -> {:?}", text, result.app_name);
+            let _ = event_tx.send(SystemEvent::VoiceCommandResult {
+                text,
+                app_index: result.app_index,
+                app_name: result.app_name,
+            });
+        }
+        Err(e) => {
+            log::warn!("Voz: /voice/command falhou: {e:?}");
+            let _ = event_tx.send(SystemEvent::VoiceCommandResult {
+                text,
+                app_index: None,
+                app_name: None,
+            });
+        }
+    }
+}
+
+fn post_voice_transcribe(health_url: &str, wav: &[u8], language_index: u8) -> Result<String> {
+    let url = format!(
+        "{}/voice/transcribe?language={}",
+        api_base(health_url),
+        language_index.min(4)
+    );
+    let content_length = wav.len().to_string();
+    let headers = [
+        ("content-type", "audio/wav"),
+        ("accept", "application/json"),
+        ("content-length", content_length.as_str()),
+    ];
+
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
+    let mut request = client.request(Method::Post, &url, &headers)?;
+    request.write_all(wav)?;
+    request.flush()?;
+    let mut response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("/voice/transcribe retornou HTTP {status}"));
+    }
+
+    let body = read_response_body_limit(&mut response, 4096)?;
+    let result: VoiceTranscribeResponse =
+        serde_json::from_str(&body).map_err(|e| anyhow!("parse /voice/transcribe: {e}"))?;
+    let text = result.text.unwrap_or_default();
+    if !result.ok || text.trim().is_empty() {
+        return Err(anyhow!(
+            "transcricao vazia: {}",
+            result.error.unwrap_or_else(|| body)
+        ));
+    }
+    Ok(text)
+}
+
+fn post_voice_command(
+    health_url: &str,
+    text: &str,
+    language_index: u8,
+) -> Result<VoiceCommandResponse> {
+    let url = api_base(health_url) + "/voice/command";
+    let payload = serde_json::json!({
+        "text": text,
+        "language": language_index,
+    })
+    .to_string();
+    let content_length = payload.len().to_string();
+    let headers = [
+        ("content-type", "application/json"),
+        ("accept", "application/json"),
+        ("content-length", content_length.as_str()),
+    ];
+
+    let mut client = HttpClient::wrap(EspHttpConnection::new(&http_config())?);
+    let mut request = client.request(Method::Post, &url, &headers)?;
+    request.write_all(payload.as_bytes())?;
+    request.flush()?;
+    let mut response = request.submit()?;
+    let status = response.status();
+    if !(200..300).contains(&status) {
+        return Err(anyhow!("/voice/command retornou HTTP {status}"));
+    }
+
+    let body = read_response_body_limit(&mut response, 1024)?;
+    let result: VoiceCommandResponse =
+        serde_json::from_str(&body).map_err(|e| anyhow!("parse /voice/command: {e}"))?;
+    if !result.ok {
+        return Err(anyhow!("comando nao reconhecido: {body}"));
+    }
+    Ok(result)
+}
+
 fn music_command_url(health_url: &str) -> String {
     if let Some(base) = health_url.strip_suffix("/health") {
         format!("{base}/music/command")
@@ -649,6 +830,71 @@ fn http_config() -> esp_idf_svc::http::client::Configuration {
         use_global_ca_store: false,
         ..Default::default()
     }
+}
+
+fn http_config_fast() -> esp_idf_svc::http::client::Configuration {
+    esp_idf_svc::http::client::Configuration {
+        timeout: Some(Duration::from_secs(3)),
+        use_global_ca_store: false,
+        ..Default::default()
+    }
+}
+
+fn probe_api_fast(url: &str) -> bool {
+    let conn = match EspHttpConnection::new(&http_config_fast()) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let mut client = HttpClient::wrap(conn);
+    let headers = [("accept", "application/json")];
+    let request = match client.request(Method::Get, url, &headers) {
+        Ok(r) => r,
+        Err(_) => return false,
+    };
+    match request.submit() {
+        Ok(mut response) => (200..300).contains(&response.status()),
+        Err(_) => false,
+    }
+}
+
+fn read_response_body_limit<R>(response: &mut R, limit: usize) -> Result<String>
+where
+    R: embedded_svc::io::Read,
+    <R as embedded_svc::io::ErrorType>::Error: core::fmt::Debug + Send + Sync + 'static,
+{
+    let mut body = Vec::new();
+    let mut chunk = [0_u8; 512];
+    loop {
+        let bytes_read = io::try_read_full(&mut *response, &mut chunk)
+            .map_err(|e| anyhow!("read error: {:?}", e.0))?;
+        if bytes_read == 0 {
+            break;
+        }
+        let remaining = limit.saturating_sub(body.len());
+        body.extend_from_slice(&chunk[..bytes_read.min(remaining)]);
+        if bytes_read < chunk.len() || body.len() >= limit {
+            break;
+        }
+    }
+    String::from_utf8(body).map_err(|e| anyhow!("body nao e UTF-8: {e}"))
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct VoiceTranscribeResponse {
+    ok: bool,
+    #[serde(default)]
+    text: Option<String>,
+    #[serde(default)]
+    error: Option<String>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct VoiceCommandResponse {
+    ok: bool,
+    #[serde(default)]
+    app_index: Option<u8>,
+    #[serde(default)]
+    app_name: Option<String>,
 }
 
 fn current_hhmm(offset_secs: i32) -> String {

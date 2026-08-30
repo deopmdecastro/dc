@@ -22,6 +22,7 @@ Ambiente local do DC Assistant, orquestrado com Docker Compose.
 | GET | `/music/devices` | Dispositivos Spotify disponiveis |
 | GET | `/music/top-tracks` | Top tracks reais via Spotify Web API (cache de 5 min) |
 | POST | `/music/command` | `{ "action": "play|pause|next|prev" }` |
+| GET | `/songshare/tracks` | Catalogo Songstats/RapidAPI em formato compacto para o firmware |
 | GET | `/spotify/login` | Inicia o login OAuth da Spotify (visitar num browser) |
 | GET | `/spotify/callback` | Callback OAuth; troca o `code` por tokens |
 | GET | `/spotify/status` | Diagnostico: o que esta configurado e o que falta |
@@ -33,6 +34,7 @@ Ambiente local do DC Assistant, orquestrado com Docker Compose.
 docker compose up -d --build
 curl http://localhost:8081/health
 curl "http://localhost:8081/weather?region=1"
+curl "http://localhost:8081/songshare/tracks?compact=true"
 ```
 
 ## Variaveis
@@ -50,6 +52,10 @@ curl "http://localhost:8081/weather?region=1"
 | `SPOTIFY_DEVICE_ID` | vazio | dc-os-core |
 | `SPOTIFY_REDIRECT_URI` | `http://localhost:8081/spotify/callback` | dc-os-core |
 | `SPOTIFY_TOKEN_STORE` | `/data/spotify_refresh_token` (no container) | dc-os-core |
+| `SONGSTATS_RAPIDAPI_KEY` | vazio | dc-os-core |
+| `SONGSTATS_RAPIDAPI_HOST` | `songstats.p.rapidapi.com` | dc-os-core |
+| `SONGSTATS_LABEL_ID` | `7gk4yfc9` | dc-os-core |
+| `BEATPORT_LABEL_ID` | `74932` | dc-os-core |
 | `ASR_MODEL` | small | stt-whisper |
 
 ## Configurar o Spotify (login OAuth em 3 passos)
@@ -90,3 +96,28 @@ reduzir o numero de chamadas feitas a Spotify Web API (o firmware sonda este
 endpoint a cada 60s) e diminuir o risco de HTTP 429 (rate limit). Um pedido
 que devolva 429 e reportado como `{"ok": false, "error": "rate_limited"}` em
 vez de tentar renovar o token (o 429 nao tem nada a ver com token expirado).
+
+## SongShare / Songstats
+
+`/songshare/tracks?compact=true` usa a API Songstats via RapidAPI e devolve as
+faixas num formato igual ao compact do Spotify:
+
+```json
+{
+  "ok": true,
+  "driver": "songshare",
+  "body": { "items": [{ "name": "...", "artists": [{ "name": "..." }] }] }
+}
+```
+
+A chave deve ficar apenas em `backend/.env`:
+
+```text
+SONGSTATS_RAPIDAPI_KEY=...
+SONGSTATS_LABEL_ID=7gk4yfc9
+BEATPORT_LABEL_ID=74932
+```
+
+Esta API fornece catalogo/metadados/songshare; ela nao e um stream de audio.
+No firmware, a app SongShare reutiliza a UI do player para listar/navegar as
+faixas recebidas.
