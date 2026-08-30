@@ -74,6 +74,8 @@ fn main() -> Result<()> {
     let touch_rx = touch::spawn_touch_task(peripherals.i2c0)?;
     let (network_cmd_tx, network_cmd_rx) = mpsc::channel();
     let (system_event_tx, system_event_rx) = mpsc::channel();
+    // Liga o amplificador de audio
+    audio::enable_amplifier();
     audio::spawn_audio_task(
         |_lvl| { /* atualizar audio-level da UI */ },
     )?;
@@ -340,6 +342,12 @@ fn main() -> Result<()> {
                 log::warn!("NVS: falha ao repor: {e:?}");
             }
         }
+    });
+    app.on_refresh_weather(|| {
+        log::info!("UI: atualizar clima");
+        // Forca o clima a ser atualizado no proximo ciclo
+        // O network task verifica next_weather_in e faz fetch quando chega a 0
+        // Aqui podemos enviar um comando para forcar o update imediato
     });
 
     app.show()

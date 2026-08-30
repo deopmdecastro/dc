@@ -16,10 +16,16 @@ pub mod pins {
     pub const TOUCH_RST: u8 = 18;
 
     // Áudio I2S
-    pub const I2S_BCLK: u8 = 4;
-    pub const I2S_WS: u8 = 8;
-    pub const I2S_DIN: u8 = 6; // mic MEMS  → S3
-    pub const I2S_DOUT: u8 = 7; // S3       → speaker
+    pub const AMP_EN: u8 = 1;   // Amplificador enable (LOW = ligado)
+    pub const I2S_MCLK: u8 = 4; // Master clock do codec
+    pub const I2S_BCLK: u8 = 5; // Bit clock
+    pub const I2S_WS: u8 = 7;   // Word select (L/R channel)
+    pub const I2S_DOUT: u8 = 8; // Dados de saída (ESP32 → codec)
+    pub const I2S_DIN: u8 = 6;  // Dados de entrada (codec → ESP32)
+
+    // I²C (codec, touch e expansão compartilham)
+    pub const I2C_SDA: u8 = 16;
+    pub const I2C_SCL: u8 = 15;
 }
 
 /// Resolução da UI (Slint) — display em orientação horizontal.

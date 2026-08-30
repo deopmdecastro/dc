@@ -88,6 +88,7 @@ export component AppWindow inherits Window {
     callback music-command(string);
     callback delete-note(int);
     callback confirm-action(int);
+    callback refresh-weather();
     callback save-note(string, int);
     // Emitido pelo Control Center quando o utilizador liga/desliga a
     // rotacao automatica. O Rust ajusta MADCTL no ILI9341V.
@@ -193,7 +194,7 @@ export component AppWindow inherits Window {
                 temperature: root.weather-temp;
                 summary: root.weather-summary;
                 language-index: root.language-index;
-                refresh => { root.locale-changed(root.region-index, root.language-index); }
+                refresh => { root.refresh-weather(); }
                 back => { root.show-screen(Screen.Launcher); }
             }
 

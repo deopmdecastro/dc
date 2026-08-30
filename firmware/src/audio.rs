@@ -1,6 +1,7 @@
 //! Audio I2S: TX funcional para o amplificador e RX para captura do microfone.
 use anyhow::{anyhow, Result};
-use crate::pinout::pins::{I2S_BCLK, I2S_DIN, I2S_DOUT, I2S_WS};
+use crate::pinout::pins::{AMP_EN, I2S_BCLK, I2S_DIN, I2S_DOUT, I2S_MCLK, I2S_WS};
+use esp_idf_sys::gpio_num_t;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
@@ -13,6 +14,26 @@ pub const SAMPLE_RATE: u32 = 16_000;
 pub const CHANNELS: u8 = 1;
 pub const BITS: u8 = 16;
 pub const BUFFER_SIZE: usize = 1024;
+
+/// Liga o amplificador de áudio (GPIO1 = LOW)
+pub fn enable_amplifier() {
+    unsafe {
+        let pin = AMP_EN as gpio_num_t;
+        esp_idf_sys::gpio_set_direction(pin, esp_idf_sys::gpio_mode_t_GPIO_MODE_OUTPUT);
+        esp_idf_sys::gpio_set_level(pin, 0); // LOW = amplificador ligado
+        log::info!("Amplificador de audio ligado (GPIO{} = LOW)", AMP_EN);
+    }
+}
+
+/// Desliga o amplificador de áudio (GPIO1 = HIGH)
+pub fn disable_amplifier() {
+    unsafe {
+        let pin = AMP_EN as gpio_num_t;
+        esp_idf_sys::gpio_set_direction(pin, esp_idf_sys::gpio_mode_t_GPIO_MODE_OUTPUT);
+        esp_idf_sys::gpio_set_level(pin, 1); // HIGH = amplificador desligado
+        log::info!("Amplificador de audio desligado (GPIO{} = HIGH)", AMP_EN);
+    }
+}
 
 /// Emite um beep curto no DAC/amp I2S para validar o caminho de audio.
 pub fn play_test_tone(tone: u8) {
@@ -29,6 +50,9 @@ unsafe fn init_i2s_tx() -> Result<()> {
         I2S_INITIALIZED.store(false, Ordering::SeqCst);
     }
     if !I2S_INITIALIZED.load(Ordering::SeqCst) {
+        // Liga o amplificador
+        enable_amplifier();
+        
         let mut cfg: esp_idf_sys::i2s_config_t = core::mem::zeroed();
         cfg.mode = (esp_idf_sys::i2s_mode_t_I2S_MODE_MASTER | esp_idf_sys::i2s_mode_t_I2S_MODE_TX) as u32;
         cfg.sample_rate = SAMPLE_RATE;
@@ -44,7 +68,7 @@ unsafe fn init_i2s_tx() -> Result<()> {
         let pins = esp_idf_sys::i2s_pin_config_t {
             bck_io_num: I2S_BCLK as i32, ws_io_num: I2S_WS as i32,
             data_out_num: I2S_DOUT as i32, data_in_num: -1,
-            mck_io_num: -1,
+            mck_io_num: I2S_MCLK as i32,
         };
         let err = esp_idf_sys::i2s_driver_install(port, &cfg, 0, core::ptr::null_mut());
         if err != 0 && err != esp_idf_sys::ESP_ERR_INVALID_STATE { return Err(anyhow!("i2s_driver_install TX: {err}")); }
@@ -52,6 +76,7 @@ unsafe fn init_i2s_tx() -> Result<()> {
         if err != 0 { return Err(anyhow!("i2s_set_pin TX: {err}")); }
         I2S_INITIALIZED.store(true, Ordering::SeqCst);
         I2S_TX_MODE.store(true, Ordering::SeqCst);
+        log::info!("I2S TX inicializado: MCLK={}, BCLK={}, WS={}, DOUT={}", I2S_MCLK, I2S_BCLK, I2S_WS, I2S_DOUT);
     }
     Ok(())
 }
@@ -79,7 +104,7 @@ unsafe fn init_i2s_rx() -> Result<()> {
         let pins = esp_idf_sys::i2s_pin_config_t {
             bck_io_num: I2S_BCLK as i32, ws_io_num: I2S_WS as i32,
             data_out_num: -1, data_in_num: I2S_DIN as i32,
-            mck_io_num: -1,
+            mck_io_num: I2S_MCLK as i32,
         };
         let err = esp_idf_sys::i2s_driver_install(port, &cfg, 0, core::ptr::null_mut());
         if err != 0 && err != esp_idf_sys::ESP_ERR_INVALID_STATE { return Err(anyhow!("i2s_driver_install RX: {err}")); }
