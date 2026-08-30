@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/* =====================================================
+   DC OS — Design tokens ("Midnight Cyan")
+   Portados 1:1 de firmware/ui/theme.slint para a web.
+   ===================================================== */
+@theme {
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-bg-0: #0a0e14;
+  --color-bg-1: #0f141c;
+  --color-bg-2: #161c26;
+
+  --color-panel: #141a24;
+  --color-panel-soft: #1b2230;
+  --color-panel-elevated: #26303f;
+
+  --color-stroke: #303b4e;
+  --color-stroke-soft: #212a38;
+
+  --color-text-primary: #f1f6fc;
+  --color-text-secondary: #9fb0c6;
+  --color-text-muted: #64748b;
+  --color-text-dim: #46536a;
+
+  --color-accent: #38bdf8;
+  --color-accent-hi: #7dd3fc;
+  --color-accent-deep: #075985;
+  --color-accent-cyan: #2dd4bf;
+  --color-accent-blue: #4f8df7;
+  --color-accent-pink: #f472b6;
+  --color-accent-violet: #a78bfa;
+
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #fb7185;
+
+  --color-accent-tint: #12283a;
+  --color-success-tint: #123122;
+  --color-danger-tint: #331a24;
+
+  --radius-xs: 5px;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, #0f1c2b 0%, var(--color-bg-0) 55%);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-accent-deep);
+  color: var(--color-text-primary);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-panel-elevated);
+  border-radius: 999px;
+  border: 2px solid var(--color-bg-0);
+}
+
+.glow-ring {
+  box-shadow: 0 0 0 1px var(--color-stroke-soft), 0 0 40px -10px rgba(56, 189, 248, 0.25);
+}
+
+.bg-noise {
+  background-image: radial-gradient(rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.animate-pulse-slow {
+  animation: pulse-slow 2.4s ease-in-out infinite;
+}
