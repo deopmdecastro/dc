@@ -69,6 +69,14 @@ impl ConfigStore {
                 api.to_owned()
             }
             (Some(api), _) => api.to_owned(),
+            // URL https:// para o dc-os-core e sempre erro: o backend e HTTP simples
+            // e o EspHttpConnection do ESP-IDF ativa esp-tls (TLS) para https://, o
+            // que contra HTTP puro gera ESP_ERR_HTTP_CONNECT / "Software caused
+            // connection abort" (socket 113, ECONNABORTED) antes de qualquer resposta.
+            (None, Some(api)) if is_https_url(&api) => {
+                log::warn!("Config: api_health_url https:// ignorado - backend e HTTP simples; TLS contra HTTP causa ESP_ERR_HTTP_CONNECT / connection abort");
+                fallback_api.to_owned()
+            }
             (None, Some(api)) if !is_localhost_url(&api) => api,
             (None, Some(_)) => {
                 log::warn!("Config: api_health_url local/localhost ignorado no ESP");
@@ -201,4 +209,8 @@ impl ConfigStore {
 fn is_localhost_url(value: &str) -> bool {
     let value = value.trim().to_ascii_lowercase();
     value.contains("://localhost") || value.contains("://127.0.0.1") || value.contains("://0.0.0.0")
+}
+
+fn is_https_url(value: &str) -> bool {
+    value.trim().to_ascii_lowercase().starts_with("https://")
 }

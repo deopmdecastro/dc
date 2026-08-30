@@ -424,4 +424,36 @@ Ver [docs/PINOUT.md](docs/PINOUT.md) para a tabela completa.
   `localhost` nem `127.0.0.1`, porque no ESP esses enderecos apontam para o
   proprio ESP, nao para o computador.
 
+### Erro `ESP_ERR_HTTP_CONNECT` / `Software caused connection abort` (socket 113 / ECONNABORTED)
+
+O ESP32 consegue enviar o pacote de conexao, mas o socket e interrompido/rejeitado na
+camada TCP/IP antes da resposta HTTP. Causas e verificacoes em ordem de probabilidade:
+
+1. **Firewall do PC a bloquear a porta 8081.** No PC onde corre o `dc-os-core`, executa
+   no PowerShell como Administrador:
+   ```powershell
+   New-NetFirewallRule -DisplayName "DC Core HTTP 8081" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8081
+   ```
+2. **Servidor a escutar so em `localhost`.** O `dc-os-core` ja liga em `0.0.0.0` (ver
+   `backend/dc-os-core/src/main.rs`), mas se correres fora do docker-compose confirma
+   que o bind e `0.0.0.0`, nao `127.0.0.1`.
+3. **URL errada no firmware.** Nunca uses `localhost`/`127.0.0.1`/`https://` para o
+   `dc-os-core`: o backend e HTTP simples, e `https://` faz o `esp-tls` tentar um
+   handshake TLS contra HTTP puro, gerando exatamente este erro. Usa:
+   ```powershell
+   $env:DC_CORE_HTTP = "http://<IP-do-PC>:8081/health"
+   ```
+   O firmware agora ignora URLs `https://` guardadas em NVS (ver `firmware/src/config.rs`).
+4. **AP Isolation / router.** Se o router Wi-Fi tiver isolamento de clientes ativo, o ESP
+   nao consegue falar com o PC mesmo na mesma rede. Desativa a isolacao no router.
+
+Testa do PC antes de culpar o ESP:
+
+```bash
+curl -I http://192.168.1.50:8081/health
+```
+
+Se o `curl` falhar, o problema esta no PC/rede; se responder, o problema esta no caminho
+Wi-Fi/AP isolation ou na URL do firmware.
+
 Guia detalhado: [docs/BUILD_AND_FLASH.md](docs/BUILD_AND_FLASH.md).
