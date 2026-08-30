@@ -41,7 +41,7 @@ const SONGSHARE_CACHE_TTL: Duration = Duration::from_secs(300);
 const SPOTIFY_AUTH_URL: &str = "https://accounts.spotify.com/authorize";
 const SPOTIFY_TOKEN_URL: &str = "https://accounts.spotify.com/api/token";
 const SPOTIFY_SCOPES: &str =
-    "user-top-read user-read-playback-state user-modify-playback-state user-read-currently-playing";
+    "user-top-read user-read-playback-state user-modify-playback-state user-read-currently-playing user-library-read playlist-read-private playlist-read-collaborative user-read-recently-played user-read-private";
 
 struct AppState {
     stt_url: String,
@@ -116,7 +116,13 @@ struct TimeQuery {
 }
 
 #[derive(Deserialize)]
-struct MusicTopTracksQuery {
+struct MusicQuery {
+    compact: Option<String>,
+    limit: Option<u8>,
+}
+
+#[derive(Deserialize)]
+struct PlaylistQuery {
     compact: Option<String>,
 }
 
@@ -216,6 +222,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/music/state", get(music_state))
         .route("/music/devices", get(music_devices))
         .route("/music/top-tracks", get(music_top_tracks))
+        .route("/music/playlists", get(music_playlists))
+        .route("/music/saved-tracks", get(music_saved_tracks))
+        .route("/music/recently-played", get(music_recently_played))
         .route("/music/command", post(music_command))
         .route("/songshare/tracks", get(songshare_tracks))
         .route("/spotify/login", get(spotify_login))
@@ -726,7 +735,7 @@ async fn music_devices(State(s): State<Arc<AppState>>) -> Json<serde_json::Value
 }
 
 async fn music_top_tracks(
-    Query(query): Query<MusicTopTracksQuery>,
+    Query(query): Query<MusicQuery>,
     State(s): State<Arc<AppState>>,
 ) -> Json<serde_json::Value> {
     if !spotify_configured(&s).await {
@@ -741,9 +750,10 @@ async fn music_top_tracks(
         return Json(top_tracks_response(cached, query.compact(), true));
     }
 
-    let endpoint = "/v1/me/top/tracks?time_range=long_term&limit=5";
+    let limit = query.limit.unwrap_or(20).min(50);
+    let endpoint = format!("/v1/me/player/recently-played?limit={}", limit);
     Json(
-        match spotify_request(&s, reqwest::Method::GET, endpoint, None).await {
+        match spotify_request(&s, reqwest::Method::GET, &endpoint, None).await {
             Ok((status, body)) if status.is_success() => {
                 write_top_tracks_cache(&s, body.clone()).await;
                 top_tracks_response(body, query.compact(), false)
@@ -810,7 +820,6 @@ fn compact_spotify_tracks(body: &serde_json::Value) -> Vec<serde_json::Value> {
         .map(|items| {
             items
                 .iter()
-                .take(5)
                 .map(|item| {
                     let artists = item
                         .get("artists")
@@ -843,7 +852,193 @@ fn compact_spotify_tracks(body: &serde_json::Value) -> Vec<serde_json::Value> {
         .unwrap_or_default()
 }
 
-impl MusicTopTracksQuery {
+// Get user's playlists
+async fn music_playlists(
+    Query(query): Query<PlaylistQuery>,
+    State(s): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    if !spotify_configured(&s).await {
+        return Json(serde_json::json!({
+            "ok": false,
+            "driver": "spotify",
+            "error": "Spotify nao configurado. Visita /spotify/login para autorizar a conta."
+        }));
+    }
+
+    let endpoint = "/v1/me/playlists?limit=50";
+    Json(
+        match spotify_request(&s, reqwest::Method::GET, endpoint, None).await {
+            Ok((status, body)) if status.is_success() => {
+                if query.compact.as_deref().map(|v| matches!(v, "1" | "true" | "yes" | "sim")).unwrap_or(false) {
+                    serde_json::json!({
+                        "ok": true,
+                        "driver": "spotify",
+                        "body": {
+                            "items": body.get("items").and_then(|items| items.as_array()).map(|items| {
+                                items.iter().map(|item| {
+                                    serde_json::json!({
+                                        "id": item.get("id").and_then(|v| v.as_str()).unwrap_or(""),
+                                        "name": item.get("name").and_then(|v| v.as_str()).unwrap_or(""),
+                                        "tracks": item.get("tracks").and_then(|t| t.get("total")).and_then(|v| v.as_u64()).unwrap_or(0),
+                                        "images": item.get("images").and_then(|i| i.as_array()).map(|imgs| {
+                                            imgs.first().and_then(|img| img.get("url").and_then(|u| u.as_str())).unwrap_or("")
+                                        }).unwrap_or(""),
+                                    })
+                                }).collect::<Vec<_>>()
+                            }).unwrap_or_default()
+                        }
+                    })
+                } else {
+                    serde_json::json!({ "ok": true, "driver": "spotify", "body": body })
+                }
+            }
+            Ok((status, body)) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "status": status.as_u16(),
+                "body": body
+            }),
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "error": e.to_string()
+            }),
+        },
+    )
+}
+
+// Get user's saved tracks
+async fn music_saved_tracks(
+    Query(query): Query<MusicQuery>,
+    State(s): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    if !spotify_configured(&s).await {
+        return Json(serde_json::json!({
+            "ok": false,
+            "driver": "spotify",
+            "error": "Spotify nao configurado. Visita /spotify/login para autorizar a conta."
+        }));
+    }
+
+    let limit = query.limit.unwrap_or(50).min(50);
+    let endpoint = format!("/v1/me/tracks?limit={}", limit);
+    Json(
+        match spotify_request(&s, reqwest::Method::GET, &endpoint, None).await {
+            Ok((status, body)) if status.is_success() => {
+                if query.compact() {
+                    serde_json::json!({
+                        "ok": true,
+                        "driver": "spotify",
+                        "body": {
+                            "items": body.get("items").and_then(|items| items.as_array()).map(|items| {
+                                items.iter().filter_map(|item| {
+                                    item.get("track").map(|track| compact_track(track))
+                                }).collect::<Vec<_>>()
+                            }).unwrap_or_default(),
+                            "total": body.get("total").and_then(|v| v.as_u64()).unwrap_or(0)
+                        }
+                    })
+                } else {
+                    serde_json::json!({ "ok": true, "driver": "spotify", "body": body })
+                }
+            }
+            Ok((status, body)) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "status": status.as_u16(),
+                "body": body
+            }),
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "error": e.to_string()
+            }),
+        },
+    )
+}
+
+// Get recently played tracks
+async fn music_recently_played(
+    Query(query): Query<MusicQuery>,
+    State(s): State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    if !spotify_configured(&s).await {
+        return Json(serde_json::json!({
+            "ok": false,
+            "driver": "spotify",
+            "error": "Spotify nao configurado. Visita /spotify/login para autorizar a conta."
+        }));
+    }
+
+    let limit = query.limit.unwrap_or(20).min(50);
+    let endpoint = format!("/v1/me/top/tracks?time_range=long_term&limit={}", limit);
+    Json(
+        match spotify_request(&s, reqwest::Method::GET, &endpoint, None).await {
+            Ok((status, body)) if status.is_success() => {
+                if query.compact() {
+                    serde_json::json!({
+                        "ok": true,
+                        "driver": "spotify",
+                        "body": {
+                            "items": body.get("items").and_then(|items| items.as_array()).map(|items| {
+                                items.iter().filter_map(|item| {
+                                    item.get("track").map(|track| compact_track(track))
+                                }).collect::<Vec<_>>()
+                            }).unwrap_or_default(),
+                            "total": body.get("total").and_then(|v| v.as_u64()).unwrap_or(0)
+                        }
+                    })
+                } else {
+                    serde_json::json!({ "ok": true, "driver": "spotify", "body": body })
+                }
+            }
+            Ok((status, body)) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "status": status.as_u16(),
+                "body": body
+            }),
+            Err(e) => serde_json::json!({
+                "ok": false,
+                "driver": "spotify",
+                "error": e.to_string()
+            }),
+        },
+    )
+}
+
+fn compact_track(track: &serde_json::Value) -> serde_json::Value {
+    let artists = track.get("artists").and_then(|a| a.as_array()).map(|a| {
+        a.iter().filter_map(|artist| {
+            artist.get("name").and_then(|name| name.as_str()).map(|name| serde_json::json!({ "name": name }))
+        }).collect::<Vec<_>>()
+    }).unwrap_or_default();
+
+    serde_json::json!({
+        "id": track.get("id").and_then(|v| v.as_str()).unwrap_or(""),
+        "name": track.get("name").and_then(|v| v.as_str()).unwrap_or(""),
+        "artists": artists,
+        "album": track.get("album").map(|a| serde_json::json!({
+            "name": a.get("name").and_then(|v| v.as_str()).unwrap_or(""),
+            "images": a.get("images").and_then(|i| i.as_array()).and_then(|imgs| {
+                imgs.first().and_then(|img| img.get("url").and_then(|u| u.as_str())).map(|u| serde_json::json!([{ "url": u }]))
+            }).unwrap_or_else(|| serde_json::json!([]))
+        })).unwrap_or_default(),
+        "duration_ms": track.get("duration_ms").and_then(|v| v.as_u64()).unwrap_or(0),
+        "uri": track.get("uri").and_then(|v| v.as_str()).unwrap_or(""),
+    })
+}
+
+impl MusicQuery {
+    fn compact(&self) -> bool {
+        self.compact
+            .as_deref()
+            .map(|value| matches!(value, "1" | "true" | "yes" | "sim"))
+            .unwrap_or(false)
+    }
+}
+
+impl PlaylistQuery {
     fn compact(&self) -> bool {
         self.compact
             .as_deref()

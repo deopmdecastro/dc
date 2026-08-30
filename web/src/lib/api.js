@@ -26,7 +26,10 @@ export const api = {
   // Music
   musicState: () => request("/music/state"),
   musicDevices: () => request("/music/devices"),
-  musicTopTracks: (compact = true) => request(`/music/top-tracks${compact ? "?compact=true" : ""}`),
+  musicTopTracks: (compact = true, limit = 20) => request(`/music/top-tracks${compact ? "?compact=true" : ""}${limit ? `&limit=${limit}` : ""}`),
+  musicPlaylists: (compact = true) => request(`/music/playlists${compact ? "?compact=true" : ""}`),
+  musicSavedTracks: (compact = true, limit = 50) => request(`/music/saved-tracks${compact ? "?compact=true" : ""}${limit ? `&limit=${limit}` : ""}`),
+  musicRecentlyPlayed: (compact = true, limit = 20) => request(`/music/recently-played${compact ? "?compact=true" : ""}${limit ? `&limit=${limit}` : ""}`),
   musicCommand: (action) => request("/music/command", { method: "POST", body: JSON.stringify({ action }) }),
 
   // SongShare
