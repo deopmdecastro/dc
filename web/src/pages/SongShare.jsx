@@ -1,47 +1,45 @@
-import { useState, useCallback } from "react";
-import { ArrowLeft, Play, Heart, Share2, Search, Loader2, Music } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Play, Heart, Search, Loader2, Music, ExternalLink } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolledApi } from "../lib/useApi";
+
+const GRADIENT_COLORS = [
+  "from-red-500 to-orange-400",
+  "from-pink-500 to-rose-400",
+  "from-purple-500 to-violet-400",
+  "from-yellow-500 to-amber-400",
+  "from-green-500 to-emerald-400",
+  "from-blue-500 to-indigo-400",
+  "from-orange-500 to-yellow-400",
+  "from-teal-500 to-cyan-400",
+];
+
+function getGradient(id) {
+  const idx = typeof id === "string" ? id.charCodeAt(0) : id;
+  return GRADIENT_COLORS[idx % GRADIENT_COLORS.length];
+}
 
 export default function SongShare({ onBack }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTrack, setSelectedTrack] = useState(null);
+  const { data: songshareData, loading } = usePolledApi(() => api.songshareTracks(true), { intervalMs: 60000 });
 
-  // Mock data for SongShare (would come from /songshare/tracks)
-  const mockTracks = [
-    { id: "1", title: "Blinding Lights", artist: "The Weeknd", album: "After Hours", duration: "3:20", genre: "Pop", color: "from-red-500 to-orange-400" },
-    { id: "2", title: "Levitating", artist: "Dua Lipa", album: "Future Nostalgia", duration: "3:23", genre: "Pop", color: "from-pink-500 to-rose-400" },
-    { id: "3", title: "Save Your Tears", artist: "The Weeknd", album: "After Hours", duration: "3:35", genre: "Pop", color: "from-purple-500 to-violet-400" },
-    { id: "4", title: "Stay", artist: "Kid LAROI & Justin Bieber", album: "F*CK LOVE 3", duration: "2:21", genre: "Pop", color: "from-yellow-500 to-amber-400" },
-    { id: "5", title: "Good 4 U", artist: "Olivia Rodrigo", album: "SOUR", duration: "2:58", genre: "Pop Rock", color: "from-green-500 to-emerald-400" },
-    { id: "6", title: "Montero", artist: "Lil Nas X", album: "MONTERO", duration: "2:17", genre: "Pop Rap", color: "from-blue-500 to-indigo-400" },
-    { id: "7", title: "Peaches", artist: "Justin Bieber", album: "Justice", duration: "3:18", genre: "R&B", color: "from-orange-500 to-yellow-400" },
-    { id: "8", title: "Kiss Me More", artist: "Doja Cat ft. SZA", album: "Planet Her", duration: "3:28", genre: "Pop", color: "from-teal-500 to-cyan-400" },
-  ];
+  const tracks = songshareData?.body?.items || [];
+  const isOffline = songshareData?.ok === false;
 
-  const filteredTracks = mockTracks.filter(
-    (t) =>
-      t.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.artist.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredTracks = searchQuery
+    ? tracks.filter(
+        (t) =>
+          t.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          t.artists?.some((a) => a.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+      )
+    : tracks;
 
   return (
     <div className="flex h-full flex-col bg-bg-0">
       {/* Header */}
-      <div
-        className="flex items-center gap-3"
-        style={{
-          height: "56px",
-          padding: "0 16px",
-          background: "linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%)",
-          borderBottom: "1px solid var(--stroke-soft)",
-        }}
-      >
-        <button
-          onClick={onBack}
-          className="flex h-9 w-9 items-center justify-center rounded-xl"
-          style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)", cursor: "pointer" }}
-        >
+      <div className="flex items-center gap-3" style={{ height: "56px", padding: "0 16px", background: "linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%)", borderBottom: "1px solid var(--stroke-soft)" }}>
+        <button onClick={onBack} className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)", cursor: "pointer" }}>
           <ArrowLeft size={16} style={{ color: "var(--text-secondary)" }} />
         </button>
         <div>
@@ -52,16 +50,7 @@ export default function SongShare({ onBack }) {
 
       {/* Search */}
       <div className="px-4 py-3">
-        <div
-          className="flex items-center gap-2"
-          style={{
-            height: "40px",
-            borderRadius: "12px",
-            background: "var(--panel-soft)",
-            border: "1px solid var(--stroke-soft)",
-            padding: "0 12px",
-          }}
-        >
+        <div className="flex items-center gap-2" style={{ height: "40px", borderRadius: "12px", background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)", padding: "0 12px" }}>
           <Search size={14} style={{ color: "var(--text-dim)" }} />
           <input
             value={searchQuery}
@@ -74,53 +63,58 @@ export default function SongShare({ onBack }) {
 
       {/* Track list */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
-        <div className="space-y-2">
-          {filteredTracks.map((track, idx) => (
-            <button
-              key={track.id}
-              onClick={() => setSelectedTrack(track.id === selectedTrack?.id ? null : track)}
-              className="flex w-full items-center gap-3 rounded-xl p-3 transition-all duration-150"
-              style={{
-                background: selectedTrack?.id === track.id ? "var(--accent-tint)" : "var(--panel-soft)",
-                border: `1px solid ${selectedTrack?.id === track.id ? "var(--accent)/40" : "var(--stroke-soft)"}`,
-              }}
-            >
-              {/* Album art placeholder */}
-              <div
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${track.color}`}
+        {loading && !songshareData ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader2 size={20} className="animate-spin" style={{ color: "var(--accent)" }} />
+          </div>
+        ) : isOffline ? (
+          <div className="flex flex-col items-center justify-center h-32 text-center">
+            <p className="text-sm text-text-secondary">SongShare indisponível</p>
+            <p className="text-[11px] text-text-dim mt-1">Configura SONGSTATS_RAPIDAPI_KEY no backend</p>
+          </div>
+        ) : filteredTracks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32 text-center">
+            <Music size={24} style={{ color: "var(--text-dim)" }} />
+            <p className="text-sm text-text-muted mt-2">Nenhuma faixa encontrada</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredTracks.map((track, idx) => (
+              <button
+                key={track.id || idx}
+                onClick={() => setSelectedTrack(selectedTrack?.id === track.id ? null : track)}
+                className="flex w-full items-center gap-3 rounded-xl p-3 transition-all duration-150"
+                style={{
+                  background: selectedTrack?.id === track.id ? "var(--accent-tint)" : "var(--panel-soft)",
+                  border: `1px solid ${selectedTrack?.id === track.id ? "var(--accent)/40" : "var(--stroke-soft)"}`,
+                }}
               >
-                <Music size={18} style={{ color: "var(--bg-0)" }} />
-              </div>
+                {/* Album art placeholder */}
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${getGradient(track.id || idx)}`}>
+                  <Music size={18} style={{ color: "var(--bg-0)" }} />
+                </div>
 
-              {/* Track info */}
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-semibold text-text-primary truncate">{track.title}</p>
-                <p className="text-[11px] text-text-muted truncate">{track.artist} · {track.album}</p>
-              </div>
+                {/* Track info */}
+                <div className="flex-1 min-w-0 text-left">
+                  <p className="text-sm font-semibold text-text-primary truncate">{track.name || "Sem título"}</p>
+                  <p className="text-[11px] text-text-muted truncate">{track.artists?.map((a) => a.name).join(", ") || "Artista desconhecido"}</p>
+                </div>
 
-              {/* Duration & actions */}
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] text-text-dim">{track.duration}</span>
+                {/* Actions */}
                 {selectedTrack?.id === track.id && (
                   <div className="flex gap-1 animate-fade-in">
-                    <button
-                      className="flex h-7 w-7 items-center justify-center rounded-full"
-                      style={{ background: "var(--accent)", cursor: "pointer" }}
-                    >
+                    <button className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: "var(--accent)", cursor: "pointer" }}>
                       <Play size={12} style={{ color: "var(--bg-0)", marginLeft: "1px" }} />
                     </button>
-                    <button
-                      className="flex h-7 w-7 items-center justify-center rounded-full"
-                      style={{ background: "var(--panel-elevated)", cursor: "pointer" }}
-                    >
+                    <button className="flex h-7 w-7 items-center justify-center rounded-full" style={{ background: "var(--panel-elevated)", cursor: "pointer" }}>
                       <Heart size={12} style={{ color: "var(--accent-pink)" }} />
                     </button>
                   </div>
                 )}
-              </div>
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Now playing bar */}
@@ -132,17 +126,14 @@ export default function SongShare({ onBack }) {
             borderTop: "1px solid var(--accent)/30",
           }}
         >
-          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${selectedTrack.color}`}>
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${getGradient(selectedTrack.id || 0)}`}>
             <Music size={14} style={{ color: "var(--bg-0)" }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-text-primary truncate">{selectedTrack.title}</p>
-            <p className="text-[10px] text-text-muted">{selectedTrack.artist}</p>
+            <p className="text-xs font-semibold text-text-primary truncate">{selectedTrack.name}</p>
+            <p className="text-[10px] text-text-muted">{selectedTrack.artists?.map((a) => a.name).join(", ")}</p>
           </div>
-          <button
-            className="flex h-9 w-9 items-center justify-center rounded-full"
-            style={{ background: "var(--accent)", cursor: "pointer" }}
-          >
+          <button className="flex h-9 w-9 items-center justify-center rounded-full" style={{ background: "var(--accent)", cursor: "pointer" }}>
             <Play size={14} style={{ color: "var(--bg-0)", marginLeft: "1px" }} />
           </button>
         </div>

@@ -1,45 +1,61 @@
-import { ArrowLeft, Cloud, RefreshCw, Droplets, Wind } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, RefreshCw, Droplets, Wind, MapPin } from "lucide-react";
 import { api } from "../lib/api";
 import { usePolledApi } from "../lib/useApi";
 
-export default function Weather({ onBack }) {
-  const { data: weather, loading, offline, refresh } = usePolledApi(() => api.weather(0), { intervalMs: 60000 });
+const REGIONS = [
+  { index: 0, name: "Brasília", country: "🇧🇷" },
+  { index: 1, name: "Lisboa", country: "🇵🇹" },
+  { index: 2, name: "Luanda", country: "🇦🇴" },
+  { index: 3, name: "Maputo", country: "🇲🇿" },
+  { index: 4, name: "New York", country: "🇺🇸" },
+];
 
-  const temp = Math.round(weather?.temperature ?? weather?.temp ?? 0);
-  const city = weather?.city ?? "Lisboa";
-  const summary = weather?.summary ?? "Parcialmente nublado";
-  const humidity = weather?.humidity ?? 65;
-  const wind = weather?.wind_speed ?? 12;
+export default function Weather({ onBack }) {
+  const [regionIdx, setRegionIdx] = useState(1); // Default: Lisboa
+  const { data: weather, loading, offline, refresh } = usePolledApi(
+    () => api.weather(regionIdx),
+    { intervalMs: 60000, deps: [regionIdx] }
+  );
+
+  const region = REGIONS.find((r) => r.index === regionIdx) || REGIONS[1];
+  const temp = Math.round(weather?.temperature_c ?? 0);
+  const city = weather?.city ?? region.name;
+  const summary = weather?.summary ?? "—";
+  const weatherOk = weather?.ok !== false;
 
   return (
     <div className="flex h-full flex-col bg-bg-0">
       {/* Header */}
-      <div
-        className="flex items-center gap-3"
-        style={{
-          height: "56px",
-          padding: "0 16px",
-          background: "linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%)",
-          borderBottom: "1px solid var(--stroke-soft)",
-        }}
-      >
-        <button
-          onClick={onBack}
-          className="flex h-9 w-9 items-center justify-center rounded-xl"
-          style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)", cursor: "pointer" }}
-        >
+      <div className="flex items-center gap-3" style={{ height: "56px", padding: "0 16px", background: "linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%)", borderBottom: "1px solid var(--stroke-soft)" }}>
+        <button onClick={onBack} className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)", cursor: "pointer" }}>
           <ArrowLeft size={16} style={{ color: "var(--text-secondary)" }} />
         </button>
-        <div className="flex-1">
-          <h1 className="font-display text-base font-bold text-text-primary">Clima</h1>
-        </div>
-        <button
-          onClick={refresh}
-          className="flex h-9 w-9 items-center justify-center rounded-xl"
-          style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)", cursor: "pointer" }}
-        >
+        <div className="flex-1"><h1 className="font-display text-base font-bold text-text-primary">Clima</h1></div>
+        <button onClick={refresh} className="flex h-9 w-9 items-center justify-center rounded-xl" style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)", cursor: "pointer" }}>
           <RefreshCw size={14} style={{ color: "var(--text-muted)" }} />
         </button>
+      </div>
+
+      {/* Region selector */}
+      <div className="px-4 py-3">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {REGIONS.map((r) => (
+            <button
+              key={r.index}
+              onClick={() => setRegionIdx(r.index)}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-all"
+              style={{
+                background: regionIdx === r.index ? "linear-gradient(135deg, var(--accent), var(--accent-blue))" : "var(--panel-soft)",
+                border: `1px solid ${regionIdx === r.index ? "var(--accent)" : "var(--stroke-soft)"}`,
+                color: regionIdx === r.index ? "var(--bg-0)" : "var(--text-secondary)",
+              }}
+            >
+              <span>{r.country}</span>
+              <span>{r.name}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Weather card */}
@@ -63,61 +79,40 @@ export default function Weather({ onBack }) {
               marginBottom: "16px",
             }}
           >
-            <Cloud size={40} style={{ color: "var(--bg-0)" }} />
+            <span style={{ fontSize: "36px" }}>{temp > 25 ? "☀️" : temp > 15 ? "⛅" : "🌧️"}</span>
           </div>
 
           {/* City */}
-          <p className="font-display text-lg font-bold text-text-primary">{city}</p>
+          <div className="flex items-center justify-center gap-1.5 mb-2">
+            <MapPin size={14} style={{ color: "var(--text-muted)" }} />
+            <p className="font-display text-lg font-bold text-text-primary">{city}</p>
+          </div>
 
           {/* Temperature */}
-          <p
-            className="font-display font-extrabold"
-            style={{ fontSize: "64px", color: "var(--accent-hi)", lineHeight: 1.1 }}
-          >
-            {temp}°
-          </p>
+          {loading && !weather ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="h-12 w-24 rounded-lg bg-panel-soft animate-pulse-slow" />
+            </div>
+          ) : (
+            <p className="font-display font-extrabold" style={{ fontSize: "64px", color: "var(--accent-hi)", lineHeight: 1.1 }}>
+              {temp}°
+            </p>
+          )}
 
           {/* Summary */}
           <p className="text-sm text-text-secondary font-medium">{summary}</p>
+
+          {/* Status badge */}
+          {!weatherOk && (
+            <div className="mt-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px]" style={{ background: "var(--warning-tint)", color: "var(--warning)" }}>
+              Dados indisponíveis
+            </div>
+          )}
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-2 gap-3 w-full mt-4">
-          <div
-            className="flex items-center gap-3 rounded-2xl p-4"
-            style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)" }}
-          >
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl"
-              style={{ background: "linear-gradient(135deg, var(--accent-blue), #60a5fa)" }}
-            >
-              <Droplets size={18} style={{ color: "var(--bg-0)" }} />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-text-primary">{humidity}%</p>
-              <p className="text-[10px] text-text-muted">Humidade</p>
-            </div>
-          </div>
-          <div
-            className="flex items-center gap-3 rounded-2xl p-4"
-            style={{ background: "var(--panel-soft)", border: "1px solid var(--stroke-soft)" }}
-          >
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl"
-              style={{ background: "linear-gradient(135deg, var(--accent-cyan), #5eead4)" }}
-            >
-              <Wind size={18} style={{ color: "var(--bg-0)" }} />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-text-primary">{wind} km/h</p>
-              <p className="text-[10px] text-text-muted">Vento</p>
-            </div>
-          </div>
-        </div>
+        {/* Attribution */}
+        <p className="mt-4 text-[10px] text-text-dim">Open-Meteo · Atualizado a cada 60s</p>
       </div>
-
-      {/* Attribution */}
-      <p className="text-center text-[10px] text-text-dim py-3">Open-Meteo</p>
     </div>
   );
 }
